@@ -87,3 +87,17 @@ def test_bass_events_valid():
     assert all(0 <= n.pitch <= 127 for n in bass.notes)
     assert all(n.start_beat >= 0 and n.duration_beats > 0 for n in bass.notes)
     assert all(n.channel != 9 for n in bass.notes)
+
+
+def test_background_layers_valid():
+    """T22：pad / strings 背景层事件合法。"""
+    result = compose_music(build_spec())
+    by_role = {t.role: t for t in result.tracks}
+    for role in ("pad", "strings"):
+        track = by_role.get(role)
+        if track is None:
+            continue
+        assert track.notes
+        assert all(n.duration_beats > 0 for n in track.notes)
+        assert all(1 <= n.velocity <= 127 for n in track.notes)
+        assert all(0 <= n.pitch <= 127 for n in track.notes)

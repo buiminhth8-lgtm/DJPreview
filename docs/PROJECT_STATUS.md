@@ -14,6 +14,7 @@
 - T19 完成：和声质量增强（功能和声 / 终止式 / 扩展和弦 / 段落感知 progression）
 - T20 完成：鼓组 groove 增强（风格 groove / 段落强度 / fill / crash / swing / velocity accent / ghost note）
 - T21 完成：贝斯 groove 增强（风格 bassline / 段落强度 / root-fifth-octave / passing-approach / kick 对齐）
+- T22 完成：弦乐/Pad 编曲增强（chord voicing / 平滑 voice leading / 段落层次 / build-up / layer lift / thinning）
 - 当前分支：`master`
 
 ## 已完成功能
@@ -37,7 +38,7 @@
 ## 当前测试结果
 
 ```text
-pytest -q：408 passed（2026-08-04 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+pytest -q：432 passed（2026-08-04 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
 ```
 
 ## 当前前端构建结果
@@ -65,7 +66,7 @@ npm run build：passed（Vite 5.4.21，tsc 无错误）
 - MIDI Parser / Fallback Renderer 重叠音符问题已修复；未关闭 note_on 仍按“丢弃”处理（后续可按轨道末 tick 收尾）。
 - 乐器命名与 GM Program 映射已统一（T17）；后续新增音色时需先注册到 `packages/music_core/instruments/registry.py`。
 - 旋律/和声/节奏分析指标为轻量辅助，未并入 QualityReport。
-- 弦乐/Pad 声部进行（T22）尚未接入。
+- 后续可做：更细的弦乐真实分部、CC11/CC7 expression 自动化、混音母带等。
 - Evaluation Runner 的 trait 打分语义较粗（如 `has_track_role2` 与 `has_track_role` 重复）。
 
 ### P2（后续）

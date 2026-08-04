@@ -145,6 +145,46 @@ def test_bass_analysis_helpers():
     assert bass_kick_alignment_score(bass, [0.0, 8.0, 16.0], tolerance=0.3) >= 0.5
 
 
+def test_arrangement_analysis_helpers():
+    """T22：轻量编曲/声部进行分析辅助函数可运行且结果有界。"""
+    from packages.music_core.analysis.arrangement_analysis import (
+        arrangement_density_curve,
+        chorus_layer_lift_detected,
+        pad_register_validity,
+        section_entry_exit_score,
+        strings_register_validity,
+        voice_leading_smoothness_score,
+    )
+    from packages.music_core.arrangement.pad_engine import PadEngine
+    from packages.music_core.arrangement.strings_engine import StringsEngine
+    from packages.music_core.composer.music_composer import compose_music
+    from packages.music_core.harmony.harmony_engine import build_bar_harmony
+
+    spec = build_spec()
+    harmony = build_bar_harmony(spec)
+    pad_track = next(t for t in spec.tracks if t.role == "pad")
+    pad = PadEngine().generate(spec, harmony, pad_track, channel=3)
+    assert pad_register_validity(pad) is True
+    assert isinstance(arrangement_density_curve(pad), dict)
+    assert 0.0 <= voice_leading_smoothness_score([[48, 52, 55], [50, 55, 62]]) <= 1.0
+
+    sections: dict[str, list] = {}
+    for note in pad:
+        bar = int(note.start_beat // 4) + 1
+        for section in spec.form:
+            if section.start_bar <= bar < section.start_bar + section.bars:
+                sections.setdefault(section.id, []).append(note)
+                break
+    assert 0.0 <= section_entry_exit_score(sections) <= 1.0
+    if sections.get("verse") and sections.get("chorus"):
+        assert isinstance(chorus_layer_lift_detected(sections["verse"], sections["chorus"]), bool)
+
+    strings_track = next((t for t in spec.tracks if t.role == "strings"), None)
+    if strings_track is not None:
+        strings = StringsEngine().generate(spec, harmony, strings_track, channel=3)
+        assert strings_register_validity(strings) is True
+
+
 def test_optimizer_fixes_missing_melody_and_harmony():
     spec = build_spec()
     spec.tracks = [t for t in spec.tracks if t.role not in ("melody", "harmony")]

@@ -151,7 +151,7 @@
   `midi_constants.GM_PROGRAMS` 由注册表生成；MockProvider / Style Library 改用 canonical id；
   `spec_validator` 新增 `UNKNOWN_INSTRUMENT_ALIAS` warning；新增 `tests/test_instrument_registry.py`
 
-## T18-T22 音乐质量增强（T18 旋律 ✅，T19 和声 ✅，T20 鼓组 ✅，T21 贝斯 ✅，T22 进行中）
+## T18-T22 音乐质量增强（T18 旋律 ✅，T19 和声 ✅，T20 鼓组 ✅，T21 贝斯 ✅，T22 弦乐/Pad ✅）
 
 - 目标：旋律动机、和声进行/终止式、能量曲线、节奏模板、编曲密度调优
 - 优先级：P2
@@ -175,6 +175,11 @@
   root/fifth/octave + 调内 passing/approach tone + 与 kick 对齐（implied 或传入 drum events）+ octave jump +
   velocity accent；贝斯走 melodic channel（非 9）、program 来自 T17 registry；
   新增 `composer/bass_models.py`、`composer/bass_patterns.py`、`analysis/bass_analysis.py`，重写 `bass/bass_engine.py`
+- T22 已完成：弦乐/Pad 编曲增强（chord voicing + 平滑 voice leading + 段落层次）
+  （intro 稀疏 / verse 薄铺 / pre_chorus build / chorus 加厚 + octave layer / bridge 对比 register / outro thinning）+
+  sustained strings / light stab / cinematic ostinato + pad 长音为主；音区避开 bass/melody 冲突；
+  新增 `composer/voicing.py`、`composer/voice_leading.py`、`arrangement/strings_engine.py`、
+  `arrangement/pad_engine.py`、`analysis/arrangement_analysis.py`；composer 接入 pad/strings 专用引擎
 
 ## T23-T25 前端工作台重构 ⬜
 

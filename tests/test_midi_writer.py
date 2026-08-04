@@ -95,3 +95,31 @@ def test_bass_track_uses_melodic_channel_and_program(tmp_path):
     assert bass_channel is not None
     assert bass_channel != 9
     assert bass_program == 33  # electric_bass_finger
+
+
+def test_strings_and_pad_program_change(tmp_path):
+    """T22：strings / pad program 来自 T17 registry，长音不写 0 duration。"""
+    spec = build_spec()
+    spec.tracks = [
+        TrackSpec(id="melody", role="melody", instrument="lead_1_square", velocity=90),
+        TrackSpec(id="piano", role="harmony", instrument="acoustic_grand_piano", velocity=80),
+        TrackSpec(id="bass", role="bass", instrument="electric_bass_finger", velocity=90),
+        TrackSpec(id="drums", role="drums", instrument="standard_drum_kit", velocity=100),
+        TrackSpec(id="pad", role="pad", instrument="pad_2_warm", velocity=70),
+        TrackSpec(id="strings", role="strings", instrument="string_ensemble_1", velocity=70),
+    ]
+    composition = compose_music(spec)
+    output = write_midi(composition, tmp_path / "layers.mid")
+    programs: dict[str, int | None] = {}
+    for track in mido.MidiFile(str(output)).tracks:
+        names = [m for m in track if m.type == "track_name"]
+        if not names:
+            continue
+        name = names[0].name
+        program = next((m.program for m in track if m.type == "program_change"), None)
+        if "pad" in name:
+            programs["pad"] = program
+        if "strings" in name:
+            programs["strings"] = program
+    assert programs.get("pad") == 89  # pad_2_warm
+    assert programs.get("strings") == 48  # string_ensemble_1

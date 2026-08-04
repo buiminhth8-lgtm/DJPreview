@@ -385,10 +385,28 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
 - 轻量贝斯分析辅助 `analysis/bass_analysis.py`（bass_root_support_score / bass_kick_alignment_score /
   bass_motion_score / chorus_bass_lift_detected / bass_range_validity）。
 
+## 弦乐 / Pad 编曲增强（T22）
+
+- 新增 chord voicing（`composer/voicing.py`）与平滑 voice leading（`composer/voice_leading.py`）：
+  按 register 生成 3-4 声部和弦排列，相邻和弦声部移动最小化、共同音保持、避免声部交叉；
+  支持 maj7 / m7 / 7 / sus / add9 等扩展和弦。
+- StringsEngine（`arrangement/strings_engine.py`）：sustained 长音 / light rhythmic stab /
+  cinematic ostinato；intro 稀疏（2 声部）、verse 薄（3 声部低力度）、pre_chorus build（上行句 + 渐强）、
+  chorus 加厚（4 声部 + 高音层，力度最高）、bridge 对比 register、outro thinning（2 声部 + 渐弱）。
+- PadEngine（`arrangement/pad_engine.py`）：长音和弦铺底（长音比例 ≥0.5），voice leading 平滑；
+  verse 薄、pre_chorus 增厚 + build、chorus 4 声部 + 高八度 layer、bridge 暗色 register、outro thinning。
+- 音区冲突规避：pad 48-76、strings 55-84，高于 bass（24-64）且避开 melody 核心区；
+  velocity 随段落变化（verse 低 / chorus 高 / outro 渐弱），clamp 1-127。
+- composer 已把 pad / strings 轨道路由到专用引擎；program 来自 T17 registry
+  （pad_2_warm→89、string_ensemble_1→48）；MIDI Writer / Fallback Renderer / Evaluation 不受影响。
+- 轻量编曲分析辅助 `analysis/arrangement_analysis.py`（voice_leading_smoothness_score /
+  arrangement_density_curve / chorus_layer_lift_detected / pad_register_validity /
+  strings_register_validity / section_entry_exit_score）。
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（408 passed，2026-08-04 实测）
+后端测试：pytest -q passed（432 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

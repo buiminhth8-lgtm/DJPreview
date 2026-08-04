@@ -5,6 +5,8 @@ from __future__ import annotations
 import zlib
 
 from packages.music_core.arrangement.arrangement_engine import ArrangementEngine
+from packages.music_core.arrangement.pad_engine import PadEngine
+from packages.music_core.arrangement.strings_engine import StringsEngine
 from packages.music_core.bass.bass_engine import BassEngine
 from packages.music_core.composer.events import CompositionResult, NoteEvent, TrackEvents, beats_per_bar
 from packages.music_core.drums.drum_engine import DrumEngine
@@ -27,6 +29,8 @@ def compose_music(music_spec: MusicSpec) -> CompositionResult:
 
     melody_engine = MelodyEngine()
     arrangement_engine = ArrangementEngine()
+    pad_engine = PadEngine()
+    strings_engine = StringsEngine()
     bass_engine = BassEngine()
     drum_engine = DrumEngine()
 
@@ -64,6 +68,10 @@ def compose_music(music_spec: MusicSpec) -> CompositionResult:
             track_events.notes = drum_engine.generate(music_spec, bar_harmony, channel=channel)
         elif role == "bass":
             track_events.notes = bass_engine.generate(music_spec, bar_harmony, channel=channel)
+        elif role == "pad":
+            track_events.notes = pad_engine.generate(music_spec, bar_harmony, track, channel=channel)
+        elif role == "strings":
+            track_events.notes = strings_engine.generate(music_spec, bar_harmony, track, channel=channel)
         else:
             # harmony / pad / strings / 未知角色：一律按伴奏处理
             track_events.notes = arrangement_engine.generate(music_spec, bar_harmony, track, channel=channel)

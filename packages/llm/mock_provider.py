@@ -65,11 +65,13 @@ class MockProvider(LLMProvider):
             scale = "c-major-pentatonic"
 
         style_tags: list[str] = []
-        if "中国风" in prompt_clean or "chinese" in prompt_clean.lower():
+        if "cinematic" in prompt_clean.lower():
+            style_tags = ["cinematic"]
+        elif "中国风" in prompt_clean or "chinese" in prompt_clean.lower():
             style_tags.append("chinese")
-        if any(k in prompt_clean.lower() for k in ("lo-fi", "lofi", "hiphop")):
+        elif any(k in prompt_clean.lower() for k in ("lo-fi", "lofi", "hiphop")):
             style_tags.append("lo-fi")
-        if any(k in prompt_clean.lower() for k in ("摇滚", "rock")):
+        elif any(k in prompt_clean.lower() for k in ("摇滚", "rock")):
             style_tags.append("rock")
         if not style_tags:
             style_tags = ["pop"]
@@ -103,6 +105,17 @@ class MockProvider(LLMProvider):
             TrackSpec(id="drums", role="drums", instrument="standard_drum_kit", pattern="four_on_floor", register=None, velocity=100),
             TrackSpec(id="pad", role="pad", instrument="string_ensemble_1", pattern="sustained", register="mid-low", velocity=70),
         ]
+        if "cinematic" in style_tags or "chinese" in style_tags:
+            tracks.append(
+                TrackSpec(
+                    id="strings",
+                    role="strings",
+                    instrument="string_ensemble_1",
+                    pattern="sustained",
+                    register="mid-low",
+                    velocity=70,
+                )
+            )
 
         # 标题取 prompt 前 16 个字符；seed 用 crc32 保证跨进程确定性
         title = prompt_clean[:16] or "Untitled"

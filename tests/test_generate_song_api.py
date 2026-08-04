@@ -68,3 +68,18 @@ def test_generated_song_has_bass_track():
     assert resp.status_code == 200
     tracks = resp.json()["music_spec"]["tracks"]
     assert any(t["role"] == "bass" for t in tracks)
+
+
+def test_cinematic_prompt_has_strings_and_pad():
+    """T22：cinematic / chinese cinematic prompt 生成 strings 与 pad。"""
+    resp = client.post("/api/v1/songs/generate", json={"prompt": "cinematic 电影配乐"})
+    assert resp.status_code == 200
+    roles = {t["role"] for t in resp.json()["music_spec"]["tracks"]}
+    assert "strings" in roles
+    assert "pad" in roles
+
+    resp2 = client.post("/api/v1/songs/generate", json={"prompt": "带有中国风韵味的旋律"})
+    assert resp2.status_code == 200
+    roles2 = {t["role"] for t in resp2.json()["music_spec"]["tracks"]}
+    assert "strings" in roles2
+    assert "pad" in roles2
