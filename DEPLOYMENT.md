@@ -15,7 +15,7 @@
     - `ghcr.io/<owner>/<repo>/api:latest` 与 `: <sha>`
     - `ghcr.io/<owner>/<repo>/web:latest` 与 `: <sha>`
 
-## 二、Windows 本地 Docker 部署
+## 二、Windows 本地 Docker 部署 
 
 ### 前置条件
 
@@ -93,3 +93,4 @@ docker compose --env-file .env.docker -f docker-compose.prod.yml logs -f web
 - 只提交 `.env.docker.example`，不要把真实 `DEEPSEEK_API_KEY` 写入 `.env.docker` 或提交到 Git。
 - `.gitignore` 已忽略 `.env.docker` 与 `runtime-data/`。
 - `.dockerignore` 排除了 `.env`、`.env.docker`、`data`、`node_modules`、生成的 mid/wav/zip 等，避免敏感或冗余文件进入镜像。
+- for teee
