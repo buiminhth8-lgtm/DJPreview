@@ -63,7 +63,7 @@ def test_get_missing_version_404():
     song_id = _create_song()
     resp = client.get(f"/api/v1/songs/{song_id}/versions/not-exist")
     assert resp.status_code == 404
-    assert "版本" in resp.json()["detail"]
+    assert "版本" in resp.json()["message"]
 
 
 def test_get_missing_song_404():
@@ -111,7 +111,7 @@ def test_get_missing_version_diff_404():
     song_id = _create_song()
     resp = client.get(f"/api/v1/songs/{song_id}/versions/not-exist/diff")
     assert resp.status_code == 404
-    assert "版本" in resp.json()["detail"]
+    assert "版本" in resp.json()["message"]
 
 
 def test_get_missing_song_diff_404():

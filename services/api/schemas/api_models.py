@@ -1,5 +1,7 @@
 """API 请求 / 响应模型。"""
 
+from typing import Any
+
 from pydantic import BaseModel, Field, field_validator
 
 from packages.music_core.evaluation.eval_models import EvalReport
@@ -9,6 +11,14 @@ from packages.music_core.regeneration.regeneration_models import RegenerationReq
 from packages.music_core.styles.style_models import StyleTemplateSpec
 from services.api.schemas.music_edit_spec import MusicEditSpec
 from services.api.schemas.music_spec import MusicSpec
+
+
+class ErrorResponse(BaseModel):
+    """统一错误响应结构。"""
+
+    error_code: str = Field(..., description="Stable machine-readable error code.")
+    message: str = Field(..., description="Human-readable error message.")
+    details: dict[str, Any] = Field(default_factory=dict)
 
 
 class GenerateSongRequest(BaseModel):

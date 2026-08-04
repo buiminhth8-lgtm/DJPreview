@@ -418,18 +418,29 @@ export interface ProjectImportResponse {
 // （开发环境由 Vite proxy 转发，Docker 部署由 nginx 转发到 api:8000）
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
-async function handleError(response: Response): Promise<never> {
-  const text = await response.text();
-  let detail = text || "未知错误";
+export interface ApiErrorResponse {
+  error_code: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+async function parseApiError(response: Response): Promise<string> {
   try {
-    const body = JSON.parse(text) as { detail?: unknown };
-    if (body && typeof body === "object" && body.detail !== undefined) {
-      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    const body = (await response.json()) as ApiErrorResponse & { detail?: unknown };
+    if (body?.message) return body.message;
+    if (typeof body?.detail === "string") return body.detail;
+    if (body?.detail && typeof body.detail === "object") {
+      const detail = body.detail as { message?: string };
+      if (detail?.message) return detail.message;
     }
+    return `请求失败（HTTP ${response.status}）`;
   } catch {
-    // 非 JSON 响应，保留原文
+    return `请求失败（HTTP ${response.status}）`;
   }
-  throw new Error(`请求失败（HTTP ${response.status}）：${detail}`);
+}
+
+async function handleError(response: Response): Promise<never> {
+  throw new Error(await parseApiError(response));
 }
 
 async function requestJson<T>(url: string, method: string, payload?: unknown): Promise<T> {

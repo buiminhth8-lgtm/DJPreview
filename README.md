@@ -184,6 +184,32 @@ curl http://localhost:8000/api/v1/songs/{song_id}/versions/v2/diff
 
 返回 `song_id`、`version_id`、`parent_version_id`、`is_current`、`diff`（相对父版本）、`metadata` 与 `warnings`。
 
+## API 错误响应
+
+主要业务接口统一返回结构化错误：
+
+```json
+{
+  "error_code": "PROJECT_NOT_FOUND",
+  "message": "项目不存在",
+  "details": {}
+}
+```
+
+常见错误码：
+
+```text
+PROJECT_NOT_FOUND       项目不存在
+VERSION_NOT_FOUND       版本不存在
+ASSET_NOT_FOUND         资源不存在（MIDI / WAV / stems 等）
+INVALID_REQUEST         请求无效（非法参数、非法 song_id 等）
+INVALID_PROJECT_BUNDLE  工程文件无效
+MUSIC_SPEC_VALIDATION_FAILED  MusicSpec 校验失败
+LLM_PROVIDER_ERROR      LLM 调用失败
+RENDER_FAILED           音频渲染失败
+INTERNAL_ERROR          服务器内部错误
+```
+
 ## 当前项目状态
 
 ```text

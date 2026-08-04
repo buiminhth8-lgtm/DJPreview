@@ -2,7 +2,9 @@
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from services.api.dependencies.config import get_settings
 from services.api.routes.songs import router as songs_router
@@ -32,6 +34,31 @@ app.add_middleware(
 )
 
 app.include_router(songs_router, prefix="/api/v1")
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc: HTTPException):
+    """统一错误响应：结构化 dict 直接透出；字符串 detail 包装为 HTTP_ERROR。"""
+    detail = exc.detail
+    if isinstance(detail, dict) and {"error_code", "message", "details"} <= set(detail):
+        return JSONResponse(status_code=exc.status_code, content=detail)
+    if isinstance(detail, dict):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error_code": "HTTP_ERROR",
+                "message": str(detail.get("detail", detail)),
+                "details": {"detail": detail},
+            },
+        )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error_code": "HTTP_ERROR",
+            "message": str(detail),
+            "details": {},
+        },
+    )
 
 
 @app.get("/", summary="API 信息")
