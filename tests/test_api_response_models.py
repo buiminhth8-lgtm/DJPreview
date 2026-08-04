@@ -112,3 +112,15 @@ def test_evaluation_cases_response_model():
     assert isinstance(cases, list)
     assert len(cases) >= 8
     assert all("id" in c and "prompt" in c for c in cases)
+
+
+def test_evaluation_run_response_model_has_audio_fields():
+    """T15：evaluation/run 响应包含 render_audio 语义字段。"""
+    resp = client.post("/api/v1/evaluation/run", json={"case_ids": ["cinematic_piano"]})
+    assert resp.status_code == 200
+    data = resp.json()
+    for key in ("run_id", "render_audio", "audio_rendered_cases", "audio_failed_cases", "failed_cases"):
+        assert key in data
+    result = data["results"][0]
+    for key in ("render_audio", "audio_rendered", "audio_path", "audio_duration_seconds", "renderer", "render_error"):
+        assert key in result

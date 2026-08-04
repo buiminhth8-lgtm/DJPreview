@@ -442,16 +442,31 @@ export interface EvalResult {
   score: number;
   quality_score: number;
   trait_matches: Record<string, boolean>;
+  music_spec: Record<string, unknown> | null;
+  midi_path: string | null;
+  quality_report: Record<string, unknown> | null;
+  render_audio: boolean;
+  audio_rendered: boolean;
+  audio_path: string | null;
+  audio_duration_seconds: number | null;
+  renderer: string | null;
+  render_error: string | null;
   warnings: string[];
   errors: string[];
 }
 
 export interface EvalReport {
+  run_id: string;
   created_at: string;
+  render_audio: boolean;
   total_cases: number;
   passed_cases: number;
+  failed_cases: number;
   average_score: number;
+  audio_rendered_cases: number;
+  audio_failed_cases: number;
   results: EvalResult[];
+  warnings: string[];
   summary: string;
 }
 

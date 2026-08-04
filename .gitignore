@@ -17,6 +17,7 @@ data/projects/*
 !data/projects/.gitkeep
 data/test_projects/
 data/llm_calls/
+data/evaluations/
 
 # Node / 前端
 node_modules/

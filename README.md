@@ -291,10 +291,28 @@ SECTION_COVERAGE_GAP          存在未被任何段落覆盖的小节
 - 恢复接口返回 `restore_summary`（restored / removed / missing_optional）与 `has_mix / has_quality_report / has_stems` 状态。
 - 旧 `versions/vN.json` 结构在恢复前自动迁移为目录式，旧文件保留。
 
+## Evaluation 音频渲染开关（T15）
+
+- `POST /api/v1/evaluation/run` 的 `render_audio` 参数语义已明确：
+  - `render_audio=false`（默认）：只生成 MusicSpec + MIDI + QualityReport，**不调用任何音频渲染器**；
+  - `render_audio=true`：额外使用现有 renderer factory（测试环境 `AUDIO_RENDERER=fallback`）渲染 WAV，
+    每个 case 输出到独立目录 `data/evaluations/{run_id}/cases/case_NNN_id/`。
+- 每个 case 记录 `audio_rendered`、`audio_path`、`audio_duration_seconds`、`renderer`、`render_error`；
+  report 记录 `audio_rendered_cases` / `audio_failed_cases`。
+- 单个 case 音频渲染失败不会导致整轮评估失败，失败信息记录在该 case 的 `render_error` 与 warnings 中。
+
+```bash
+curl -X POST http://localhost:8000/api/v1/evaluation/run \
+  -H "Content-Type: application/json" \
+  -d '{"render_audio": true}'
+```
+
+> 测试环境推荐 `AUDIO_RENDERER=fallback`，无需安装 FluidSynth。
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（279 passed，2026-08-04 实测）
+后端测试：pytest -q passed（285 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

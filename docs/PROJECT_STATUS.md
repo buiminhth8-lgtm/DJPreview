@@ -7,6 +7,7 @@
   统一错误响应 / API Response Model / MusicSpec 语义校验 / LLM Provider 产品化）
 - T12 第一步完成：目录式版本资产结构（versions/vN/）+ 旧结构懒迁移 + 根目录兼容镜像
 - T13 完成：恢复版本时复制完整版本资产并清理缺失资产，不重新生成 MIDI / WAV
+- T15 完成：Evaluation Runner `render_audio` 语义修复（false 不渲染 / true 渲染 WAV + 逐 case 音频状态）
 - 当前分支：`master`
 
 ## 已完成功能
@@ -30,7 +31,7 @@
 ## 当前测试结果
 
 ```text
-pytest -q：279 passed（2026-08-04 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+pytest -q：285 passed（2026-08-04 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
 ```
 
 ## 当前前端构建结果
@@ -54,6 +55,7 @@ npm run build：passed（Vite 5.4.21，tsc 无错误）
 - MusicSpec 语义校验库已实现（`check_music_spec` 返回 errors/warnings），但尚未接入生成/编辑 API 的对外报告。
 - 版本资产目录式结构第一步已完成（新项目 v1/vN 目录 + 旧结构懒迁移）。
 - `.aimusic.zip` 适配新版本结构待 T14。
+- Evaluation trait 打分语义仍较粗（如 `has_track_role2` 与 `has_track_role` 重复），后续可细化。
 - MIDI Parser 与 Fallback Renderer 在重叠音符（同音同轨 note_on 未闭合）场景可能异常。
 - 乐器命名与 GM Program 映射存在别名不统一。
 - Evaluation Runner 的 trait 打分语义较粗（如 `has_track_role2` 与 `has_track_role` 重复）。

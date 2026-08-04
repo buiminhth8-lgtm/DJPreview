@@ -118,12 +118,17 @@
 - 依赖：T12
 - 验收标准：roundtrip 通过；zip slip 防护保留
 
-## T15 Evaluation Runner 语义修复 ⬜
+## T15 Evaluation Runner 语义修复 ✅
 
-- 目标：修正 trait 打分（去重、加权、错误语义）
-- 优先级：P2
+- 目标：修正 `render_audio` 参数语义（false 不渲染、true 渲染 WAV）并完善报告音频字段
+- 优先级：P1
 - 依赖：T10
-- 验收标准：报告字段合理；8 个用例全绿
+- 验收标准：`render_audio=false` 不调用渲染器；`render_audio=true` 使用 renderer factory 渲染 WAV；
+  每个 case 记录 audio_rendered / audio_path / renderer / render_error；单个 case 渲染失败不影响整体报告
+- 实现：`EvalResult` / `EvalReport` 增加音频字段（audio_rendered / audio_path / audio_duration_seconds /
+  renderer / render_error / audio_rendered_cases / audio_failed_cases）；`eval_runner` 为每个 case 建立独立输出目录
+  （`data/evaluations/{run_id}/cases/case_NNN_id/`）并按需调用 `get_audio_renderer()`；
+  API 默认 `render_audio=false`；新增 `tests/test_evaluation_api.py`
 
 ## T16 MIDI Parser / Fallback Renderer 重叠音符修复 ⬜
 
