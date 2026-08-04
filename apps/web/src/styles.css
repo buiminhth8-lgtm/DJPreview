@@ -234,6 +234,68 @@ button:disabled {
   font-size: 13px;
 }
 
+.diff-box {
+  margin-top: 12px;
+}
+
+.diff-box pre {
+  margin: 0;
+}
+
+.muted-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.version-item {
+  background: #0d1119;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.version-item.current {
+  border-color: var(--ok);
+}
+
+.version-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.version-number {
+  font-weight: 700;
+}
+
+.version-current {
+  background: rgba(47, 158, 110, 0.2);
+  color: #4ecb8d;
+  border-radius: 4px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+.version-detail {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 8px;
+}
+
+.restore-btn {
+  background: #39445c;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
 pre {
   background: #0d1119;
   border: 1px solid var(--border);

@@ -96,6 +96,14 @@ export interface RenderAudioResponse {
   metadata: AudioMetadata;
 }
 
+export interface VersionInfo {
+  version_id: string;
+  version_number: number;
+  created_at: string;
+  instruction: string | null;
+  parent_version_id: string | null;
+}
+
 export interface AssetsResponse {
   song_id: string;
   has_music_spec: boolean;
@@ -107,6 +115,41 @@ export interface AssetsResponse {
     download_url: string;
     metadata: AudioMetadata | null;
   } | null;
+  current_version: VersionInfo | null;
+}
+
+export interface VersionsResponse {
+  song_id: string;
+  current_version_id: string;
+  versions: VersionInfo[];
+}
+
+export interface DiffItem {
+  field: string;
+  old: unknown;
+  new: unknown;
+}
+
+export interface EditSongResponse {
+  song_id: string;
+  version_id: string;
+  edit_spec: {
+    version: string;
+    instruction: string;
+    target: { section: string | null; track: string | null; scope: string };
+    preserve: string[];
+    operations: Array<{ type: string; amount: number | null; value: unknown; params: unknown }>;
+  };
+  diff: DiffItem[];
+  music_spec: MusicSpec;
+  assets: AssetsResponse;
+}
+
+export interface RestoreVersionResponse {
+  song_id: string;
+  version_id: string;
+  music_spec: MusicSpec;
+  assets: AssetsResponse;
 }
 
 // 后端 API 地址可通过 VITE_API_BASE_URL 环境变量配置，默认 http://localhost:8000
@@ -161,6 +204,18 @@ export function renderAudio(songId: string): Promise<RenderAudioResponse> {
 
 export function getAssets(songId: string): Promise<AssetsResponse> {
   return getJson(`/api/v1/songs/${songId}/assets`);
+}
+
+export function editSong(songId: string, instruction: string): Promise<EditSongResponse> {
+  return postJson(`/api/v1/songs/${songId}/edit`, { instruction });
+}
+
+export function getVersions(songId: string): Promise<VersionsResponse> {
+  return getJson(`/api/v1/songs/${songId}/versions`);
+}
+
+export function restoreVersion(songId: string, versionId: string): Promise<RestoreVersionResponse> {
+  return postJson(`/api/v1/songs/${songId}/versions/${versionId}/restore`);
 }
 
 export function resolveUrl(path: string): string {

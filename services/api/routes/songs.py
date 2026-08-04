@@ -1,12 +1,16 @@
-"""歌曲生成、查询、MIDI 与音频渲染 API。"""
+"""歌曲生成、查询、MIDI、音频渲染与版本管理 API。"""
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
+from packages.llm.factory import get_llm_provider
 from packages.music_core.composer.music_composer import compose_music
+from packages.music_core.editing.diff import diff_music_specs
+from packages.music_core.editing.edit_engine import apply_music_edit
 from packages.music_core.midi.midi_writer import write_midi
 from packages.music_core.planner.music_planner import generate_music_spec_from_prompt
 from packages.renderer.factory import get_audio_renderer
@@ -15,6 +19,8 @@ from services.api.schemas.api_models import (
     AssetsResponse,
     AudioAssetInfo,
     AudioMetadata,
+    EditSongRequest,
+    EditSongResponse,
     GenerateMidiResponse,
     GenerateSongRequest,
     GenerateSongResponse,
@@ -26,20 +32,31 @@ from services.api.schemas.api_models import (
     MidiInfo,
     MidiSummary,
     RenderAudioResponse,
+    RestoreVersionResponse,
+    VersionInfo,
+    VersionsResponse,
 )
 from services.api.storage.project_store import (
     AUDIO_FILENAME,
     AUDIO_GENERATOR_VERSION,
     create_project,
+    create_version,
     get_audio_metadata,
+    get_current_version,
     get_midi_path,
     get_project,
     get_project_dir,
+    get_version,
     get_wav_path,
+    init_version_if_needed,
     is_valid_song_id,
+    list_versions,
+    restore_version,
     save_audio_metadata,
     save_midi_file,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -80,6 +97,73 @@ def _ensure_midi_for(song_id: str) -> Path:
         return midi_path
     _generate_midi_for(song_id)
     return midi_path
+
+
+def _render_audio_for(song_id: str) -> RenderAudioResponse:
+    """确保 output.mid 存在，调用 AudioRenderer 渲染 WAV 并保存 audio_metadata.json。"""
+    settings = get_settings()
+    midi_path = _ensure_midi_for(song_id)
+    renderer = get_audio_renderer()
+    wav_path = _project_dir_for(song_id) / AUDIO_FILENAME
+    result = renderer.render_wav(
+        midi_path,
+        wav_path,
+        sample_rate=settings.audio_sample_rate,
+        gain=settings.audio_gain,
+    )
+    metadata = {
+        "audio_file": AUDIO_FILENAME,
+        "renderer": result.renderer,
+        "sample_rate": result.sample_rate,
+        "duration_seconds": result.duration_seconds,
+        "file_size": result.file_size,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generator_version": AUDIO_GENERATOR_VERSION,
+        "warnings": result.warnings,
+    }
+    save_audio_metadata(song_id, metadata)
+    return RenderAudioResponse(
+        song_id=song_id,
+        audio_file=AUDIO_FILENAME,
+        stream_url=f"/api/v1/songs/{song_id}/audio/stream",
+        download_url=f"/api/v1/songs/{song_id}/audio/download",
+        metadata=AudioMetadata.model_validate(metadata),
+    )
+
+
+def _regenerate_audio_for(song_id: str) -> None:
+    """版本修改/恢复后重新生成 MIDI 与 WAV，保证根目录资源与当前版本一致。"""
+    _generate_midi_for(song_id)
+    try:
+        _render_audio_for(song_id)
+    except Exception as exc:  # noqa: BLE001 - 音频渲染失败不影响版本保存
+        logger.warning("版本更新后音频重新渲染失败：%s", exc)
+
+
+def _assets_response(song_id: str) -> AssetsResponse:
+    """构建资源状态响应（含当前版本指针）。"""
+    project_dir = get_project_dir(song_id)
+    has_midi = (project_dir / "output.mid").exists()
+    has_audio = (project_dir / "output.wav").exists()
+    audio_meta = get_audio_metadata(song_id)
+    current = get_current_version(song_id)
+    return AssetsResponse(
+        song_id=song_id,
+        has_music_spec=True,
+        has_midi=has_midi,
+        has_audio=has_audio,
+        midi=MidiAssetInfo(download_url=f"/api/v1/songs/{song_id}/midi/download") if has_midi else None,
+        audio=(
+            AudioAssetInfo(
+                stream_url=f"/api/v1/songs/{song_id}/audio/stream",
+                download_url=f"/api/v1/songs/{song_id}/audio/download",
+                metadata=AudioMetadata.model_validate(audio_meta) if audio_meta else None,
+            )
+            if has_audio
+            else None
+        ),
+        current_version=VersionInfo.model_validate(current) if current else None,
+    )
 
 
 @router.get("/health", response_model=HealthResponse, summary="健康检查")
@@ -171,38 +255,6 @@ def download_midi(song_id: str) -> FileResponse:
     return FileResponse(midi_path, media_type="audio/midi", filename=f"{song_id}.mid")
 
 
-def _render_audio_for(song_id: str) -> RenderAudioResponse:
-    """确保 output.mid 存在，调用 AudioRenderer 渲染 WAV 并保存 audio_metadata.json。"""
-    settings = get_settings()
-    midi_path = _ensure_midi_for(song_id)
-    renderer = get_audio_renderer()
-    wav_path = _project_dir_for(song_id) / AUDIO_FILENAME
-    result = renderer.render_wav(
-        midi_path,
-        wav_path,
-        sample_rate=settings.audio_sample_rate,
-        gain=settings.audio_gain,
-    )
-    metadata = {
-        "audio_file": AUDIO_FILENAME,
-        "renderer": result.renderer,
-        "sample_rate": result.sample_rate,
-        "duration_seconds": result.duration_seconds,
-        "file_size": result.file_size,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "generator_version": AUDIO_GENERATOR_VERSION,
-        "warnings": result.warnings,
-    }
-    save_audio_metadata(song_id, metadata)
-    return RenderAudioResponse(
-        song_id=song_id,
-        audio_file=AUDIO_FILENAME,
-        stream_url=f"/api/v1/songs/{song_id}/audio/stream",
-        download_url=f"/api/v1/songs/{song_id}/audio/download",
-        metadata=AudioMetadata.model_validate(metadata),
-    )
-
-
 @router.post("/songs/{song_id}/audio/render", response_model=RenderAudioResponse, summary="渲染 WAV 音频")
 def render_audio(song_id: str) -> RenderAudioResponse:
     try:
@@ -252,23 +304,71 @@ def get_assets(song_id: str) -> AssetsResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     if not (project_dir / "music_spec.json").exists():
         raise HTTPException(status_code=404, detail=f"项目不存在：{song_id}")
+    init_version_if_needed(song_id)  # 旧项目自动初始化 v1
+    return _assets_response(song_id)
 
-    has_midi = (project_dir / "output.mid").exists()
-    has_audio = (project_dir / "output.wav").exists()
-    audio_meta = get_audio_metadata(song_id)
-    return AssetsResponse(
-        song_id=song_id,
-        has_music_spec=True,
-        has_midi=has_midi,
-        has_audio=has_audio,
-        midi=MidiAssetInfo(download_url=f"/api/v1/songs/{song_id}/midi/download") if has_midi else None,
-        audio=(
-            AudioAssetInfo(
-                stream_url=f"/api/v1/songs/{song_id}/audio/stream",
-                download_url=f"/api/v1/songs/{song_id}/audio/download",
-                metadata=AudioMetadata.model_validate(audio_meta) if audio_meta else None,
-            )
-            if has_audio
-            else None
-        ),
-    )
+
+@router.post("/songs/{song_id}/edit", response_model=EditSongResponse, summary="自然语言修改音乐")
+def edit_song(song_id: str, req: EditSongRequest) -> EditSongResponse:
+    try:
+        spec = get_project(song_id)
+        provider = get_llm_provider()
+        edit_spec = provider.generate_music_edit(req.instruction, spec)
+        new_spec = apply_music_edit(spec, edit_spec)
+        diff = diff_music_specs(spec, new_spec)
+        version = create_version(
+            song_id,
+            new_spec,
+            req.instruction,
+            edit_spec.model_dump(mode="json"),
+        )
+        _regenerate_audio_for(song_id)
+        return EditSongResponse(
+            song_id=song_id,
+            version_id=version["version_id"],
+            edit_spec=edit_spec,
+            diff=diff,
+            music_spec=new_spec,
+            assets=_assets_response(song_id),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"修改失败：{exc}") from None
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=f"LLM 服务错误：{exc}") from None
+
+
+@router.get("/songs/{song_id}/versions", response_model=VersionsResponse, summary="版本列表")
+def get_versions(song_id: str) -> VersionsResponse:
+    try:
+        get_project(song_id)
+        index = init_version_if_needed(song_id)
+        versions = list_versions(song_id)
+        return VersionsResponse(
+            song_id=song_id,
+            current_version_id=index["current_version_id"],
+            versions=[VersionInfo.model_validate(v) for v in versions],
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@router.post("/songs/{song_id}/versions/{version_id}/restore", response_model=RestoreVersionResponse, summary="恢复历史版本")
+def restore_version_route(song_id: str, version_id: str) -> RestoreVersionResponse:
+    try:
+        get_project(song_id)
+        spec = restore_version(song_id, version_id)
+        _regenerate_audio_for(song_id)
+        return RestoreVersionResponse(
+            song_id=song_id,
+            version_id=version_id,
+            music_spec=spec,
+            assets=_assets_response(song_id),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None

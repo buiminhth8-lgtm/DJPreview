@@ -1,24 +1,65 @@
 import { useState } from "react";
 import {
+  editSong,
   generateMidi,
   generateMusicSpec,
+  getVersions,
   renderAudio,
   resolveUrl,
+  restoreVersion,
   type AudioMetadata,
+  type DiffItem,
+  type EditSongResponse,
   type GenerateMidiResponse,
   type MusicSpec,
   type RenderAudioResponse,
+  type VersionInfo,
 } from "./api/musicApi";
 import AudioPlayer from "./components/AudioPlayer";
 import MusicSummary from "./components/MusicSummary";
 import SectionTimeline from "./components/SectionTimeline";
 import TrackList from "./components/TrackList";
 
+function audioResultFromAssets(
+  songId: string,
+  assets: EditSongResponse["assets"],
+): RenderAudioResponse | null {
+  if (!assets.audio) return null;
+  return {
+    song_id: songId,
+    audio_file: "output.wav",
+    stream_url: assets.audio.stream_url,
+    download_url: assets.audio.download_url,
+    metadata: assets.audio.metadata ?? {
+      audio_file: "output.wav",
+      renderer: "unknown",
+      sample_rate: 0,
+      duration_seconds: null,
+      file_size: 0,
+      generated_at: null,
+      generator_version: null,
+      warnings: [],
+    },
+  };
+}
+
+function formatDiff(diff: DiffItem[]): string {
+  return diff
+    .map((d) => {
+      const oldV = typeof d.old === "object" ? JSON.stringify(d.old) : String(d.old ?? "—");
+      const newV = typeof d.new === "object" ? JSON.stringify(d.new) : String(d.new ?? "—");
+      return `${d.field}: ${oldV} → ${newV}`;
+    })
+    .join("\n");
+}
+
 export default function App() {
   const [prompt, setPrompt] = useState("");
   const [loadingSpec, setLoadingSpec] = useState(false);
   const [loadingMidi, setLoadingMidi] = useState(false);
   const [loadingAudio, setLoadingAudio] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [loadingVersions, setLoadingVersions] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [songId, setSongId] = useState<string | null>(null);
@@ -26,6 +67,21 @@ export default function App() {
   const [midiResult, setMidiResult] = useState<GenerateMidiResponse | null>(null);
   const [audioResult, setAudioResult] = useState<RenderAudioResponse | null>(null);
   const [audioStreamUrl, setAudioStreamUrl] = useState<string | null>(null);
+
+  const [editPrompt, setEditPrompt] = useState("");
+  const [lastDiff, setLastDiff] = useState<DiffItem[] | null>(null);
+  const [versions, setVersions] = useState<VersionInfo[] | null>(null);
+  const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
+
+  const refreshAudioFromAssets = (songId: string, assets: EditSongResponse["assets"]) => {
+    const next = audioResultFromAssets(songId, assets);
+    setAudioResult(next);
+    if (next) {
+      setAudioStreamUrl(`${resolveUrl(next.stream_url)}?t=${Date.now()}`);
+    } else {
+      setAudioStreamUrl(null);
+    }
+  };
 
   const handleGenerateSpec = async () => {
     if (!prompt.trim()) {
@@ -37,6 +93,8 @@ export default function App() {
     setMidiResult(null);
     setAudioResult(null);
     setAudioStreamUrl(null);
+    setVersions(null);
+    setLastDiff(null);
     try {
       const result = await generateMusicSpec(prompt.trim());
       setSongId(result.song_id);
@@ -71,12 +129,63 @@ export default function App() {
     try {
       const result = await renderAudio(songId);
       setAudioResult(result);
-      // 加时间戳防止浏览器缓存旧音频
       setAudioStreamUrl(`${resolveUrl(result.stream_url)}?t=${Date.now()}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoadingAudio(false);
+    }
+  };
+
+  const handleApplyEdit = async () => {
+    if (!songId || !editPrompt.trim()) {
+      setError("请输入修改指令");
+      return;
+    }
+    setLoadingEdit(true);
+    setError(null);
+    try {
+      const result = await editSong(songId, editPrompt.trim());
+      setMusicSpec(result.music_spec);
+      setLastDiff(result.diff);
+      refreshAudioFromAssets(songId, result.assets);
+      const versionsResp = await getVersions(songId);
+      setVersions(versionsResp.versions);
+      setCurrentVersionId(versionsResp.current_version_id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingEdit(false);
+    }
+  };
+
+  const handleLoadVersions = async () => {
+    if (!songId) return;
+    setLoadingVersions(true);
+    setError(null);
+    try {
+      const result = await getVersions(songId);
+      setVersions(result.versions);
+      setCurrentVersionId(result.current_version_id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingVersions(false);
+    }
+  };
+
+  const handleRestore = async (versionId: string) => {
+    if (!songId) return;
+    setError(null);
+    try {
+      const result = await restoreVersion(songId, versionId);
+      setMusicSpec(result.music_spec);
+      refreshAudioFromAssets(songId, result.assets);
+      const versionsResp = await getVersions(songId);
+      setVersions(versionsResp.versions);
+      setCurrentVersionId(versionsResp.current_version_id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -86,7 +195,7 @@ export default function App() {
     <div className="container">
       <header>
         <h1>AI Music MVP</h1>
-        <p className="subtitle">一句话生成 MusicSpec → MIDI → 试听 WAV</p>
+        <p className="subtitle">一句话生成 MusicSpec → MIDI → 试听 WAV → 自然语言修改与版本管理</p>
       </header>
 
       <section className="panel">
@@ -168,6 +277,68 @@ export default function App() {
               <AudioMeta metadata={audioResult.metadata} />
             </section>
           )}
+
+          <section className="panel result">
+            <h2>自然语言修改</h2>
+            <textarea
+              value={editPrompt}
+              onChange={(e) => setEditPrompt(e.target.value)}
+              placeholder="例如：副歌更亮一点 / 整首更快一点 / 加点中国风 / 去掉贝斯 / 副歌加鼓"
+              rows={3}
+              disabled={loadingEdit}
+            />
+            <div className="actions">
+              <button onClick={handleApplyEdit} disabled={loadingEdit}>
+                {loadingEdit ? "修改中…" : "应用修改"}
+              </button>
+            </div>
+            {lastDiff && lastDiff.length > 0 && (
+              <div className="diff-box">
+                <h3>修改内容</h3>
+                <pre>{formatDiff(lastDiff)}</pre>
+              </div>
+            )}
+            {lastDiff && lastDiff.length === 0 && (
+              <p className="muted-note">本次修改未产生字段变化。</p>
+            )}
+          </section>
+
+          <section className="panel result">
+            <h2>版本管理</h2>
+            <div className="actions">
+              <button onClick={handleLoadVersions} disabled={loadingVersions}>
+                {loadingVersions ? "加载中…" : "查看版本"}
+              </button>
+            </div>
+            {versions && (
+              <div className="version-list">
+                {[...versions].reverse().map((v) => (
+                  <div
+                    className={`version-item${v.version_id === currentVersionId ? " current" : ""}`}
+                    key={v.version_id}
+                  >
+                    <div className="version-head">
+                      <span className="version-number">v{v.version_number}</span>
+                      {v.version_id === currentVersionId && (
+                        <span className="version-current">当前</span>
+                      )}
+                    </div>
+                    <div className="version-detail">
+                      {v.instruction ?? "初始版本"} · {new Date(v.created_at).toLocaleString()}
+                    </div>
+                    {v.version_id !== currentVersionId && (
+                      <button
+                        className="restore-btn"
+                        onClick={() => handleRestore(v.version_id)}
+                      >
+                        恢复此版本
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </>
       )}
     </div>

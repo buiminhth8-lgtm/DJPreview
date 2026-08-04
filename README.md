@@ -5,226 +5,147 @@
 - **第一阶段**：基础工程、MusicSpec v0.1 / MusicEditSpec v0.1 协议、LLM 适配层（MockProvider / DeepSeekProvider）、一句话生成 MusicSpec、项目 JSON 保存与读取。
 - **第二阶段**：MusicSpec → 编曲数据 → 标准 MIDI 文件（多轨，含旋律 / 和弦伴奏 / 贝斯 / 鼓组 / Pad 铺底），确定性 seed 复现，MIDI 生成与下载 API。
 - **第三阶段**：MIDI → WAV 音频渲染（FluidSynth + SoundFont，无 FluidSynth 时 fallback 合成），在线试听、下载 MIDI/WAV、基础轨道与段落展示。
+- **第四阶段**：自然语言修改（MusicEditSpec 真正执行）+ 版本管理（v1 自动初始化、每次修改生成新版本、历史版本恢复、根目录资源同步）。
 
-> 当前阶段不实现自然语言修改、版本管理、AI 人声、歌词演唱、音色克隆、VST 插件、专业混音母带、DAW 集成与实时多人协作。
+> 当前阶段不实现 AI 人声、歌词演唱、音色克隆、VST 插件、专业混音母带、DAW 深度集成与实时多人协作。
 
-## 一、第三阶段新增能力
+## 一、第四阶段新增能力
 
-- `packages/renderer` 音频渲染抽象层：`AudioRenderer` 协议 + `AudioRenderResult`
-- `FluidSynthRenderer`：调用系统 `fluidsynth` 命令 + SoundFont 渲染，无 shell 注入风险
-- `FallbackRenderer`：无 FluidSynth 时用 mido + numpy 合成可试听 WAV（开发兜底）
-- Renderer Factory：`AUDIO_RENDERER=auto / fluidsynth / fallback`，auto 优先 FluidSynth、不可用时自动降级
-- 新 API：`audio/render`、`audio/stream`、`audio/download`、`assets`、`generate-with-audio`
-- 音频 metadata：`data/projects/{song_id}/audio_metadata.json`
-- 前端：AudioPlayer、MusicSummary、SectionTimeline、TrackList 组件，支持试听与下载
+- `apply_music_edit`：把 MusicEditSpec 应用到 MusicSpec，**不修改原始对象**（`model_copy(deep=True)`），结果始终通过校验
+- 支持操作：`tempo` / `tonality` / `energy` / `velocity` / `add_instrument` / `remove_instrument` / `chinese_style` / `style` / `mood`
+- `preserve` 机制：列出不可变字段，相关操作自动跳过
+- 段落目标：`target.section=chorus` 时只允许段落级操作（energy / 段落内加乐器），全局操作跳过
+- `diff_music_specs`：对比新旧 MusicSpec，输出字段级变化
+- 版本管理：旧项目自动初始化 v1；每次 edit 生成新版本；restore 恢复历史版本并同步根目录 `music_spec.json` / `output.mid` / `output.wav`
+- 新 API：`/songs/{id}/edit`、`/songs/{id}/versions`、`/songs/{id}/versions/{version_id}/restore`；`/assets` 增加 `current_version`
+- 前端：修改指令输入、diff 展示、版本列表与恢复、播放器自动刷新
 
-## 二、MIDI → WAV 渲染流程
-
-```text
-output.mid
-   │
-   ├─ FluidSynthRenderer（系统 fluidsynth + SoundFont，音质好）
-   │     fluidsynth -ni soundfont.sf2 input.mid -F output.wav -r 44100 -g 0.6
-   │
-   └─ FallbackRenderer（无 FluidSynth 时的开发兜底）
-         mido 解析音符 → numpy 三角波合成 → wave 写 16-bit WAV
-              │
-              ▼
-        output.wav + audio_metadata.json
-              │
-              ▼
-   /audio/stream（试听） /audio/download（下载）
-```
-
-## 三、FluidSynth 安装与 SoundFont 配置
-
-Ubuntu / Debian：
-
-```bash
-sudo apt-get update
-sudo apt-get install -y fluidsynth fluid-soundfont-gm
-```
-
-常见 SoundFont 路径：
-
-- `/usr/share/sounds/sf2/FluidR3_GM.sf2`
-- `/usr/share/sounds/sf2/FluidR3_GS.sf2`
-- `/usr/share/soundfonts/default.sf2`
-
-Windows / macOS 用户通过环境变量指定：
-
-```env
-AUDIO_RENDERER=auto
-FLUIDSYNTH_BIN=fluidsynth
-SOUNDFONT_PATH=C:\path\to\your.sf2
-```
-
-### Fallback renderer 说明
-
-- `AUDIO_RENDERER=fallback` 或 auto 降级时使用
-- 不依赖外部程序，CI / pytest 可直接运行
-- 使用三角波合成，能听出音高与旋律，但**不是正式音质**
-- 正式音质请安装 FluidSynth + SoundFont，并将 `AUDIO_RENDERER` 设为 `auto` 或 `fluidsynth`
-
-## 四、项目结构（第三阶段新增）
+## 二、自然语言修改流程
 
 ```text
-packages/renderer/
-├── base.py                # AudioRenderer Protocol
-├── audio_metadata.py      # AudioRenderResult + get_wav_duration_seconds
-├── fluidsynth_renderer.py # FluidSynth 渲染器
-├── fallback_renderer.py   # 开发兜底渲染器
-└── factory.py             # get_audio_renderer()
-
-apps/web/src/components/
-├── AudioPlayer.tsx        # 播放/暂停/进度 + 下载
-├── MusicSummary.tsx       # 标题/BPM/拍号/调性/小节/风格/情绪/seed
-├── SectionTimeline.tsx    # 段落卡片（name/小节范围/energy）
-└── TrackList.tsx          # 轨道表格
+修改指令（如“副歌更亮一点”）
+   │
+   ▼
+LLMProvider.generate_music_edit(instruction, spec)
+   │   （MockProvider 规则解析 / DeepSeekProvider JSON 生成 + 校验）
+   ▼
+MusicEditSpec（target / preserve / operations）
+   │
+   ▼
+apply_music_edit(spec, edit_spec)
+   │   基于 model_copy(deep=True)，不修改原对象
+   │   段落目标只改段落字段；preserve 字段跳过；最终 validate_music_spec
+   ▼
+新 MusicSpec
+   │
+   ├─ diff_music_specs(old, new) → diff 列表
+   ├─ create_version() → 新版本快照 + versions/index.json 更新 + 根目录 music_spec.json 同步
+   └─ 重新生成 output.mid / output.wav（保证资源一致）
 ```
 
-## 五、后端安装与启动
+MockProvider 支持的常见中文指令示例：
 
-要求：Python 3.11+
+| 指令 | 解析结果 |
+|------|----------|
+| 整首更快一点 / 更慢一点 | tempo ±10 |
+| 更亮 / 明亮 / 更暗 / 忧郁 | tonality C major / D minor |
+| 副歌更亮一点 / 更激昂 | section=chorus + energy ±0.15 |
+| 贝斯音量加大 / 力度 | track=bass + velocity +5 |
+| 加点中国风 | chinese_style（pentatonic + 风格标签） |
+| 加钢琴 / 加鼓 / 加弦乐 | add_instrument |
+| 去掉鼓 / 删除贝斯 / 不要钢琴 | remove_instrument |
+| 副歌加鼓 | section=chorus + add_instrument（enabled_sections=[chorus]） |
 
-```bash
-cd ai-music-mvp
-python -m venv .venv
+## 三、版本管理存储结构
 
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-# source .venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env   # Windows: copy .env.example .env
+```text
+data/projects/{song_id}/
+├── music_spec.json          # 当前版本快照（兼容第一至三阶段读取）
+├── output.mid / output.wav / audio_metadata.json
+└── versions/
+    ├── index.json           # { current_version_id, versions: [meta...] }
+    ├── v1.json              # 版本 1 快照（music_spec + edit_spec + meta）
+    └── v2.json              # 版本 2 快照 ...
 ```
 
-启动后端：
+- 旧项目首次访问 `/versions`、`/edit` 或 `/assets` 时自动初始化 v1
+- 每次 `/edit` 追加新版本并设为当前版本
+- `/restore` 恢复指定版本：更新 `current_version_id`、同步根目录 `music_spec.json`，并重新生成 MIDI / WAV
+
+## 四、API 示例
+
+### 1. 自然语言修改
 
 ```bash
-uvicorn services.api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-打开 http://localhost:8000/docs 查看交互式 API 文档。
-
-> 提示：如果 Windows 上 8000 端口被系统保留（报 WinError 10013），可换端口启动（如 `--port 9000`），并同步设置前端 `VITE_API_BASE_URL`。
-
-## 六、前端安装与启动
-
-```bash
-cd apps/web
-npm install
-npm run dev
-```
-
-打开 http://localhost:5173。后端地址默认 `http://localhost:8000`，可通过 `VITE_API_BASE_URL` 覆盖（详见 [apps/web/README.md](apps/web/README.md)）。
-
-## 七、API 示例
-
-### 1. 生成 MusicSpec
-
-```bash
-curl -X POST http://localhost:8000/api/v1/songs/generate \
+curl -X POST http://localhost:8000/api/v1/songs/{song_id}/edit \
   -H "Content-Type: application/json" \
-  -d '{"prompt":"生成一段忧郁空灵的钢琴配乐，D小调，速度较慢"}'
+  -d '{"instruction":"副歌更亮一点"}'
 ```
 
-### 2. 生成 MIDI
+返回 `version_id`、`edit_spec`、`diff`、`music_spec` 与 `assets`（含 `current_version`）。
+
+### 2. 版本列表
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/songs/{song_id}/midi/generate
-curl -L http://localhost:8000/api/v1/songs/{song_id}/midi/download -o output.mid
+curl http://localhost:8000/api/v1/songs/{song_id}/versions
 ```
 
-### 3. 渲染 WAV
+### 3. 恢复版本
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/songs/{song_id}/audio/render
+curl -X POST http://localhost:8000/api/v1/songs/{song_id}/versions/{version_id}/restore
 ```
 
-返回：
-
-```json
-{
-  "song_id": "xxx",
-  "audio_file": "output.wav",
-  "stream_url": "/api/v1/songs/xxx/audio/stream",
-  "download_url": "/api/v1/songs/xxx/audio/download",
-  "metadata": {
-    "audio_file": "output.wav",
-    "renderer": "fallback",
-    "sample_rate": 44100,
-    "duration_seconds": 48.2,
-    "file_size": 4250000,
-    "generator_version": "stage-3-audio-v0.1",
-    "warnings": []
-  }
-}
-```
-
-> 若项目尚未生成 MIDI，`audio/render` 会先自动生成 MIDI 再渲染。
-
-### 4. 下载 / 试听 WAV
-
-```bash
-curl -L http://localhost:8000/api/v1/songs/{song_id}/audio/download -o output.wav
-```
-
-浏览器试听：
-
-```text
-http://localhost:8000/api/v1/songs/{song_id}/audio/stream
-```
-
-### 5. 项目资源状态
+### 4. 资源状态（含当前版本）
 
 ```bash
 curl http://localhost:8000/api/v1/songs/{song_id}/assets
 ```
 
-返回 `has_music_spec` / `has_midi` / `has_audio` 及对应资源链接。
+## 五、前端使用流程
 
-### 6. 一步生成 MusicSpec + MIDI + WAV
+1. 输入一句话生成 MusicSpec，查看摘要 / 段落结构 / 轨道列表
+2. 生成 MIDI 并下载
+3. 渲染 WAV 并试听（播放 / 暂停 / 下载）
+4. 输入自然语言修改指令 → “应用修改”：摘要与播放器自动刷新，展示 diff
+5. “查看版本”：列出 v1/v2/…（指令与时间），可一键“恢复此版本”，播放器同步更新
 
-```bash
-curl -X POST http://localhost:8000/api/v1/songs/generate-with-audio \
-  -H "Content-Type: application/json" \
-  -d '{"prompt":"生成一段忧郁空灵的钢琴配乐"}'
-```
-
-## 八、环境变量
+## 六、环境变量
 
 ```env
+# LLM
+LLM_PROVIDER=mock
+DEEPSEEK_API_KEY=
+DEEPSEEK_BASE_URL=
+DEEPSEEK_MODEL=
+
 # 音频渲染（第三阶段）
 AUDIO_RENDERER=auto          # auto / fluidsynth / fallback
 FLUIDSYNTH_BIN=fluidsynth
-SOUNDFONT_PATH=              # 留空自动查找常见路径
+SOUNDFONT_PATH=
 AUDIO_SAMPLE_RATE=44100
 AUDIO_GAIN=0.6
 ```
 
-## 九、测试
+## 七、测试
 
 ```bash
 cd ai-music-mvp
 pytest
 ```
 
-覆盖：第一阶段协议/MockProvider/API、第二阶段乐理/编曲/MIDI Writer/MIDI API、第三阶段 Fallback 渲染器（合法 WAV、时长>0）与音频 API（render/stream/download/assets、404、自动生成 MIDI）。测试强制 `AUDIO_RENDERER=fallback`，不依赖系统 FluidSynth。
+覆盖：第一至三阶段全部回归 + 第四阶段编辑引擎（不可变性 / preserve / 段落目标 / 加去乐器 / 中国风 / diff）与版本 API（v1 初始化、edit 建版本、restore 同步、assets 版本指针、404）。
 
-## 十、当前不支持（第三阶段范围外）
+## 八、当前不支持（第四阶段范围外）
 
-- 自然语言修改音乐、MusicEditSpec 真正执行
-- 多版本管理
 - AI 人声、歌词演唱、音色克隆、VST 插件宿主
 - 专业混音母带、DAW 深度集成、实时多人协作
 
-## 十一、第四阶段计划
+## 九、第五阶段计划
 
-1. MusicEditSpec 应用 + 版本管理
-2. 专业混音：轨道音量/声像/均衡
-3. 更多渲染后端（如 MIDI.js、服务器端合成器集群）
-4. 音频可视化：波形、频谱、段落高亮联动
+1. 专业混音：轨道音量 / 声像 / 均衡（Web Audio API 或后端 DSP）
+2. 音频可视化：波形、频谱、播放进度与段落高亮联动
+3. 版本对比 UI：字段级 diff 可视化、分支 / 合并
+4. 音质提升：FluidSynth 参数调优、SoundFont 选择器
 5. AI 人声 / 歌词演唱（可选）
 6. 工程化：Docker、CI、生产部署

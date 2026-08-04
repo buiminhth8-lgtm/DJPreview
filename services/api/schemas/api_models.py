@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field, field_validator
 
+from services.api.schemas.music_edit_spec import MusicEditSpec
 from services.api.schemas.music_spec import MusicSpec
 
 
@@ -86,6 +87,19 @@ class AudioAssetInfo(BaseModel):
     metadata: AudioMetadata | None = None
 
 
+class VersionInfo(BaseModel):
+    version_id: str
+    version_number: int
+    created_at: str
+    instruction: str | None = None
+    parent_version_id: str | None = None
+
+
+class VersionDetail(VersionInfo):
+    music_spec: MusicSpec
+    edit_spec: MusicEditSpec | None = None
+
+
 class AssetsResponse(BaseModel):
     song_id: str
     has_music_spec: bool
@@ -93,6 +107,7 @@ class AssetsResponse(BaseModel):
     has_audio: bool
     midi: MidiAssetInfo | None = None
     audio: AudioAssetInfo | None = None
+    current_version: VersionInfo | None = None
 
 
 class GenerateWithAudioResponse(BaseModel):
@@ -100,3 +115,37 @@ class GenerateWithAudioResponse(BaseModel):
     music_spec: MusicSpec
     midi: MidiInfo
     audio: RenderAudioResponse
+
+
+class EditSongRequest(BaseModel):
+    instruction: str = Field(min_length=1, description="自然语言修改指令")
+
+    @field_validator("instruction")
+    @classmethod
+    def _instruction_not_blank(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("instruction 不能为空")
+        return stripped
+
+
+class EditSongResponse(BaseModel):
+    song_id: str
+    version_id: str
+    edit_spec: MusicEditSpec
+    diff: list[dict]
+    music_spec: MusicSpec
+    assets: AssetsResponse
+
+
+class VersionsResponse(BaseModel):
+    song_id: str
+    current_version_id: str
+    versions: list[VersionInfo]
+
+
+class RestoreVersionResponse(BaseModel):
+    song_id: str
+    version_id: str
+    music_spec: MusicSpec
+    assets: AssetsResponse

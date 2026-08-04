@@ -1,4 +1,4 @@
-"""MockProvider —— 不调用任何外部 API，按规则生成合法 MusicSpec。"""
+"""MockProvider —— 不调用任何外部 API，按规则生成合法 MusicSpec / MusicEditSpec。"""
 
 from __future__ import annotations
 
@@ -29,7 +29,6 @@ class MockProvider(LLMProvider):
 
     def generate_music_spec(self, prompt: str) -> MusicSpec:
         prompt_clean = prompt.strip()
-        lower = prompt_clean.lower()
 
         # 调式 / 调性 / 速度
         is_pentatonic = self._PENTATONIC_KEYWORD in prompt_clean
@@ -91,39 +90,88 @@ class MockProvider(LLMProvider):
         )
 
     def generate_music_edit(self, instruction: str, current_spec: MusicSpec) -> MusicEditSpec:
-        """规则化生成修改协议：识别速度、调性、轨道等关键词。"""
+        """规则化生成修改协议：识别段落/轨道目标与常见中文指令。"""
         text = instruction.strip()
-        target = EditTarget(scope="partial")
+        target = self._parse_edit_target(text)
 
-        if any(k in text for k in ("整首", "整体", "全局")):
-            target = EditTarget(scope="overall")
-        elif "bass" in text or "贝斯" in text:
-            target = EditTarget(scope="track", track="bass")
-        elif "drums" in text or "鼓" in text:
-            target = EditTarget(scope="track", track="drums")
-        elif "melody" in text or "旋律" in text:
-            target = EditTarget(scope="track", track="melody")
-        elif "chorus" in text or "副歌" in text:
-            target = EditTarget(scope="section", section="chorus")
-        elif "verse" in text or "主歌" in text:
-            target = EditTarget(scope="section", section="verse")
+        # 加/去乐器时避免被误判为轨道目标
+        if any(k in text for k in (
+            "加钢琴", "加鼓", "加弦乐", "加 pad", "加铺底",
+            "去掉鼓", "删除鼓", "不要鼓", "去掉贝斯", "删除贝斯", "不要贝斯",
+            "去掉钢琴", "删除钢琴",
+        )):
+            if target.scope == "track":
+                target = EditTarget(scope="partial")
 
         operations: list[EditOperation] = []
+
+        if "中国风" in text:
+            operations.append(EditOperation(type="chinese_style", value="pentatonic"))
+
         if any(k in text for k in ("更快", "加速")):
             operations.append(EditOperation(type="tempo", amount=10.0, params={"bpm": current_spec.tempo.bpm + 10}))
         if any(k in text for k in ("更慢", "减速")):
             operations.append(EditOperation(type="tempo", amount=-10.0, params={"bpm": max(40, current_spec.tempo.bpm - 10)}))
-        if "更亮" in text or "明亮" in text:
-            operations.append(EditOperation(type="tonality", value="C"))
-        if "更暗" in text or "忧郁" in text:
-            operations.append(EditOperation(type="tonality", value="D", params={"mode": "minor"}))
+
+        if target.section is not None:
+            # 段落目标：亮度/暗度映射为段落能量变化
+            if "更亮" in text or "明亮" in text or "更激昂" in text or "更强" in text:
+                operations.append(EditOperation(type="energy", amount=0.15))
+            if "更暗" in text or "更柔" in text or "平静" in text or "舒缓" in text:
+                operations.append(EditOperation(type="energy", amount=-0.15))
+        else:
+            if "更亮" in text or "明亮" in text:
+                operations.append(EditOperation(type="tonality", value="C", params={"mode": "major"}))
+            if "更暗" in text or "忧郁" in text or "悲伤" in text:
+                operations.append(EditOperation(type="tonality", value="D", params={"mode": "minor"}))
+
+        if any(k in text for k in ("更激昂", "更强", "更有力")):
+            operations.append(EditOperation(type="energy", amount=0.15))
+        if any(k in text for k in ("更柔和", "更平静", "更舒缓")):
+            operations.append(EditOperation(type="energy", amount=-0.15))
+
         if "音量" in text or "力度" in text:
             operations.append(EditOperation(type="velocity", amount=5.0))
+
+        if any(k in text for k in ("加钢琴", "加个钢琴")):
+            operations.append(EditOperation(type="add_instrument", value="piano", params={"role": "harmony"}))
+        if any(k in text for k in ("加鼓", "加个鼓", "加打击乐")):
+            operations.append(EditOperation(type="add_instrument", value="drums", params={"role": "drums"}))
+        if any(k in text for k in ("加弦乐", "加 pad", "加铺底")):
+            operations.append(EditOperation(type="add_instrument", value="strings", params={"role": "pad"}))
+
+        if any(k in text for k in ("去掉鼓", "删除鼓", "不要鼓")):
+            operations.append(EditOperation(type="remove_instrument", value="drums"))
+        if any(k in text for k in ("去掉贝斯", "删除贝斯", "不要贝斯")):
+            operations.append(EditOperation(type="remove_instrument", value="bass"))
+        if any(k in text for k in ("去掉钢琴", "删除钢琴")):
+            operations.append(EditOperation(type="remove_instrument", value="piano"))
 
         return MusicEditSpec(
             version="0.1",
             instruction=text,
             target=target,
-            preserve=["version", "seed", "prompt"],
+            preserve=["version", "seed", "prompt", "language"],
             operations=operations,
         )
+
+    @staticmethod
+    def _parse_edit_target(text: str) -> EditTarget:
+        """按指令关键词解析修改目标（段落优先于轨道）。"""
+        if any(k in text for k in ("整首", "整体", "全局")):
+            return EditTarget(scope="overall")
+        if "chorus" in text or "副歌" in text:
+            return EditTarget(scope="section", section="chorus")
+        if "verse" in text or "主歌" in text:
+            return EditTarget(scope="section", section="verse")
+        if "intro" in text or "前奏" in text:
+            return EditTarget(scope="section", section="intro")
+        if "outro" in text or "尾奏" in text:
+            return EditTarget(scope="section", section="outro")
+        if "bass" in text or "贝斯" in text:
+            return EditTarget(scope="track", track="bass")
+        if "drums" in text or "鼓" in text:
+            return EditTarget(scope="track", track="drums")
+        if "melody" in text or "旋律" in text:
+            return EditTarget(scope="track", track="melody")
+        return EditTarget(scope="partial")
