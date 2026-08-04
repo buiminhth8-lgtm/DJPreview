@@ -49,6 +49,22 @@ def test_export_import_roundtrip(tmp_path):
     assert imported_spec.title == spec.title
 
 
+def test_import_with_directory_entries(tmp_path):
+    """zip 内目录项应被正确处理（创建目录，不当作文件写入）。"""
+    spec = build_spec()
+    bundle = tmp_path / "dirs.aimusic.zip"
+    with zipfile.ZipFile(bundle, "w") as zf:
+        zf.writestr("manifest.json", json.dumps({"format": "ai-music-project", "song_id": "s1"}))
+        zf.writestr("versions/", "")  # 目录项
+        zf.writestr("versions/index.json", json.dumps({"current_version_id": None, "versions": []}))
+        zf.writestr("music_spec.json", json.dumps(spec.model_dump(mode="json"), ensure_ascii=False))
+    result = import_project_bundle(bundle, tmp_path / "projects")
+    assert result["imported"] is True
+    imported_dir = tmp_path / "projects" / result["song_id"]
+    assert (imported_dir / "versions" / "index.json").exists()
+    assert imported_dir.is_dir()
+
+
 def test_zip_slip_rejected(tmp_path):
     evil_zip = tmp_path / "evil.aimusic.zip"
     with zipfile.ZipFile(evil_zip, "w") as zf:
@@ -57,6 +73,18 @@ def test_zip_slip_rejected(tmp_path):
     try:
         import_project_bundle(evil_zip, tmp_path / "projects")
         assert False, "应当拒绝 zip slip"
+    except ValueError:
+        pass
+
+
+def test_absolute_path_rejected(tmp_path):
+    evil_zip = tmp_path / "abs.aimusic.zip"
+    with zipfile.ZipFile(evil_zip, "w") as zf:
+        zf.writestr("manifest.json", json.dumps({"format": "ai-music-project"}))
+        zf.writestr("/evil.txt", "bad")
+    try:
+        import_project_bundle(evil_zip, tmp_path / "projects")
+        assert False, "应当拒绝绝对路径"
     except ValueError:
         pass
 

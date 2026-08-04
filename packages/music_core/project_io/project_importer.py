@@ -10,6 +10,20 @@ from pathlib import Path
 from services.api.schemas.music_spec import MusicSpec
 
 
+def _safe_extract_target(projects_root: Path, new_song_id: str, name: str) -> Path:
+    """校验 zip 内路径并返回安全的解压目标（防 zip slip，跨平台兼容）。"""
+    path = Path(name)
+    if path.is_absolute():
+        raise ValueError(f"非法绝对路径：{name}")
+    target_root = (projects_root / new_song_id).resolve()
+    try:
+        target = (target_root / path).resolve()
+        target.relative_to(target_root)
+    except ValueError as exc:
+        raise ValueError(f"路径越界：{name}") from exc
+    return target
+
+
 def import_project_bundle(bundle_path: Path, projects_root: Path) -> dict:
     """导入 .aimusic.zip 到新的 song_id 目录（防 zip slip）。"""
     projects_root = Path(projects_root)
@@ -30,15 +44,13 @@ def import_project_bundle(bundle_path: Path, projects_root: Path) -> dict:
             raise ValueError(f"不支持的工程格式：{manifest.get('format')}")
 
         for name in names:
-            path = Path(name)
-            # zip slip 防护
-            if path.is_absolute() or ".." in path.parts:
-                raise ValueError(f"非法路径：{name}")
-            out = (target_root / name).resolve()
-            if not str(out).startswith(str(target_root) + "\\") and out != target_root:
-                raise ValueError(f"路径越界：{name}")
-            out.parent.mkdir(parents=True, exist_ok=True)
-            out.write_bytes(zf.read(name))
+            if name.endswith("/"):
+                # 目录项：仅创建目录，不写入文件
+                _safe_extract_target(projects_root, new_song_id, name).mkdir(parents=True, exist_ok=True)
+                continue
+            target = _safe_extract_target(projects_root, new_song_id, name)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(zf.read(name))
 
     spec_path = target_root / "music_spec.json"
     if not spec_path.exists():
