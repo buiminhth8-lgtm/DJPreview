@@ -210,6 +210,16 @@ RENDER_FAILED           音频渲染失败
 INTERNAL_ERROR          服务器内部错误
 ```
 
+## API Schema（OpenAPI）
+
+主要接口已补齐 Pydantic `response_model`，可通过 FastAPI 自动生成的 OpenAPI 文档查看核心接口响应结构：
+
+```text
+http://localhost:8000/openapi.json
+```
+
+核心接口（生成 / 获取 / 编辑 / 版本列表 / 版本详情 / 版本 diff / 混音 / 质量 / 风格 / 参考 / 评估）均定义了稳定的响应模型。
+
 ## 当前项目状态
 
 ```text

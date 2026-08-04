@@ -58,7 +58,7 @@
 - 依赖：T04
 - 验收标准：异常处理器统一；pytest 校验关键错误响应结构
 
-## T09 API Response Model 明确化 ⬜
+## T09 API Response Model 明确化 ✅
 
 - 目标：消除裸 dict 响应，全部接口使用 Pydantic response_model
 - 优先级：P1

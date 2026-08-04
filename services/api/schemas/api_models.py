@@ -95,6 +95,20 @@ class RenderAudioResponse(BaseModel):
     metadata: AudioMetadata
 
 
+class PianoRollResponse(BaseModel):
+    """钢琴卷帘数据响应。"""
+
+    song_id: str
+    ticks_per_beat: int
+    bpm: int | None = None
+    beats_per_bar: int = 4
+    total_bars: float = 0.0
+    total_notes: int = 0
+    truncated: bool = False
+    sections: list[dict[str, Any]] = Field(default_factory=list)
+    tracks: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class MidiAssetInfo(BaseModel):
     download_url: str
 

@@ -17,7 +17,7 @@ from packages.music_core.composer.music_composer import compose_music
 from packages.music_core.editing.diff import diff_music_specs
 from packages.music_core.editing.edit_engine import apply_music_edit
 from packages.music_core.evaluation.eval_fixtures import get_eval_cases
-from packages.music_core.evaluation.eval_models import EvalReport
+from packages.music_core.evaluation.eval_models import EvalCase, EvalReport
 from packages.music_core.evaluation.eval_runner import run_generation_eval
 from packages.music_core.midi.midi_writer import write_midi
 from packages.music_core.mix.mix_engine import (
@@ -78,6 +78,7 @@ from services.api.schemas.api_models import (
     MixUpdateResponse,
     OptimizeRequest,
     OptimizeResponse,
+    PianoRollResponse,
     ProjectImportResponse,
     RenderAudioResponse,
     RestoreVersionResponse,
@@ -660,17 +661,19 @@ def apply_mix(song_id: str) -> ApplyMixResponse:
 
 # ---------- Piano Roll / 质量 / 优化 / stems ----------
 
-@router.get("/songs/{song_id}/piano-roll", summary="获取钢琴卷帘数据")
+@router.get("/songs/{song_id}/piano-roll", response_model=PianoRollResponse, summary="获取钢琴卷帘数据")
 def get_piano_roll(
     song_id: str,
     track_id: str | None = Query(default=None),
     max_notes: int = Query(default=5000, ge=1, le=100000),
-) -> dict:
+) -> PianoRollResponse:
     try:
         spec = get_project(song_id)
         midi_path = _ensure_midi_for(song_id)
         parsed = parse_midi_to_notes(midi_path)
-        return build_piano_roll_data(parsed, spec, max_notes=max_notes, track_id=track_id)
+        data = build_piano_roll_data(parsed, spec, max_notes=max_notes, track_id=track_id)
+        data["song_id"] = song_id
+        return data
     except FileNotFoundError as exc:
         raise project_not_found(song_id) from None
     except ValueError as exc:
@@ -888,7 +891,7 @@ async def import_project(file: UploadFile = File(...)) -> ProjectImportResponse:
         os.unlink(temp_path)
 
 
-@router.get("/evaluation/cases", summary="获取内置评估用例")
+@router.get("/evaluation/cases", response_model=list[EvalCase], summary="获取内置评估用例")
 def eval_cases():
     return get_eval_cases()
 

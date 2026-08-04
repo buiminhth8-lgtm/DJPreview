@@ -252,6 +252,7 @@ export interface ApplyMixResponse {
 }
 
 export interface PianoRollData {
+  song_id: string;
   ticks_per_beat: number;
   bpm: number | null;
   beats_per_bar: number;
