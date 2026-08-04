@@ -1,0 +1,27 @@
+services:
+  api:
+    image: ${API_IMAGE}
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-}
+      AUDIO_RENDERER: ${AUDIO_RENDERER:-fallback}
+      SOUNDFONT_PATH: ${SOUNDFONT_PATH:-}
+      AUDIO_SAMPLE_RATE: ${AUDIO_SAMPLE_RATE:-44100}
+      AUDIO_GAIN: ${AUDIO_GAIN:-0.6}
+      PROJECTS_DIR: /app/data/projects
+    volumes:
+      - runtime-data:/app/data
+    restart: unless-stopped
+
+  web:
+    image: ${WEB_IMAGE}
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  runtime-data:

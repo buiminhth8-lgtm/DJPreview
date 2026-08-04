@@ -18,7 +18,7 @@ npm run dev
 
 ## 配置后端地址
 
-默认 `http://localhost:8000`，可通过环境变量覆盖：
+默认使用相对路径 `/api/v1`（开发环境由 Vite 代理到后端，Docker 部署由 nginx 转发），可通过环境变量覆盖为绝对地址：
 
 ```bash
 # Windows PowerShell

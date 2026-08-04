@@ -154,6 +154,16 @@ npm install
 npm run dev
 ```
 
+前端 API 默认使用相对路径 `/api/v1`（开发环境由 Vite 代理到 `http://localhost:8000`，Docker 部署由 nginx 转发到 `api:8000`），也可通过 `VITE_API_BASE_URL` 覆盖为绝对地址（详见 [apps/web/README.md](apps/web/README.md)）。
+
+## 云端构建 / 镜像发布 / Docker 部署
+
+完整的 GitHub Actions 云端构建、GHCR 镜像发布与 Windows 本地 Docker 部署说明见 [DEPLOYMENT.md](DEPLOYMENT.md)：
+
+- 后端 pytest + 前端 `npm ci` / `npm run build`（`.github/workflows/ci.yml`）
+- API / Web 镜像构建并推送到 GHCR（`.github/workflows/docker-publish.yml`）
+- Windows 本地 `docker compose` 部署（`docker-compose.local-build.yml` / `docker-compose.prod.yml`）
+
 ## 十一、测试
 
 ```bash

@@ -386,8 +386,9 @@ export interface ProjectImportResponse {
   summary: Record<string, unknown>;
 }
 
-// 后端 API 地址可通过 VITE_API_BASE_URL 环境变量配置，默认 http://localhost:8000
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+// 后端 API 地址可通过 VITE_API_BASE_URL 配置；默认空字符串表示相对路径 /api/v1
+// （开发环境由 Vite proxy 转发，Docker 部署由 nginx 转发到 api:8000）
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 async function handleError(response: Response): Promise<never> {
   const text = await response.text();
