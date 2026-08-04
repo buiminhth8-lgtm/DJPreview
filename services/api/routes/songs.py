@@ -91,8 +91,8 @@ from services.api.storage.project_store import (
     get_quality_report as get_quality_report_store,
     get_stems_dir,
     get_stems_zip_path,
-    get_version,
     get_version_detail as get_version_detail_store,
+    get_version_diff as get_version_diff_store,
     get_wav_path,
     init_version_if_needed,
     is_valid_song_id,
@@ -553,25 +553,18 @@ def _version_asset_info(song_id: str) -> VersionAssetInfo:
 
 @router.get("/songs/{song_id}/versions/{version_id}/diff", response_model=VersionDiffResponse, summary="版本 diff")
 def get_version_diff(song_id: str, version_id: str) -> VersionDiffResponse:
-    """返回指定版本与当前版本的字段级 diff（old=指定版本，new=当前版本）。"""
+    """返回指定版本相对父版本的字段级 diff（与版本详情接口的 diff 保持一致）。"""
     try:
         get_project(song_id)
-        snapshot = get_version(song_id, version_id)
-        target_spec = MusicSpec.model_validate(snapshot["music_spec"])
-        current_spec = get_project(song_id)  # 根目录 music_spec.json 即当前版本
-        current = get_current_version(song_id)
-        diff = diff_music_specs(target_spec, current_spec)
-        is_current = current is not None and current["version_id"] == version_id
+        detail = get_version_diff_store(song_id, version_id)
         return VersionDiffResponse(
             song_id=song_id,
-            version_id=version_id,
-            version_number=snapshot["version_number"],
-            is_current=is_current,
-            base_version_id=current["version_id"] if current else version_id,
-            base_version_number=current["version_number"] if current else snapshot["version_number"],
-            diff=diff,
-            music_spec=target_spec,
-            assets=_assets_response(song_id),
+            version_id=detail["version_id"],
+            parent_version_id=detail["parent_version_id"],
+            is_current=detail["is_current"],
+            diff=detail["diff"],
+            metadata=detail["metadata"],
+            warnings=detail["warnings"],
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None

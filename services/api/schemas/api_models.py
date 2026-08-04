@@ -146,17 +146,15 @@ class VersionDetailResponse(BaseModel):
 
 
 class VersionDiffResponse(BaseModel):
-    """指定版本与当前版本的字段级 diff。"""
+    """指定版本相对父版本的字段级 diff。"""
 
     song_id: str
     version_id: str
-    version_number: int
-    is_current: bool
-    base_version_id: str
-    base_version_number: int
-    diff: list[dict]
-    music_spec: MusicSpec
-    assets: AssetsResponse
+    parent_version_id: str | None = None
+    is_current: bool = False
+    diff: list[dict] | None = None
+    metadata: dict = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class GenerateWithAudioResponse(BaseModel):

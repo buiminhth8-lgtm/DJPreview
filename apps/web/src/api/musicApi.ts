@@ -189,13 +189,19 @@ export interface VersionDetailResponse {
 export interface VersionDiffResponse {
   song_id: string;
   version_id: string;
-  version_number: number;
+  parent_version_id: string | null;
   is_current: boolean;
-  base_version_id: string;
-  base_version_number: number;
-  diff: DiffItem[];
-  music_spec: MusicSpec;
-  assets: AssetsResponse;
+  diff: DiffItem[] | null;
+  metadata: {
+    version_id: string;
+    index: number;
+    parent_version_id: string | null;
+    created_at: string | null;
+    prompt: string | null;
+    edit_instruction: string | null;
+    notes: string | null;
+  };
+  warnings: string[];
 }
 
 export interface TrackMixSpec {

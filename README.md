@@ -162,6 +162,14 @@ curl http://localhost:8000/api/v1/songs/{song_id}/versions/v1
 
 返回 `song_id`、`version_id`、`is_current`、`metadata`、`music_spec`、`edit_spec`、`diff`（相对父版本）与 `assets`。
 
+版本 diff 示例：
+
+```bash
+curl http://localhost:8000/api/v1/songs/{song_id}/versions/v2/diff
+```
+
+返回 `song_id`、`version_id`、`parent_version_id`、`is_current`、`diff`（相对父版本）、`metadata` 与 `warnings`。
+
 ## 当前项目状态
 
 ```text

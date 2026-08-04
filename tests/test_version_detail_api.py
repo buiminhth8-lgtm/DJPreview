@@ -61,30 +61,34 @@ def test_version_detail_after_edit_has_edit_spec_and_not_current():
 
 def test_version_diff_after_edit():
     song_id = _create_song()
-    v1 = _versions(song_id)[0]
+    versions = _versions(song_id)
+    v1 = versions[0]
     client.post(f"/api/v1/songs/{song_id}/edit", json={"instruction": "整首更快一点"})
+    versions = _versions(song_id)
+    v2 = versions[-1]
 
-    resp = client.get(f"/api/v1/songs/{song_id}/versions/{v1['version_id']}/diff")
+    resp = client.get(f"/api/v1/songs/{song_id}/versions/{v2['version_id']}/diff")
     assert resp.status_code == 200
     data = resp.json()
-    fields = {d["field"] for d in data["diff"]}
-    assert "tempo.bpm" in fields
+    assert data["parent_version_id"] == v1["version_id"]
+    assert data["is_current"] is True
     tempo = next(d for d in data["diff"] if d["field"] == "tempo.bpm")
     assert tempo["old"] == 72
     assert tempo["new"] == 82
-    assert data["base_version_number"] == 2
-    assert data["is_current"] is False
-    assert data["music_spec"]["tempo"]["bpm"] == 72  # 返回目标版本 spec
+    assert data["metadata"]["edit_instruction"] == "整首更快一点"
+    assert data["warnings"] == []
 
 
-def test_version_diff_current_version_empty():
+def test_version_diff_initial_version():
     song_id = _create_song()
     v1 = _versions(song_id)[0]
     resp = client.get(f"/api/v1/songs/{song_id}/versions/{v1['version_id']}/diff")
     assert resp.status_code == 200
     data = resp.json()
+    assert data["parent_version_id"] is None
     assert data["is_current"] is True
-    assert data["diff"] == []
+    assert data["diff"] is None
+    assert data["warnings"] == []
 
 
 def test_version_detail_missing_version_404():
