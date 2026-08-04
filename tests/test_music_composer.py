@@ -76,3 +76,14 @@ def test_drum_events_valid():
     assert all(0 <= n.pitch <= 127 for n in drums.notes)
     assert all(n.start_beat >= 0 and n.duration_beats > 0 for n in drums.notes)
     assert all(n.channel == 9 and n.is_drum for n in drums.notes)
+
+
+def test_bass_events_valid():
+    """T21：贝斯事件 pitch / velocity / duration 合法。"""
+    result = compose_music(build_spec())
+    bass = next(t for t in result.tracks if t.role == "bass")
+    assert bass.notes
+    assert all(1 <= n.velocity <= 127 for n in bass.notes)
+    assert all(0 <= n.pitch <= 127 for n in bass.notes)
+    assert all(n.start_beat >= 0 and n.duration_beats > 0 for n in bass.notes)
+    assert all(n.channel != 9 for n in bass.notes)

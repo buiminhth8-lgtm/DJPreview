@@ -33,6 +33,7 @@ def test_bass_follows_chord_root_and_fifth():
     result = compose_music(spec)
     bass = next(t for t in result.tracks if t.role == "bass")
     bpb = beats_per_bar(spec)
+    scale_mods = {p % 12 for p in get_scale_pitches(spec.tonality.key, spec.tonality.mode, 4)}
 
     for bar in harmony:
         root_mod = (bar.chord_pitches[0] if bar.chord_pitches else 60) % 12
@@ -46,10 +47,17 @@ def test_bass_follows_chord_root_and_fifth():
         assert bar_notes, f"bar {bar.bar_index} 缺少贝斯音符"
         for note in bar_notes:
             assert 36 <= note.pitch <= 52, f"bar {bar.bar_index} 音域越界: {note.pitch}"
-            assert note.pitch % 12 in allowed_mods, (
-                f"bar {bar.bar_index} {bar.chord_symbol} 根音级={root_mod}，"
-                f"贝斯音 {note.pitch} (mod {note.pitch % 12}) 不是根音或纯五度"
-            )
+            # T21：强拍必须是根音/五度；弱拍允许调内经过音（passing/approach）
+            on_beat = abs(note.start_beat % 1.0) < 0.05
+            if on_beat:
+                assert note.pitch % 12 in allowed_mods, (
+                    f"bar {bar.bar_index} {bar.chord_symbol} 强拍贝斯音 {note.pitch} "
+                    f"(mod {note.pitch % 12}) 不是根音或纯五度"
+                )
+            else:
+                assert note.pitch % 12 in scale_mods, (
+                    f"bar {bar.bar_index} 弱拍贝斯音 {note.pitch} (mod {note.pitch % 12}) 不在调内"
+                )
 
 
 def test_drums_use_gm_channel_9():

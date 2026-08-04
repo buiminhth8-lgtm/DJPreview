@@ -368,10 +368,27 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
 - 轻量节奏分析辅助 `analysis/rhythm_analysis.py`（drum_density_score / section_fill_detected /
   chorus_intensity_lift_detected / swing_feel_detected / velocity_variation_score）。
 
+## 贝斯 groove 增强（T21）
+
+- 风格化贝斯型：pop（root/fifth/octave，跟随 kick）、rock（8 分音符 driving）、lo-fi（syncopated + swing 0.62）、
+  cinematic（低频长音 + 少量 octave movement）、chinese（稳定根音/五度 + 低鼓呼应）、electronic（offbeat 插空）。
+- 段落强度：intro 长根音低力度、verse 基础 groove、pre_chorus 密度提升 + 末小节 approach、
+  chorus 最强（octave jump、力度 +10）、bridge 对比（低密度）、outro 回 tonic 收束。
+- 和声关系：强拍优先和弦根音，次强拍 fifth/octave，弱拍调内 passing tone，段落衔接 approach note；
+  复杂和弦（maj7/sus/add9）通过 chord parser 提取 root 与稳定和弦音。
+- kick 对齐：默认使用风格隐含 kick 拍位；也可传入 DrumEngine 输出提取的 kick positions
+  （`extract_kick_positions`），主要 kick 附近补根音，chorus 对齐率不低于 verse。
+- 音区：统一 36-52（E2-E3，满足 ≥24 / ≤64 约束）；velocity：root 高、fifth/octave 中、passing -15、approach -10、
+  ghost 30-50，段落力度修正（chorus +10 / outro -10 等），clamp 1-127。
+- bass 走 melodic channel（非 9），program 由 T17 registry 解析（electric_bass_finger→33 / synth_bass_1→38）；
+  MIDI Writer / Fallback Renderer / Evaluation 不受影响。
+- 轻量贝斯分析辅助 `analysis/bass_analysis.py`（bass_root_support_score / bass_kick_alignment_score /
+  bass_motion_score / chorus_bass_lift_detected / bass_range_validity）。
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（386 passed，2026-08-04 实测）
+后端测试：pytest -q passed（408 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

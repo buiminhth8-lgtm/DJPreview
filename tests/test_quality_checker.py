@@ -121,6 +121,30 @@ def test_rhythm_analysis_helpers():
         )
 
 
+def test_bass_analysis_helpers():
+    """T21：轻量贝斯分析辅助函数可运行且结果有界。"""
+    from packages.music_core.analysis.bass_analysis import (
+        bass_kick_alignment_score,
+        bass_motion_score,
+        bass_range_validity,
+        bass_root_support_score,
+        chorus_bass_lift_detected,
+    )
+    from packages.music_core.bass.bass_engine import BassEngine
+    from packages.music_core.composer.music_composer import compose_music
+    from packages.music_core.harmony.harmony_engine import build_bar_harmony
+
+    spec = build_spec()
+    harmony = build_bar_harmony(spec)
+    bass = BassEngine().generate(spec, harmony, channel=2)
+    harmony_by_bar = {bar.bar_index: bar.chord_pitches[0] for bar in harmony}
+    assert 0.0 <= bass_root_support_score(bass, harmony_by_bar) <= 1.0
+    assert 0.0 <= bass_motion_score(bass) <= 1.0
+    assert bass_range_validity(bass) is True
+    assert isinstance(chorus_bass_lift_detected(bass[:10], bass[10:30]), bool)
+    assert bass_kick_alignment_score(bass, [0.0, 8.0, 16.0], tolerance=0.3) >= 0.5
+
+
 def test_optimizer_fixes_missing_melody_and_harmony():
     spec = build_spec()
     spec.tracks = [t for t in spec.tracks if t.role not in ("melody", "harmony")]

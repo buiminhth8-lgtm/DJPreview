@@ -79,3 +79,19 @@ def test_drum_track_uses_gm_notes(tmp_path):
                 drum_note_on += 1
                 assert msg.note in gm_notes
     assert drum_note_on > 0
+
+
+def test_bass_track_uses_melodic_channel_and_program(tmp_path):
+    """T21：bass 走 melodic channel（非 9），program 来自 T17 registry（33）。"""
+    composition = compose_music(_spec_with_instruments())
+    output = write_midi(composition, tmp_path / "bass.mid")
+    bass_channel = None
+    bass_program = None
+    for track in mido.MidiFile(str(output)).tracks:
+        names = [m for m in track if m.type == "track_name"]
+        if names and "bass" in names[0].name:
+            bass_channel = next((m.channel for m in track if m.type == "note_on"), None)
+            bass_program = next((m.program for m in track if m.type == "program_change"), None)
+    assert bass_channel is not None
+    assert bass_channel != 9
+    assert bass_program == 33  # electric_bass_finger

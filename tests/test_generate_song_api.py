@@ -60,3 +60,11 @@ def test_generated_song_has_drums_track():
     assert resp.status_code == 200
     tracks = resp.json()["music_spec"]["tracks"]
     assert any(t["role"] == "drums" for t in tracks)
+
+
+def test_generated_song_has_bass_track():
+    """T21：MockProvider 默认生成包含 bass track。"""
+    resp = client.post("/api/v1/songs/generate", json={"prompt": "生成一段忧郁空灵的钢琴配乐"})
+    assert resp.status_code == 200
+    tracks = resp.json()["music_spec"]["tracks"]
+    assert any(t["role"] == "bass" for t in tracks)
