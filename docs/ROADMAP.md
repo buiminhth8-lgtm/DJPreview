@@ -139,12 +139,17 @@
 - 实现：parser 与 fallback renderer 的活动音符改为 `dict[(channel, note), list[(start_tick, velocity)]]`，
   note_off 按 FIFO pop(0) 配对；fallback 使用 note_on 的 velocity；新增重叠同音 / 多 channel / 边界用例测试
 
-## T17 乐器命名与 GM Program 映射统一 ⬜
+## T17 乐器命名与 GM Program 映射统一 ✅
 
 - 目标：统一乐器名 → GM program 映射（单一来源）
 - 优先级：P2
 - 依赖：无
-- 验收标准：未知乐器回退默认；映射表测试通过
+- 验收标准：Instrument Registry 统一 canonical id / alias / GM program；MIDI Writer 使用统一映射；
+  MockProvider / Style Template 输出可解析乐器；未知乐器回退默认并在语义校验中给 warning；鼓组走 channel 9
+- 实现：新增 `packages/music_core/instruments/`（gm.py / registry.py）；
+  `midi_writer` / `mix_engine` 改用 `get_gm_program` / `is_drum_instrument`；
+  `midi_constants.GM_PROGRAMS` 由注册表生成；MockProvider / Style Library 改用 canonical id；
+  `spec_validator` 新增 `UNKNOWN_INSTRUMENT_ALIAS` warning；新增 `tests/test_instrument_registry.py`
 
 ## T18-T22 音乐质量增强 ⬜
 

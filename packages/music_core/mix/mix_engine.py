@@ -6,8 +6,9 @@ import copy
 import logging
 
 from packages.music_core.composer.events import CompositionResult, TrackEvents
+from packages.music_core.instruments.registry import get_gm_program, is_drum_instrument
 from packages.music_core.mix.mix_models import MixSpec, TrackMixSpec
-from packages.music_core.midi.midi_constants import DRUM_CHANNEL, GM_PROGRAMS
+from packages.music_core.midi.midi_constants import DRUM_CHANNEL
 from services.api.schemas.music_spec import MusicSpec
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,8 @@ def _pan_to_cc(pan: float) -> int:
 
 
 def _default_track_mix(track) -> TrackMixSpec:
-    program = None if track.role == "drums" else GM_PROGRAMS.get((track.instrument or "").lower(), 0)
+    is_drum = track.role == "drums" or is_drum_instrument(track.instrument)
+    program = None if is_drum else get_gm_program(track.instrument, default=0)
     return TrackMixSpec(
         track_id=track.id,
         role=track.role,

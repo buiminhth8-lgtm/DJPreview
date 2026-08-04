@@ -2,6 +2,7 @@
 
 import pytest
 
+from packages.music_core.instruments.registry import is_known_instrument
 from packages.music_core.styles.style_library import find_style_templates, get_style_template, list_style_templates
 
 
@@ -29,3 +30,13 @@ def test_all_templates_valid_pydantic():
     for template in list_style_templates():
         assert template.id and template.name
         assert template.default_length_bars >= 8
+
+
+def test_all_template_instruments_resolvable():
+    """T17：所有内置风格模板的乐器都能被 registry 识别。"""
+    for template in list_style_templates():
+        assert template.default_tracks, template.id
+        for tpl in template.default_tracks:
+            instrument = tpl.get("instrument")
+            assert instrument, (template.id, tpl)
+            assert is_known_instrument(instrument), (template.id, instrument)

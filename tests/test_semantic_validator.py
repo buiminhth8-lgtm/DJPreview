@@ -129,3 +129,27 @@ def test_midi_generate_rejects_invalid_spec():
     body = resp.json()
     assert body["error_code"] == "MUSIC_SPEC_VALIDATION_FAILED"
     assert any(item["code"] == "UNKNOWN_HARMONY_SECTION" for item in body["details"]["errors"])
+
+
+# ---------- T17：未知乐器 warning ----------
+
+def test_unknown_instrument_is_warning_not_error():
+    spec = build_spec()
+    spec.tracks[0] = spec.tracks[0].model_copy(update={"instrument": "theremin_xyz"})
+    result = validate_music_spec_semantics(spec)
+    assert result.valid
+    assert "UNKNOWN_INSTRUMENT_ALIAS" in _codes(result, "warnings")
+
+
+def test_known_alias_instrument_no_warning():
+    spec = build_spec()
+    spec.tracks[0] = spec.tracks[0].model_copy(update={"instrument": "piano"})
+    result = validate_music_spec_semantics(spec)
+    assert "UNKNOWN_INSTRUMENT_ALIAS" not in _codes(result, "warnings")
+
+
+def test_canonical_instrument_no_warning():
+    spec = build_spec()
+    spec.tracks[1] = spec.tracks[1].model_copy(update={"instrument": "acoustic_grand_piano"})
+    result = validate_music_spec_semantics(spec)
+    assert "UNKNOWN_INSTRUMENT_ALIAS" not in _codes(result, "warnings")

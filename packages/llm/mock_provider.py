@@ -82,11 +82,11 @@ class MockProvider(LLMProvider):
         ]
 
         tracks = [
-            TrackSpec(id="melody", role="melody", instrument="lead_synth", pattern="legato", register="mid-high", velocity=100),
-            TrackSpec(id="piano", role="harmony", instrument="piano", pattern="comping", register="mid", velocity=80),
-            TrackSpec(id="bass", role="bass", instrument="bass", pattern="roots", register="low", velocity=90),
-            TrackSpec(id="drums", role="drums", instrument="drums", pattern="four_on_floor", register=None, velocity=100),
-            TrackSpec(id="pad", role="pad", instrument="strings", pattern="sustained", register="mid-low", velocity=70),
+            TrackSpec(id="melody", role="melody", instrument="lead_1_square", pattern="legato", register="mid-high", velocity=100),
+            TrackSpec(id="piano", role="harmony", instrument="acoustic_grand_piano", pattern="comping", register="mid", velocity=80),
+            TrackSpec(id="bass", role="bass", instrument="electric_bass_finger", pattern="roots", register="low", velocity=90),
+            TrackSpec(id="drums", role="drums", instrument="standard_drum_kit", pattern="four_on_floor", register=None, velocity=100),
+            TrackSpec(id="pad", role="pad", instrument="string_ensemble_1", pattern="sustained", register="mid-low", velocity=70),
         ]
 
         # 标题取 prompt 前 16 个字符；seed 用 crc32 保证跨进程确定性

@@ -318,10 +318,21 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
 - 未配对 `note_off` 与文件结束仍未关闭的 `note_on` 均不崩溃（未关闭 note 按现有行为丢弃）。
 - Piano Roll、Quality Checker、Evaluation 均基于修复后的 parser，重叠音符数据更准确。
 
+## 统一乐器注册表（T17）
+
+- 新增 `packages/music_core/instruments/`：统一 **canonical instrument id**、**alias 映射** 与 **0-based GM program**。
+- 常见别名解析：`piano -> acoustic_grand_piano`、`strings -> string_ensemble_1`、
+  `bass -> electric_bass_finger`、`drums -> standard_drum_kit`、`pad / synth_pad -> pad_2_warm`；
+  支持大小写、空格、短横线归一化。
+- MIDI Writer 与 MixEngine 统一使用 `get_gm_program()` / `is_drum_instrument()`；
+  drum 乐器（`standard_drum_kit`）不写 melodic program，走 GM drum channel 9。
+- MockProvider 与内置 Style Template 已改用 canonical 乐器名；未知乐器在语义校验中产生
+  `UNKNOWN_INSTRUMENT_ALIAS` **warning**（不阻断生成），MIDI 生成时回退默认音色（program 0）。
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（291 passed，2026-08-04 实测）
+后端测试：pytest -q passed（306 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

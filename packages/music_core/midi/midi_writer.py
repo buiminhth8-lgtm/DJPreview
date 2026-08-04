@@ -8,19 +8,18 @@ import mido
 from mido import Message, MetaMessage, MidiFile, MidiTrack
 
 from packages.music_core.composer.events import CompositionResult
-from packages.music_core.midi.midi_constants import DRUM_CHANNEL, GM_PROGRAMS
+from packages.music_core.instruments.registry import get_gm_program, is_drum_instrument
+from packages.music_core.midi.midi_constants import DRUM_CHANNEL
 
 DEFAULT_TICKS_PER_BEAT = 480
 PAN_CC = 10
 
 
 def _resolve_program(instrument: str | None, channel: int) -> int | None:
-    """乐器名 → GM program；鼓组通道不设置 program。"""
-    if channel == DRUM_CHANNEL:
+    """乐器名 → 0-based GM program（统一注册表）；鼓组通道/鼓乐器不设置 program。"""
+    if channel == DRUM_CHANNEL or is_drum_instrument(instrument):
         return None
-    if not instrument:
-        return 0
-    return GM_PROGRAMS.get(instrument.strip().lower(), 0)
+    return get_gm_program(instrument, default=0)
 
 
 def write_midi(

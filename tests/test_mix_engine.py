@@ -49,6 +49,26 @@ def test_mute_removes_notes():
     assert all(t.notes for t in others)
 
 
+def test_default_mix_program_uses_registry():
+    """T17：默认 MixSpec 的 program 由统一注册表解析。"""
+    from packages.music_core.instruments.registry import get_gm_program
+
+    spec = build_spec()
+    mix = create_default_mix_spec(spec)
+    by_id = {t.track_id: t for t in mix.tracks}
+    piano = by_id["piano"]
+    assert piano.instrument == "piano"  # build_spec 使用别名，仍可解析
+    assert piano.program == get_gm_program("piano", default=0)
+    assert piano.program == 0
+
+    bass = by_id["bass"]
+    assert bass.program == get_gm_program("bass", default=0)
+    assert bass.program == 33
+
+    drums = by_id["drums"]
+    assert drums.program is None
+
+
 def test_solo_keeps_only_solo_track():
     composition = _composition()
     mix = create_default_mix_spec(build_spec())

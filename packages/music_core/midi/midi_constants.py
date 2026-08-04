@@ -1,33 +1,15 @@
 """MIDI 常量：GM 音色、鼓组音色与通道分配。"""
 
+from packages.music_core.instruments.gm import GM_PROGRAMS as _CANONICAL_GM_PROGRAMS
+from packages.music_core.instruments.registry import INSTRUMENT_ALIASES
+
 DRUM_CHANNEL = 9  # GM 第 10 通道（MIDI 内部编号 9）
 
-# 乐器 → GM program（未知乐器默认 acoustic_grand_piano=0）
-GM_PROGRAMS: dict[str, int] = {
-    "acoustic_grand_piano": 0,
-    "piano": 0,
-    "bright_acoustic_piano": 1,
-    "electric_piano_1": 4,
-    "electric_piano": 4,
-    "acoustic_guitar_nylon": 24,
-    "acoustic_guitar_steel": 25,
-    "electric_guitar_clean": 27,
-    "acoustic_bass": 32,
-    "electric_bass_finger": 33,
-    "bass": 33,
-    "violin": 40,
-    "string_ensemble": 48,
-    "strings": 48,
-    "synth_strings": 50,
-    "choir_aahs": 52,
-    "pad_warm": 89,
-    "pad": 89,
-    "synth_pad": 90,
-    "lead_synth": 80,
-    "synth_lead": 80,
-    "lead_square": 80,
-    "synth_bass": 38,
-}
+# 统一乐器 → GM program（canonical + alias，来自 Instrument Registry）
+GM_PROGRAMS: dict[str, int] = dict(_CANONICAL_GM_PROGRAMS)
+for _alias, _canonical in INSTRUMENT_ALIASES.items():
+    if _canonical in _CANONICAL_GM_PROGRAMS:
+        GM_PROGRAMS.setdefault(_alias, _CANONICAL_GM_PROGRAMS[_canonical])
 
 # 常用鼓音色（GM 标准）
 DRUM_NOTES: dict[str, int] = {

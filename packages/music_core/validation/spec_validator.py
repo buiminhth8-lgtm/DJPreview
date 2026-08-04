@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from pydantic import BaseModel, Field, ValidationError
 
+from packages.music_core.instruments.registry import is_known_instrument
 from packages.music_core.theory.chords import is_valid_chord_symbol
 from packages.music_core.theory.pitch import is_valid_note_name
 from packages.music_core.theory.scales import is_supported_mode
@@ -258,6 +259,15 @@ def validate_music_spec_semantics(music_spec: MusicSpec | dict) -> ValidationRes
                         details={"missing": missing},
                     )
                 )
+        if t.instrument and not is_known_instrument(t.instrument):
+            warnings.append(
+                ValidationIssue(
+                    code="UNKNOWN_INSTRUMENT_ALIAS",
+                    message=f"轨道 {t.id} 的乐器 {t.instrument!r} 无法识别，MIDI 生成时将回退默认音色",
+                    path=f"tracks.{t.id}",
+                    details={"track_id": t.id, "instrument": t.instrument},
+                )
+            )
 
     for h in music_spec.harmony:
         if h.section not in form_set:
