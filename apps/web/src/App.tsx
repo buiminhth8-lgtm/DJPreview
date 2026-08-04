@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { generateMusicSpec, type MusicSpec } from "./api/musicApi";
+import {
+  API_BASE_URL,
+  generateMidi,
+  generateMusicSpec,
+  type GenerateMidiResponse,
+  type MusicSpec,
+} from "./api/musicApi";
 
 interface SummaryItem {
   label: string;
@@ -35,6 +41,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [songId, setSongId] = useState<string | null>(null);
   const [spec, setSpec] = useState<MusicSpec | null>(null);
+  const [midiLoading, setMidiLoading] = useState(false);
+  const [midiResult, setMidiResult] = useState<GenerateMidiResponse | null>(null);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -43,6 +51,7 @@ export default function App() {
     }
     setLoading(true);
     setError(null);
+    setMidiResult(null);
     try {
       const result = await generateMusicSpec(prompt.trim());
       setSongId(result.song_id);
@@ -54,11 +63,27 @@ export default function App() {
     }
   };
 
+  const handleGenerateMidi = async () => {
+    if (!songId) {
+      return;
+    }
+    setMidiLoading(true);
+    setError(null);
+    try {
+      const result = await generateMidi(songId);
+      setMidiResult(result);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMidiLoading(false);
+    }
+  };
+
   return (
     <div className="container">
       <header>
         <h1>AI Music MVP</h1>
-        <p className="subtitle">输入一句话，生成 MusicSpec v0.1 音乐方案</p>
+        <p className="subtitle">输入一句话，生成 MusicSpec v0.1 音乐方案并导出标准 MIDI</p>
       </header>
 
       <section className="panel">
@@ -92,6 +117,40 @@ export default function App() {
                 <span className="summary-value">{item.value}</span>
               </div>
             ))}
+          </div>
+
+          <div className="midi-actions">
+            <button onClick={handleGenerateMidi} disabled={midiLoading}>
+              {midiLoading ? "MIDI 生成中…" : "生成 MIDI"}
+            </button>
+            {midiResult && (
+              <div className="midi-result">
+                <p>
+                  MIDI 已生成：
+                  <a
+                    className="download-link"
+                    href={`${API_BASE_URL}${midiResult.download_url}`}
+                    download={`${midiResult.song_id}.mid`}
+                  >
+                    下载 {midiResult.midi_file}
+                  </a>
+                </p>
+                <div className="summary">
+                  <div className="summary-row">
+                    <span className="summary-label">轨道数</span>
+                    <span className="summary-value">{midiResult.summary.tracks}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="summary-label">小节数</span>
+                    <span className="summary-value">{midiResult.summary.bars}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="summary-label">BPM</span>
+                    <span className="summary-value">{midiResult.summary.bpm}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <h3>MusicSpec JSON</h3>

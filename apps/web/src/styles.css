@@ -61,7 +61,8 @@ textarea:focus {
   outline: 2px solid var(--accent);
 }
 
-.actions {
+.actions,
+.midi-actions {
   margin-top: 14px;
 }
 
@@ -123,6 +124,24 @@ button:disabled {
 .summary-value {
   color: var(--text);
   word-break: break-all;
+}
+
+.midi-actions button {
+  background: #2f9e6e;
+}
+
+.midi-result {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #0d1119;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.download-link {
+  color: #4ecb8d;
+  font-weight: 600;
+  margin-left: 6px;
 }
 
 .result h3 {

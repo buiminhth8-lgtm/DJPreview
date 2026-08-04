@@ -31,3 +31,27 @@ class GetSongResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+
+
+class MidiSummary(BaseModel):
+    tracks: int
+    bars: int
+    bpm: int
+
+
+class GenerateMidiResponse(BaseModel):
+    song_id: str
+    midi_file: str
+    download_url: str
+    summary: MidiSummary
+
+
+class MidiInfo(BaseModel):
+    midi_file: str
+    download_url: str
+
+
+class GenerateWithMidiResponse(BaseModel):
+    song_id: str
+    music_spec: MusicSpec
+    midi: MidiInfo

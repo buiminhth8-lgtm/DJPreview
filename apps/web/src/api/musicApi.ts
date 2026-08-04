@@ -64,8 +64,32 @@ export interface GenerateSongResponse {
   music_spec: MusicSpec;
 }
 
+export interface MidiSummary {
+  tracks: number;
+  bars: number;
+  bpm: number;
+}
+
+export interface GenerateMidiResponse {
+  song_id: string;
+  midi_file: string;
+  download_url: string;
+  summary: MidiSummary;
+}
+
 // 后端 API 地址可通过 VITE_API_BASE_URL 环境变量配置，默认 http://localhost:8000
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+
+async function handleError(response: Response): Promise<never> {
+  let detail = "";
+  try {
+    const body = await response.json();
+    detail = body?.detail ?? JSON.stringify(body);
+  } catch {
+    detail = await response.text();
+  }
+  throw new Error(`请求失败（HTTP ${response.status}）：${detail}`);
+}
 
 export async function generateMusicSpec(prompt: string): Promise<GenerateSongResponse> {
   const response = await fetch(`${API_BASE_URL}/api/v1/songs/generate`, {
@@ -73,17 +97,18 @@ export async function generateMusicSpec(prompt: string): Promise<GenerateSongRes
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt }),
   });
-
   if (!response.ok) {
-    let detail = "";
-    try {
-      const body = await response.json();
-      detail = body?.detail ?? JSON.stringify(body);
-    } catch {
-      detail = await response.text();
-    }
-    throw new Error(`生成失败（HTTP ${response.status}）：${detail}`);
+    return handleError(response);
   }
-
   return (await response.json()) as GenerateSongResponse;
+}
+
+export async function generateMidi(songId: string): Promise<GenerateMidiResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/songs/${songId}/midi/generate`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    return handleError(response);
+  }
+  return (await response.json()) as GenerateMidiResponse;
 }

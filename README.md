@@ -1,61 +1,62 @@
 # AI Music MVP
 
-自然语言生成音乐的 MVP 工程。第一阶段实现基础工程骨架、音乐协议、LLM 适配层和 MusicSpec 生成接口：输入一句话，后端通过 LLM Provider 生成结构化的音乐方案（MusicSpec v0.1），前端展示摘要与完整 JSON。
+自然语言生成音乐的 MVP 工程。
 
-> 本阶段不实现真正 MIDI 生成、WAV 渲染、播放器和版本管理，这些属于后续阶段。
+- **第一阶段**：基础工程、MusicSpec v0.1 / MusicEditSpec v0.1 协议、LLM 适配层（MockProvider / DeepSeekProvider）、一句话生成 MusicSpec、项目 JSON 保存与读取。
+- **第二阶段**：MusicSpec → 编曲数据 → 标准 MIDI 文件（多轨，含旋律 / 和弦伴奏 / 贝斯 / 鼓组 / Pad 铺底），支持确定性 seed 复现，并提供 MIDI 生成与下载 API。
 
-## 一、第一阶段能力
+> 当前阶段不实现 WAV 渲染、FluidSynth / SoundFont、网页音频播放器、自然语言修改、版本管理、AI 人声与 VST。
 
-- 后端 FastAPI 服务（健康检查、生成、查询）
-- 前端 React + TypeScript + Vite 页面
-- 音乐核心协议 `MusicSpec v0.1`
-- 音乐修改协议 `MusicEditSpec v0.1`
-- `LLMProvider` 抽象接口 + `MockProvider` / `DeepSeekProvider`
-- 一句话描述 → MusicSpec 的生成 API
-- MusicSpec JSON 校验（Pydantic + 语义校验）
-- 项目 JSON 保存（`data/projects/{song_id}/music_spec.json`）
-- pytest 测试
+## 一、第二阶段新增能力
 
-## 二、项目结构
+- MusicSpec → `CompositionResult` 编曲数据 → 标准 `.mid` 文件
+- 自动生成主旋律、和弦伴奏、贝斯、鼓组、Pad / Strings 铺底轨道
+- 乐理基础：音高转换、音阶（major / minor / dorian / pentatonic 等）、和弦解析（三和弦 / 七和弦 / sus）
+- 和声引擎：把 `harmony` 和弦进行逐小节映射，缺和弦时按调自动补默认进行
+- 节奏模板：block_chords / arpeggio / broken_chords / sustained_pad / pop / rock / lo-fi / electronic / cinematic
+- 分段 energy 控制：高能量段落密度与力度提升，尾奏减弱
+- 确定性生成：同一个 `seed` 生成结果完全可复现
+- 轻度人性化：音符时间 / 力度 / 时值做可复现的微小变化
+- 项目存储：`data/projects/{song_id}/output.mid` + `metadata.json`
+- 新 API：生成 MIDI、下载 MIDI、一步生成 MusicSpec + MIDI
+
+## 二、MIDI 生成流程
 
 ```text
-ai-music-mvp/
-├── apps/
-│   └── web/                  # 前端 React + TS + Vite
-│       └── src/
-│           ├── App.tsx
-│           ├── main.tsx
-│           ├── api/musicApi.ts
-│           └── styles.css
-├── services/
-│   └── api/                  # 后端 FastAPI
-│       ├── main.py
-│       ├── routes/songs.py
-│       ├── schemas/
-│       │   ├── music_spec.py
-│       │   ├── music_edit_spec.py
-│       │   └── api_models.py
-│       ├── dependencies/config.py
-│       └── storage/project_store.py
-├── packages/
-│   ├── llm/                  # LLM 适配层
-│   │   ├── base.py
-│   │   ├── mock_provider.py
-│   │   ├── deepseek_provider.py
-│   │   └── factory.py
-│   └── music_core/
-│       ├── planner/music_planner.py
-│       └── validation/spec_validator.py
-├── prompts/
-│   └── music_planner.md      # LLM 系统提示词模板
-├── data/projects/            # 生成的项目 JSON
-├── tests/                    # pytest 测试
-├── requirements.txt
-├── .env.example
-└── README.md
+MusicSpec ──> BarHarmony（逐小节和弦）
+      │
+      ├── MelodyEngine    → 主旋律（调式音阶 + 和弦音）
+      ├── ArrangementEngine → harmony / pad / strings 伴奏
+      ├── BassEngine      → 贝斯（根音 + 五度，强拍根音）
+      ├── DrumEngine      → GM 鼓组（channel 9）
+      │
+      └── Humanizer（轻度人性化，seed 可复现）
+              │
+              ▼
+      CompositionResult ──> MIDI Writer（mido）──> output.mid
 ```
 
-## 三、后端安装与启动
+## 三、项目结构（新增部分）
+
+```text
+packages/music_core/
+├── theory/               # 乐理基础：pitch / scales / chords
+├── harmony/              # 和声引擎：BarHarmony / build_bar_harmony
+├── rhythm/               # 节奏模板（beat 为单位）
+├── arrangement/          # 伴奏引擎（harmony / pad / strings）
+├── melody/               # 旋律引擎
+├── bass/                 # 贝斯引擎
+├── drums/                # 鼓组引擎
+├── humanize/             # 人性化
+├── midi/                 # midi_constants / midi_writer
+└── composer/             # events（NoteEvent 等）/ music_composer
+
+services/api/
+├── routes/songs.py       # 新增 MIDI 生成 / 下载 / 一步生成接口
+└── storage/project_store.py  # 新增 save_midi_file / get_midi_path / project_has_midi
+```
+
+## 四、后端安装与启动
 
 要求：Python 3.11+
 
@@ -80,9 +81,54 @@ uvicorn services.api.main:app --reload --host 0.0.0.0 --port 8000
 
 打开 http://localhost:8000/docs 查看交互式 API 文档。
 
-## 四、前端安装与启动
+> 提示：如果 Windows 上 8000 端口被系统保留（报 WinError 10013），可换端口启动，例如 `--port 9000`，并同步设置前端 `VITE_API_BASE_URL`。
 
-要求：Node.js 18+
+## 五、生成 MusicSpec
+
+```bash
+curl -X POST http://localhost:8000/api/v1/songs/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"生成一段忧郁空灵的钢琴配乐，D小调，速度较慢"}'
+```
+
+返回 `song_id` 与 `music_spec`，MusicSpec 保存在 `data/projects/{song_id}/music_spec.json`。
+
+## 六、生成 MIDI
+
+```bash
+curl -X POST http://localhost:8000/api/v1/songs/{song_id}/midi/generate
+```
+
+返回：
+
+```json
+{
+  "song_id": "xxx",
+  "midi_file": "output.mid",
+  "download_url": "/api/v1/songs/xxx/midi/download",
+  "summary": { "tracks": 5, "bars": 32, "bpm": 72 }
+}
+```
+
+MIDI 文件保存在 `data/projects/{song_id}/output.mid`，同目录 `metadata.json` 记录生成时间与生成器版本。
+
+## 七、下载 MIDI
+
+```bash
+curl -L http://localhost:8000/api/v1/songs/{song_id}/midi/download -o output.mid
+```
+
+未生成 MIDI 时返回 404 并提示先调用生成接口。
+
+### 一步生成 MusicSpec + MIDI（可选接口）
+
+```bash
+curl -X POST http://localhost:8000/api/v1/songs/generate-with-midi \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"生成一段忧郁空灵的钢琴配乐"}'
+```
+
+## 八、前端使用方式
 
 ```bash
 cd apps/web
@@ -90,35 +136,25 @@ npm install
 npm run dev
 ```
 
-打开 http://localhost:5173 即可使用。后端地址默认 `http://localhost:8000`，可通过环境变量覆盖：
+打开 http://localhost:5173：
 
-```bash
-# Windows PowerShell
-$env:VITE_API_BASE_URL="http://localhost:8000"
-# macOS / Linux
-# VITE_API_BASE_URL=http://localhost:8000 npm run dev
-```
+1. 输入一句话，点击“生成 MusicSpec”；
+2. 生成后点击“生成 MIDI”；
+3. 成功后显示“下载 output.mid”链接以及轨道数 / 小节数 / BPM 摘要。
 
-## 五、使用 MockProvider（默认）
+后端地址默认 `http://localhost:8000`，可通过 `VITE_API_BASE_URL` 覆盖。前端只提供下载，不实现音频播放。
 
-不配置任何密钥即可跑通全流程。复制 `.env.example` 为 `.env`，保持：
+## 九、MockProvider 与 DeepSeekProvider
 
-```env
-LLM_PROVIDER=mock
-```
-
-MockProvider 规则：
+默认 `LLM_PROVIDER=mock`，无需任何密钥即可跑通 MusicSpec 与 MIDI 全流程。MockProvider 规则：
 
 - 包含「忧郁 / 悲伤 / 雨夜」→ D 小调，72 BPM
 - 包含「欢快 / 明亮」→ C 大调，120 BPM
 - 包含「中国风」→ pentatonic 调式
-- 默认 32 小节，曲式 intro 4 / verse 8 / chorus 16 / outro 4
-- 小调和弦 `Dm - Bb - F - C`，大调和弦 `C - G - Am - F`
-- 默认轨道 melody / piano / bass / drums / pad
+- 默认 32 小节：intro 4 / verse 8 / chorus 16 / outro 4
+- 默认轨道：melody / piano / bass / drums / pad
 
-## 六、使用 DeepSeekProvider
-
-在 `.env` 中配置：
+使用 DeepSeek 时在 `.env` 配置：
 
 ```env
 LLM_PROVIDER=deepseek
@@ -127,67 +163,30 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
-说明：
-
-- API Key 只从环境变量读取，代码中不硬编码。
-- 调用 OpenAI-compatible Chat Completions 接口，模型必须返回 JSON。
-- 若未配置 `DEEPSEEK_API_KEY`，会抛出清晰错误并提示改用 MockProvider。
-- 解析失败会返回明确错误信息，服务不会崩溃。
-
-后续可扩展 `OpenAIProvider`、`OllamaProvider`、`LocalModelProvider`：实现 `LLMProvider` 接口并注册到 `packages/llm/factory.py` 即可。
-
-## 七、API 示例
-
-### 1. 健康检查
-
-```bash
-curl http://localhost:8000/api/v1/health
-```
-
-```json
-{ "status": "ok" }
-```
-
-### 2. 生成音乐方案
-
-```bash
-curl -X POST http://localhost:8000/api/v1/songs/generate \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "生成一段忧郁空灵的钢琴配乐"}'
-```
-
-```json
-{
-  "song_id": "3f0f7f9a-...",
-  "music_spec": { "version": "0.1", "title": "...", "...": "..." }
-}
-```
-
-保存位置：`data/projects/{song_id}/music_spec.json`（UTF-8，中文不转义）。
-
-### 3. 获取音乐方案
-
-```bash
-curl http://localhost:8000/api/v1/songs/{song_id}
-```
-
-不存在时返回 404。
-
-## 八、测试
+## 十、测试
 
 ```bash
 cd ai-music-mvp
 pytest -v
 ```
 
-测试覆盖：MusicSpec 协议校验（含 BPM 越界、缺轨道、段落越界）、MockProvider 规则、生成/查询 API 集成、MusicEditSpec 协议。测试数据写入 `data/test_projects/`，不影响正式数据。
+覆盖：
 
-## 九、后续阶段计划
+- 第一阶段：MusicSpec / MusicEditSpec 协议、MockProvider 规则、生成/查询 API
+- 第二阶段：乐理（音高 / 音阶 / 和弦）、和声引擎、总作曲器（确定性）、MIDI Writer（mido 可打开、多轨）、MIDI 生成/下载 API、404 处理
 
-1. **MusicEditSpec 应用**：将修改协议应用到已有 MusicSpec 并重新生成。
-2. **MIDI 生成**：把 MusicSpec 渲染为标准 MIDI 文件。
-3. **WAV 渲染**：音源 / 合成器渲染音频。
-4. **播放器**：Web 端播放、波形展示。
-5. **版本管理**：每次修改记录版本与 diff。
-6. **更多 LLM Provider**：OpenAI、Ollama、本地模型。
-7. **工程化**：Docker、CI、生产部署。
+## 十一、当前不支持（第二阶段范围外）
+
+- WAV 渲染、FluidSynth、SoundFont
+- 网页音频播放器、轨道音量控制 UI
+- 自然语言修改音乐、版本管理
+- AI 人声、歌词演唱、VST 插件
+
+## 十二、第三阶段计划
+
+1. MusicEditSpec 应用：修改指令 → 重新编曲并保存版本
+2. WAV 渲染：基于 SoundFont / 合成器把 MIDI 渲染为音频
+3. 网页播放器：Web 端播放与波形展示
+4. 版本管理与对比
+5. 更多 LLM Provider（OpenAI / Ollama / 本地模型）
+6. 工程化：Docker、CI、生产部署

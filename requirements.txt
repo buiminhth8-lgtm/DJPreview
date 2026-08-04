@@ -5,3 +5,7 @@ pydantic-settings
 httpx
 python-dotenv
 pytest
+
+# MIDI 生成（第二阶段）
+mido
+python-rtmidi
