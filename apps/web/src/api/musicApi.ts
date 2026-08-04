@@ -63,12 +63,46 @@ export interface GenerateSongResponse {
   song_id: string;
   music_spec: MusicSpec;
   style_template: StyleTemplateSpec | null;
+  validation?: ValidationResult | null;
+}
+
+export interface ValidationIssue {
+  code: string;
+  message: string;
+  path: string | null;
+  details: Record<string, unknown>;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: ValidationIssue[];
+  warnings: ValidationIssue[];
+}
+
+export interface GenerateWithMidiResponse {
+  song_id: string;
+  music_spec: MusicSpec;
+  midi: MidiInfo;
+  validation?: ValidationResult | null;
+}
+
+export interface GenerateWithAudioResponse {
+  song_id: string;
+  music_spec: MusicSpec;
+  midi: MidiInfo;
+  audio: RenderAudioResponse;
+  validation?: ValidationResult | null;
 }
 
 export interface MidiSummary {
   tracks: number;
   bars: number;
   bpm: number;
+}
+
+export interface MidiInfo {
+  midi_file: string;
+  download_url: string;
 }
 
 export interface GenerateMidiResponse {

@@ -39,6 +39,7 @@ from packages.music_core.regeneration.regeneration_models import RegenerationReq
 from packages.music_core.styles.style_applier import apply_style_template_to_music_spec
 from packages.music_core.styles.style_library import get_style_template, list_style_templates
 from packages.music_core.styles.style_models import StyleTemplateSpec
+from packages.music_core.validation.spec_validator import validate_music_spec_semantics
 from packages.renderer.factory import get_audio_renderer
 from packages.renderer.stem_renderer import export_stems as export_stems_impl
 from services.api.dependencies.config import get_settings
@@ -300,8 +301,14 @@ def generate_song(req: GenerateSongRequest) -> GenerateSongResponse:
         raise spec_validation_failed(f"生成失败：{exc}") from None
     except RuntimeError as exc:
         raise llm_error(f"LLM 服务错误：{exc}") from None
+    validation = validate_music_spec_semantics(spec)
     song_id = create_project(spec)
-    return GenerateSongResponse(song_id=song_id, music_spec=spec, style_template=style_template)
+    return GenerateSongResponse(
+        song_id=song_id,
+        music_spec=spec,
+        style_template=style_template,
+        validation=validation,
+    )
 
 
 @router.post("/songs/generate-with-midi", response_model=GenerateWithMidiResponse, summary="一步生成 MusicSpec + MIDI")
@@ -315,12 +322,14 @@ def generate_song_with_midi(req: GenerateSongRequest) -> GenerateWithMidiRespons
         raise spec_validation_failed(f"生成失败：{exc}") from None
     except RuntimeError as exc:
         raise llm_error(f"LLM 服务错误：{exc}") from None
+    validation = validate_music_spec_semantics(spec)
     song_id = create_project(spec)
     response, _ = _generate_midi_for(song_id)
     return GenerateWithMidiResponse(
         song_id=song_id,
         music_spec=spec,
         midi=MidiInfo(midi_file=response.midi_file, download_url=response.download_url),
+        validation=validation,
     )
 
 
@@ -335,6 +344,7 @@ def generate_song_with_audio(req: GenerateSongRequest) -> GenerateWithAudioRespo
         raise spec_validation_failed(f"生成失败：{exc}") from None
     except RuntimeError as exc:
         raise llm_error(f"LLM 服务错误：{exc}") from None
+    validation = validate_music_spec_semantics(spec)
     song_id = create_project(spec)
     midi_response, _ = _generate_midi_for(song_id)
     audio_response = _render_audio_for(song_id)
@@ -343,6 +353,7 @@ def generate_song_with_audio(req: GenerateSongRequest) -> GenerateWithAudioRespo
         music_spec=spec,
         midi=MidiInfo(midi_file=midi_response.midi_file, download_url=midi_response.download_url),
         audio=audio_response,
+        validation=validation,
     )
 
 
@@ -392,6 +403,18 @@ def get_song(song_id: str) -> GetSongResponse:
 @router.post("/songs/{song_id}/midi/generate", response_model=GenerateMidiResponse, summary="根据 MusicSpec 生成 MIDI")
 def generate_midi(song_id: str) -> GenerateMidiResponse:
     try:
+        spec = get_project(song_id)
+        result = validate_music_spec_semantics(spec)
+        if not result.valid:
+            raise api_error(
+                400,
+                ApiErrorCode.MUSIC_SPEC_VALIDATION_FAILED,
+                "MusicSpec 语义校验失败",
+                details={
+                    "errors": [i.model_dump(mode="json") for i in result.errors],
+                    "warnings": [i.model_dump(mode="json") for i in result.warnings],
+                },
+            )
         response, _ = _generate_midi_for(song_id)
     except FileNotFoundError as exc:
         raise project_not_found(song_id) from None

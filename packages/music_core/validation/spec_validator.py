@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from packages.music_core.theory.chords import is_valid_chord_symbol
 from packages.music_core.theory.pitch import is_valid_note_name
@@ -133,3 +133,180 @@ def validate_music_spec(spec: MusicSpec | dict) -> MusicSpec:
     if report.errors:
         raise MusicSpecValidationError("MusicSpec 校验失败：" + "；".join(report.errors))
     return spec
+
+
+# ---------- T10：统一 ValidationResult 语义校验 ----------
+
+
+class ValidationIssue(BaseModel):
+    """单条语义校验问题。"""
+
+    code: str
+    message: str
+    path: str | None = None
+    details: dict = Field(default_factory=dict)
+
+
+class ValidationResult(BaseModel):
+    """统一语义校验结果。"""
+
+    valid: bool
+    errors: list[ValidationIssue] = Field(default_factory=list)
+    warnings: list[ValidationIssue] = Field(default_factory=list)
+
+
+def validate_music_spec_semantics(music_spec: MusicSpec | dict) -> ValidationResult:
+    """统一语义校验入口：收集所有 error/warning（不提前退出），返回 ValidationResult。"""
+    if isinstance(music_spec, dict):
+        try:
+            music_spec = MusicSpec.model_validate(music_spec)
+        except ValidationError as exc:
+            return ValidationResult(
+                valid=False,
+                errors=[
+                    ValidationIssue(
+                        code="INVALID_MUSIC_SPEC_STRUCTURE",
+                        message=f"MusicSpec 结构无效：{exc}",
+                    )
+                ],
+            )
+
+    errors: list[ValidationIssue] = []
+    warnings: list[ValidationIssue] = []
+
+    if not music_spec.tracks:
+        errors.append(ValidationIssue(code="EMPTY_TRACKS", message="tracks 不能为空", path="tracks"))
+    if not music_spec.form:
+        errors.append(ValidationIssue(code="EMPTY_FORM", message="form 不能为空", path="form"))
+    if not music_spec.harmony:
+        errors.append(ValidationIssue(code="EMPTY_HARMONY", message="harmony 不能为空", path="harmony"))
+
+    form_ids = [s.id for s in music_spec.form]
+    form_set = set(form_ids)
+    duplicate_sections = sorted({sid for sid in form_ids if form_ids.count(sid) > 1})
+    for sid in duplicate_sections:
+        errors.append(
+            ValidationIssue(
+                code="DUPLICATE_SECTION_ID",
+                message=f"section.id 重复：{sid}",
+                path="form",
+                details={"section_id": sid},
+            )
+        )
+
+    total_bars = music_spec.length.bars
+    ranges = [(s.id, s.start_bar, s.start_bar + s.bars - 1) for s in music_spec.form]
+    for i in range(len(ranges)):
+        for j in range(i + 1, len(ranges)):
+            a, b = ranges[i], ranges[j]
+            if not (a[2] < b[1] or b[2] < a[1]):
+                errors.append(
+                    ValidationIssue(
+                        code="SECTION_OVERLAP",
+                        message=f"段落 {a[0]} 与 {b[0]} 的小节范围重叠",
+                        path="form",
+                        details={"sections": [a[0], b[0]]},
+                    )
+                )
+    for s in music_spec.form:
+        end_bar = s.start_bar + s.bars - 1
+        if s.start_bar < 1 or end_bar > total_bars:
+            errors.append(
+                ValidationIssue(
+                    code="SECTION_OUT_OF_RANGE",
+                    message=f"段落 {s.id} 超出整曲小节范围（length.bars={total_bars}）",
+                    path=f"form.{s.id}",
+                    details={"start_bar": s.start_bar, "end_bar": end_bar, "total_bars": total_bars},
+                )
+            )
+
+    covered = set()
+    for s in music_spec.form:
+        covered.update(range(s.start_bar, s.start_bar + s.bars))
+    if music_spec.form:
+        uncovered = [b for b in range(1, total_bars + 1) if b not in covered]
+        if uncovered:
+            warnings.append(
+                ValidationIssue(
+                    code="SECTION_COVERAGE_GAP",
+                    message=f"有 {len(uncovered)} 个小节未被任何段落覆盖",
+                    path="form",
+                    details={"uncovered_bars": uncovered[:20]},
+                )
+            )
+
+    track_ids = [t.id for t in music_spec.tracks]
+    duplicate_tracks = sorted({tid for tid in track_ids if track_ids.count(tid) > 1})
+    for tid in duplicate_tracks:
+        errors.append(
+            ValidationIssue(
+                code="DUPLICATE_TRACK_ID",
+                message=f"track_id 重复：{tid}",
+                path="tracks",
+                details={"track_id": tid},
+            )
+        )
+    for t in music_spec.tracks:
+        if t.enabled_sections:
+            missing = [sid for sid in t.enabled_sections if sid not in form_set]
+            if missing:
+                errors.append(
+                    ValidationIssue(
+                        code="UNKNOWN_ENABLED_SECTION",
+                        message=f"轨道 {t.id} 的 enabled_sections 引用了不存在的段落：{missing}",
+                        path=f"tracks.{t.id}",
+                        details={"missing": missing},
+                    )
+                )
+
+    for h in music_spec.harmony:
+        if h.section not in form_set:
+            errors.append(
+                ValidationIssue(
+                    code="UNKNOWN_HARMONY_SECTION",
+                    message=f"harmony 引用了不存在的段落：{h.section}",
+                    path="harmony",
+                    details={"section": h.section},
+                )
+            )
+        for chord in h.progression:
+            if not is_valid_chord_symbol(chord):
+                errors.append(
+                    ValidationIssue(
+                        code="INVALID_CHORD_SYMBOL",
+                        message=f"和弦无法解析：{chord}",
+                        path=f"harmony.{h.section}",
+                        details={"chord": chord},
+                    )
+                )
+
+    if not is_valid_note_name(music_spec.tonality.key):
+        errors.append(
+            ValidationIssue(
+                code="INVALID_KEY",
+                message=f"非法调性 key：{music_spec.tonality.key}",
+                path="tonality.key",
+                details={"key": music_spec.tonality.key},
+            )
+        )
+    if not is_supported_mode(music_spec.tonality.mode):
+        errors.append(
+            ValidationIssue(
+                code="INVALID_MODE",
+                message=f"非法调式 mode：{music_spec.tonality.mode}",
+                path="tonality.mode",
+                details={"mode": music_spec.tonality.mode},
+            )
+        )
+
+    if music_spec.meter.denominator not in (2, 4, 8, 16):
+        errors.append(
+            ValidationIssue(
+                code="INVALID_METER_DENOMINATOR",
+                message=f"非法拍号分母：{music_spec.meter.denominator}",
+                path="meter.denominator",
+                details={"denominator": music_spec.meter.denominator},
+            )
+        )
+
+    return ValidationResult(valid=not errors, errors=errors, warnings=warnings)

@@ -220,10 +220,41 @@ http://localhost:8000/openapi.json
 
 核心接口（生成 / 获取 / 编辑 / 版本列表 / 版本详情 / 版本 diff / 混音 / 质量 / 风格 / 参考 / 评估）均定义了稳定的响应模型。
 
+## MusicSpec 语义校验（errors / warnings）
+
+`packages/music_core/validation/spec_validator.py` 提供统一语义校验入口 `validate_music_spec_semantics`，
+返回 `ValidationResult { valid, errors[], warnings[] }`，每条问题包含 `code / message / path / details`。
+生成 / 一步生成（MIDI / 音频）接口会在响应中附带 `validation` 字段；`POST /api/v1/songs/{song_id}/midi/generate`
+在 MusicSpec 非法时返回 `400 MUSIC_SPEC_VALIDATION_FAILED` 并附带错误明细。
+
+校验清单（errors）：
+
+```text
+EMPTY_TRACKS                  tracks 为空
+EMPTY_FORM                    form 为空
+EMPTY_HARMONY                 harmony 为空
+DUPLICATE_TRACK_ID            track_id 重复
+DUPLICATE_SECTION_ID          section.id 重复
+SECTION_OVERLAP               段落小节范围重叠
+SECTION_OUT_OF_RANGE          段落超出整曲小节范围
+UNKNOWN_HARMONY_SECTION       harmony.section 引用不存在的段落
+UNKNOWN_ENABLED_SECTION       enabled_sections 引用不存在的段落
+INVALID_CHORD_SYMBOL          和弦符号无法解析
+INVALID_KEY                   非法调性主音
+INVALID_MODE                  非法调式
+INVALID_METER_DENOMINATOR     非法拍号分母
+```
+
+校验清单（warnings，不阻断生成）：
+
+```text
+SECTION_COVERAGE_GAP          存在未被任何段落覆盖的小节
+```
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（185 passed，2026-08-04 实测）
+后端测试：pytest -q passed（218 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

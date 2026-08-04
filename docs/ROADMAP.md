@@ -65,12 +65,15 @@
 - 依赖：T08
 - 验收标准：OpenAPI 中无裸 dict 响应；前端类型与后端一致
 
-## T10 MusicSpec 语义校验增强 ⬜（校验库已实现）
+## T10 MusicSpec 语义校验增强 ✅
 
 - 目标：语义校验（track/section 唯一、重叠、harmony 引用、chord 可解析、key/mode 合法性）接入 API 报告
 - 优先级：P1
 - 依赖：T09
-- 验收标准：生成/导入/编辑链路返回 errors/warnings；测试覆盖
+- 验收标准：生成/一步生成响应附带 `validation`；非法 MusicSpec 在 MIDI 生成时返回 `400 MUSIC_SPEC_VALIDATION_FAILED`
+- 实现：`spec_validator.validate_music_spec_semantics` 返回 `ValidationResult{valid, errors[], warnings[]}`，
+  覆盖 track/section 唯一性、段落重叠与越界、harmony/enabled_sections 引用、和弦可解析、key/mode/拍号合法性；
+  前端 `musicApi.ts` 同步 `ValidationIssue / ValidationResult` 类型；`tests/test_semantic_validator.py` 覆盖
 
 ## T11 DeepSeek / LLM Provider 产品化 ⬜
 

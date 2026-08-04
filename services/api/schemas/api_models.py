@@ -9,6 +9,7 @@ from packages.music_core.mix.mix_models import MixSpec
 from packages.music_core.reference.reference_models import ReferenceMidiAnalysis
 from packages.music_core.regeneration.regeneration_models import RegenerationRequest, RegenerationResult
 from packages.music_core.styles.style_models import StyleTemplateSpec
+from packages.music_core.validation.spec_validator import ValidationResult
 from services.api.schemas.music_edit_spec import MusicEditSpec
 from services.api.schemas.music_spec import MusicSpec
 
@@ -41,6 +42,7 @@ class GenerateSongResponse(BaseModel):
     song_id: str
     music_spec: MusicSpec
     style_template: StyleTemplateSpec | None = None
+    validation: ValidationResult | None = None
 
 
 class GetSongResponse(BaseModel):
@@ -74,6 +76,7 @@ class GenerateWithMidiResponse(BaseModel):
     song_id: str
     music_spec: MusicSpec
     midi: MidiInfo
+    validation: ValidationResult | None = None
 
 
 class AudioMetadata(BaseModel):
@@ -186,6 +189,7 @@ class GenerateWithAudioResponse(BaseModel):
     music_spec: MusicSpec
     midi: MidiInfo
     audio: RenderAudioResponse
+    validation: ValidationResult | None = None
 
 
 class EditSongRequest(BaseModel):
