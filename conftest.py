@@ -10,3 +10,5 @@ if str(ROOT) not in sys.path:
 
 os.environ.setdefault("LLM_PROVIDER", "mock")
 os.environ.setdefault("PROJECTS_DIR", str(ROOT / "data" / "test_projects"))
+# 测试环境强制使用 fallback 渲染器，避免依赖系统 FluidSynth
+os.environ.setdefault("AUDIO_RENDERER", "fallback")

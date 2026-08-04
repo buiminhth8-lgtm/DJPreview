@@ -55,3 +55,48 @@ class GenerateWithMidiResponse(BaseModel):
     song_id: str
     music_spec: MusicSpec
     midi: MidiInfo
+
+
+class AudioMetadata(BaseModel):
+    audio_file: str = "output.wav"
+    renderer: str
+    sample_rate: int
+    duration_seconds: float | None = None
+    file_size: int
+    generated_at: str | None = None
+    generator_version: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class RenderAudioResponse(BaseModel):
+    song_id: str
+    audio_file: str
+    stream_url: str
+    download_url: str
+    metadata: AudioMetadata
+
+
+class MidiAssetInfo(BaseModel):
+    download_url: str
+
+
+class AudioAssetInfo(BaseModel):
+    stream_url: str
+    download_url: str
+    metadata: AudioMetadata | None = None
+
+
+class AssetsResponse(BaseModel):
+    song_id: str
+    has_music_spec: bool
+    has_midi: bool
+    has_audio: bool
+    midi: MidiAssetInfo | None = None
+    audio: AudioAssetInfo | None = None
+
+
+class GenerateWithAudioResponse(BaseModel):
+    song_id: str
+    music_spec: MusicSpec
+    midi: MidiInfo
+    audio: RenderAudioResponse

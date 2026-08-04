@@ -8,6 +8,7 @@
   --muted: #8b94a8;
   --accent: #6c8cff;
   --error: #ff6b6b;
+  --ok: #2f9e6e;
 }
 
 * {
@@ -21,7 +22,7 @@ body {
 }
 
 .container {
-  max-width: 860px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 32px 20px 64px;
 }
@@ -62,8 +63,13 @@ textarea:focus {
 }
 
 .actions,
-.midi-actions {
+.midi-actions,
+.audio-actions {
   margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 button {
@@ -95,6 +101,12 @@ button:disabled {
   margin-top: 0;
 }
 
+.result h3 {
+  margin: 20px 0 8px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
 .song-id {
   color: var(--muted);
 }
@@ -108,7 +120,7 @@ button:disabled {
 
 .summary {
   display: grid;
-  grid-template-columns: 90px 1fr;
+  grid-template-columns: 110px 1fr;
   gap: 6px 12px;
   margin: 16px 0;
 }
@@ -126,28 +138,100 @@ button:disabled {
   word-break: break-all;
 }
 
-.midi-actions button {
-  background: #2f9e6e;
-}
-
-.midi-result {
-  margin-top: 12px;
-  padding: 12px 14px;
-  background: #0d1119;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+.midi-actions button,
+.audio-actions button {
+  background: var(--ok);
 }
 
 .download-link {
   color: #4ecb8d;
   font-weight: 600;
-  margin-left: 6px;
 }
 
-.result h3 {
-  margin: 20px 0 8px;
-  font-size: 15px;
+.section-timeline {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.section-card {
+  background: #0d1119;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-width: 130px;
+}
+
+.section-name {
+  font-weight: 600;
+}
+
+.section-id {
   color: var(--muted);
+  font-size: 12px;
+}
+
+.section-detail {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.energy-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.energy-bar {
+  flex: 1;
+  height: 6px;
+  background: #2b3448;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.energy-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.track-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.track-table th,
+.track-table td {
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.track-table th {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.audio-player audio {
+  width: 100%;
+}
+
+.audio-meta {
+  margin-top: 12px;
+}
+
+.warnings {
+  grid-column: 1 / -1;
+  color: #e0b45a;
+  font-size: 13px;
 }
 
 pre {

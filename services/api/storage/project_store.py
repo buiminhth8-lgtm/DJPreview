@@ -1,4 +1,4 @@
-"""项目存储：保存 / 读取 MusicSpec JSON 与 MIDI 文件。"""
+"""项目存储：保存 / 读取 MusicSpec JSON、MIDI 与音频文件。"""
 
 from __future__ import annotations
 
@@ -19,6 +19,10 @@ MIDI_FILENAME = "output.mid"
 METADATA_FILENAME = "metadata.json"
 GENERATOR_VERSION = "stage-2-midi-v0.1"
 
+AUDIO_FILENAME = "output.wav"
+AUDIO_METADATA_FILENAME = "audio_metadata.json"
+AUDIO_GENERATOR_VERSION = "stage-3-audio-v0.1"
+
 
 def is_valid_song_id(song_id: str) -> bool:
     """校验 song_id 是否为合法 UUID 格式（防止 path traversal）。"""
@@ -30,6 +34,11 @@ def _project_dir(song_id: str) -> Path:
     if not is_valid_song_id(song_id):
         raise ValueError("非法 song_id：必须为 UUID 格式")
     return get_settings().projects_dir / song_id
+
+
+def get_project_dir(song_id: str) -> Path:
+    """返回项目目录（校验 UUID）。"""
+    return _project_dir(song_id)
 
 
 def create_project(music_spec: MusicSpec) -> str:
@@ -94,3 +103,34 @@ def get_midi_path(song_id: str) -> Path:
 def project_has_midi(song_id: str) -> bool:
     """检查项目是否已生成 MIDI。"""
     return _project_dir(song_id).joinpath(MIDI_FILENAME).exists()
+
+
+def get_wav_path(song_id: str) -> Path:
+    """返回 output.wav 路径；不存在时抛出 FileNotFoundError。"""
+    wav_path = _project_dir(song_id) / AUDIO_FILENAME
+    if not wav_path.exists():
+        raise FileNotFoundError(f"项目 {song_id} 尚未渲染音频")
+    return wav_path
+
+
+def project_has_wav(song_id: str) -> bool:
+    """检查项目是否已渲染音频。"""
+    return _project_dir(song_id).joinpath(AUDIO_FILENAME).exists()
+
+
+def save_audio_metadata(song_id: str, metadata: dict) -> None:
+    """保存 audio_metadata.json（UTF-8，中文不转义）。"""
+    project_dir = _project_dir(song_id)
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / AUDIO_METADATA_FILENAME).write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def get_audio_metadata(song_id: str) -> dict | None:
+    """读取 audio_metadata.json；不存在返回 None。"""
+    path = _project_dir(song_id) / AUDIO_METADATA_FILENAME
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))

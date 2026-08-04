@@ -9,3 +9,6 @@ pytest
 # MIDI 生成（第二阶段）
 mido
 python-rtmidi
+
+# 音频渲染（第三阶段）
+numpy

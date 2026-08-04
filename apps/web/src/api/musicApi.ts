@@ -77,38 +77,92 @@ export interface GenerateMidiResponse {
   summary: MidiSummary;
 }
 
+export interface AudioMetadata {
+  audio_file: string;
+  renderer: string;
+  sample_rate: number;
+  duration_seconds: number | null;
+  file_size: number;
+  generated_at: string | null;
+  generator_version: string | null;
+  warnings: string[];
+}
+
+export interface RenderAudioResponse {
+  song_id: string;
+  audio_file: string;
+  stream_url: string;
+  download_url: string;
+  metadata: AudioMetadata;
+}
+
+export interface AssetsResponse {
+  song_id: string;
+  has_music_spec: boolean;
+  has_midi: boolean;
+  has_audio: boolean;
+  midi: { download_url: string } | null;
+  audio: {
+    stream_url: string;
+    download_url: string;
+    metadata: AudioMetadata | null;
+  } | null;
+}
+
 // 后端 API 地址可通过 VITE_API_BASE_URL 环境变量配置，默认 http://localhost:8000
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 async function handleError(response: Response): Promise<never> {
-  let detail = "";
+  // 先读取文本，再尝试解析 JSON，避免 response.json() 失败后 body 被消费
+  const text = await response.text();
+  let detail = text || "未知错误";
   try {
-    const body = await response.json();
-    detail = body?.detail ?? JSON.stringify(body);
+    const body = JSON.parse(text) as { detail?: unknown };
+    if (body && typeof body === "object" && body.detail !== undefined) {
+      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    }
   } catch {
-    detail = await response.text();
+    // 非 JSON 响应，保留原文
   }
   throw new Error(`请求失败（HTTP ${response.status}）：${detail}`);
 }
 
-export async function generateMusicSpec(prompt: string): Promise<GenerateSongResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/songs/generate`, {
+async function postJson<T>(url: string, payload?: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${url}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
+    headers: payload ? { "Content-Type": "application/json" } : undefined,
+    body: payload ? JSON.stringify(payload) : undefined,
   });
   if (!response.ok) {
     return handleError(response);
   }
-  return (await response.json()) as GenerateSongResponse;
+  return (await response.json()) as T;
 }
 
-export async function generateMidi(songId: string): Promise<GenerateMidiResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/songs/${songId}/midi/generate`, {
-    method: "POST",
-  });
+async function getJson<T>(url: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${url}`);
   if (!response.ok) {
     return handleError(response);
   }
-  return (await response.json()) as GenerateMidiResponse;
+  return (await response.json()) as T;
+}
+
+export function generateMusicSpec(prompt: string): Promise<GenerateSongResponse> {
+  return postJson("/api/v1/songs/generate", { prompt });
+}
+
+export function generateMidi(songId: string): Promise<GenerateMidiResponse> {
+  return postJson(`/api/v1/songs/${songId}/midi/generate`);
+}
+
+export function renderAudio(songId: string): Promise<RenderAudioResponse> {
+  return postJson(`/api/v1/songs/${songId}/audio/render`);
+}
+
+export function getAssets(songId: string): Promise<AssetsResponse> {
+  return getJson(`/api/v1/songs/${songId}/assets`);
+}
+
+export function resolveUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
 }

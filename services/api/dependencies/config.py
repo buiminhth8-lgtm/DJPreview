@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     deepseek_model: str | None = None
     projects_dir: Path = Path("data/projects")
 
+    # 音频渲染（第三阶段）
+    audio_renderer: str = "auto"
+    fluidsynth_bin: str = "fluidsynth"
+    soundfont_path: str | None = None
+    audio_sample_rate: int = 44100
+    audio_gain: float = 0.6
+
 
 @lru_cache
 def get_settings() -> Settings:
