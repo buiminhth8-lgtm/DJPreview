@@ -166,6 +166,10 @@ class GenerateWithAudioResponse(BaseModel):
 
 class EditSongRequest(BaseModel):
     instruction: str = Field(min_length=1, description="自然语言修改指令")
+    auto_render: bool = Field(
+        default=True,
+        description="Whether to render audio automatically after applying the edit.",
+    )
 
     @field_validator("instruction")
     @classmethod
@@ -179,6 +183,8 @@ class EditSongRequest(BaseModel):
 class EditSongResponse(BaseModel):
     song_id: str
     version_id: str
+    auto_render: bool = True
+    audio_rendered: bool = False
     edit_spec: MusicEditSpec
     diff: list[dict]
     music_spec: MusicSpec

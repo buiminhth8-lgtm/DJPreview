@@ -134,6 +134,8 @@ export interface DiffItem {
 export interface EditSongResponse {
   song_id: string;
   version_id: string;
+  auto_render: boolean;
+  audio_rendered: boolean;
   edit_spec: {
     version: string;
     instruction: string;
@@ -480,8 +482,15 @@ export function getAssets(songId: string): Promise<AssetsResponse> {
   return requestJson(`/api/v1/songs/${songId}/assets`, "GET");
 }
 
-export function editSong(songId: string, instruction: string): Promise<EditSongResponse> {
-  return requestJson(`/api/v1/songs/${songId}/edit`, "POST", { instruction });
+export function editSong(
+  songId: string,
+  instruction: string,
+  autoRender = true,
+): Promise<EditSongResponse> {
+  return requestJson(`/api/v1/songs/${songId}/edit`, "POST", {
+    instruction,
+    auto_render: autoRender,
+  });
 }
 
 export function getVersions(songId: string): Promise<VersionsResponse> {

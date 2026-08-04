@@ -44,7 +44,7 @@
 - 依赖：T05
 - 验收标准：diff 方向（old=指定版本，new=当前版本）正确；pytest 覆盖
 
-## T07 `EditSongRequest` 增加 `auto_render` ⬜
+## T07 `EditSongRequest` 增加 `auto_render` ✅
 
 - 目标：自然语言修改后可选择是否自动重渲染 MIDI/WAV
 - 优先级：P1

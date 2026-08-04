@@ -460,10 +460,20 @@ def edit_song(song_id: str, req: EditSongRequest) -> EditSongResponse:
         new_spec = apply_music_edit(spec, edit_spec)
         diff = diff_music_specs(spec, new_spec)
         version = create_version(song_id, new_spec, req.instruction, edit_spec.model_dump(mode="json"))
-        _regenerate_audio_for(song_id)
+        # MIDI 始终重新生成（作为编辑后的基础资产）
+        _generate_midi_for(song_id)
+        audio_rendered = False
+        if req.auto_render:
+            try:
+                _render_audio_for(song_id)
+                audio_rendered = True
+            except Exception as exc:  # noqa: BLE001 - 保持旧逻辑：渲染失败不阻断编辑
+                logger.warning("编辑后音频渲染失败：%s", exc)
         return EditSongResponse(
             song_id=song_id,
             version_id=version["version_id"],
+            auto_render=req.auto_render,
+            audio_rendered=audio_rendered,
             edit_spec=edit_spec,
             diff=diff,
             music_spec=new_spec,

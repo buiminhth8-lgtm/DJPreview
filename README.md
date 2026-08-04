@@ -162,6 +162,20 @@ curl http://localhost:8000/api/v1/songs/{song_id}/versions/v1
 
 返回 `song_id`、`version_id`、`is_current`、`metadata`、`music_spec`、`edit_spec`、`diff`（相对父版本）与 `assets`。
 
+编辑接口支持 `auto_render`：
+
+```bash
+curl -X POST http://localhost:8000/api/v1/songs/{song_id}/edit \
+  -H "Content-Type: application/json" \
+  -d '{"instruction":"把副歌改得更激烈","auto_render":false}'
+```
+
+说明：
+
+- `auto_render=true`（默认）：编辑后自动重新渲染 WAV，兼容旧客户端。
+- `auto_render=false`：编辑后跳过 WAV 渲染（仍重新生成 MIDI），适合快速编辑与批量修改，不会覆盖已有 `output.wav`。
+- 响应新增 `auto_render` 与 `audio_rendered` 字段，明确标记本次是否执行了音频渲染。
+
 版本 diff 示例：
 
 ```bash
