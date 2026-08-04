@@ -87,12 +87,18 @@
   新增 `tests/test_prompt_registry.py`、`tests/test_llm_json_utils.py`、`tests/test_deepseek_provider.py`、
   `tests/test_llm_call_logger.py`、`tests/test_llm_provider.py`
 
-## T12 版本资产目录式重构 ⬜
+## T12 版本资产目录式重构 ✅（第一步完成）
 
 - 目标：每版本独立资产目录（spec / midi / wav / mix / quality）
 - 优先级：P1
 - 依赖：T05-T06
-- 验收标准：版本切换/恢复指向对应目录；旧数据兼容迁移
+- 验收标准：新项目创建目录式版本（versions/vN/）；旧 vN.json 懒迁移；根目录保留当前版本兼容镜像；
+  MIDI / WAV / Mix / Quality / Stems 资产同步到版本目录；现有版本 API 不破坏
+- 实现：`packages/music_core/versioning/`（version_migration / version_assets / version_models）；
+  `project_store` 新项目 v1 + 编辑 vN 目录式写入；`save_midi_file` / `save_audio_metadata` 自动同步当前版本资产；
+  `versions/index.json` 升级 schema_version=2 并写入 path/index/kind/prompt；
+  根目录写入 `current.json` / `current_version_id.txt` 兼容指针
+- 说明：完整 restore 历史资产同步留到 T13；`.aimusic.zip` 适配新结构留到 T14
 
 ## T13 版本资产恢复重构 ⬜
 

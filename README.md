@@ -269,10 +269,21 @@ INVALID_METER_DENOMINATOR     非法拍号分母
 SECTION_COVERAGE_GAP          存在未被任何段落覆盖的小节
 ```
 
+## 版本资产目录式结构（T12 第一步）
+
+- 新项目创建后即初始化目录式版本：`versions/v1/version_metadata.json` + `music_spec.json`，
+  根目录写入 `current.json` 与 `current_version_id.txt`，`versions/index.json` 升级为 `schema_version=2`。
+- 编辑 / 优化 / 重生成创建 `versions/vN/`，保存 `version_metadata.json`、`music_spec.json`、
+  `edit_spec.json`、`diff.json`，并同步 MIDI / WAV / Mix / Quality / Stems 资产。
+- 旧项目（`versions/vN.json` 快照）在首次访问版本接口时自动懒迁移为目录式，旧文件保留为兼容备份。
+- 根目录继续保留当前版本兼容镜像（music_spec.json / output.mid / output.wav / mix_spec.json 等），现有 API 不受影响。
+- 完整的历史资产恢复（restore 时复制 MIDI / WAV / Mix / Stems）将在 T13 完成；
+  `.aimusic.zip` 工程导入导出完整适配新结构将在 T14 完成。
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（218 passed，2026-08-04 实测）
+后端测试：pytest -q passed（270 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

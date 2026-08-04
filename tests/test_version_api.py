@@ -2,6 +2,7 @@
 
 from fastapi.testclient import TestClient
 
+from services.api.dependencies.config import get_settings
 from services.api.main import app
 
 client = TestClient(app)
@@ -69,6 +70,49 @@ def test_get_missing_version_404():
 def test_get_missing_song_404():
     resp = client.get("/api/v1/songs/00000000-0000-0000-0000-000000000000/versions/v1")
     assert resp.status_code == 404
+
+
+def test_new_project_uses_directory_layout_and_vn_ids():
+    """T12：新项目 v1 使用目录式结构，version_id 为 v1。"""
+    song_id = _create_song()
+    data = client.get(f"/api/v1/songs/{song_id}/versions").json()
+    v1 = data["versions"][0]
+    assert v1["version_id"] == "v1"
+    assert data["current_version_id"] == "v1"
+
+    detail = client.get(f"/api/v1/songs/{song_id}/versions/v1").json()
+    assert detail["version_id"] == "v1"
+    assert detail["metadata"]["index"] == 1
+    diff = client.get(f"/api/v1/songs/{song_id}/versions/v1/diff").json()
+    assert diff["diff"] is None
+
+    project_dir = get_settings().projects_dir / song_id
+    assert (project_dir / "versions" / "v1" / "version_metadata.json").exists()
+    assert (project_dir / "versions" / "v1" / "music_spec.json").exists()
+    assert (project_dir / "current_version_id.txt").read_text(encoding="utf-8") == "v1"
+
+
+def test_edit_creates_v2_directory_and_api_reads_it():
+    """T12：编辑后 v2 目录包含 metadata / music_spec / edit_spec / diff。"""
+    song_id = _create_song()
+    client.post(f"/api/v1/songs/{song_id}/edit", json={"instruction": "整首更快一点"})
+    project_dir = get_settings().projects_dir / song_id
+    v2 = project_dir / "versions" / "v2"
+    assert (v2 / "version_metadata.json").exists()
+    assert (v2 / "music_spec.json").exists()
+    assert (v2 / "edit_spec.json").exists()
+    assert (v2 / "diff.json").exists()
+    assert (project_dir / "current_version_id.txt").read_text(encoding="utf-8") == "v2"
+
+    detail = client.get(f"/api/v1/songs/{song_id}/versions/v2").json()
+    assert detail["version_id"] == "v2"
+    assert detail["is_current"] is True
+    assert detail["edit_spec"]["instruction"] == "整首更快一点"
+    assert any(d["field"] == "tempo.bpm" for d in detail["diff"])
+
+    diff = client.get(f"/api/v1/songs/{song_id}/versions/v2/diff").json()
+    assert diff["parent_version_id"] == "v1"
+    assert any(d["field"] == "tempo.bpm" for d in diff["diff"])
 
 
 # ---------- T06：版本 diff API ----------

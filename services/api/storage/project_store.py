@@ -10,6 +10,8 @@ from pathlib import Path
 
 from packages.music_core.editing.diff import diff_music_specs
 from packages.music_core.mix.mix_models import MixSpec
+from packages.music_core.versioning.version_assets import copy_current_assets_to_version
+from packages.music_core.versioning.version_migration import ensure_version_layout
 from services.api.dependencies.config import get_settings
 from services.api.schemas.music_spec import MusicSpec
 
@@ -27,6 +29,12 @@ AUDIO_GENERATOR_VERSION = "stage-3-audio-v0.1"
 
 VERSIONS_DIR_NAME = "versions"
 VERSIONS_INDEX_FILE = "index.json"
+VERSION_METADATA_FILENAME = "version_metadata.json"
+CURRENT_VERSION_ID_FILENAME = "current_version_id.txt"
+CURRENT_JSON_FILENAME = "current.json"
+VERSION_SCHEMA_VERSION = 2
+EDIT_SPEC_FILENAME = "edit_spec.json"
+DIFF_FILENAME = "diff.json"
 
 MIX_FILENAME = "mix_spec.json"
 QUALITY_FILENAME = "quality_report.json"
@@ -56,6 +64,8 @@ def create_project(music_spec: MusicSpec) -> str:
     project_dir = _project_dir(song_id)
     project_dir.mkdir(parents=True, exist_ok=True)
     _write_spec_file(project_dir, music_spec)
+    # T12：新项目立即初始化目录式版本结构（v1）
+    init_version_if_needed(song_id, music_spec)
     return song_id
 
 
@@ -99,6 +109,7 @@ def save_midi_file(song_id: str, midi_data: bytes | str | Path) -> str:
         json.dumps(metadata, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    _sync_current_version_assets(song_id)
     return MIDI_FILENAME
 
 
@@ -136,6 +147,7 @@ def save_audio_metadata(song_id: str, metadata: dict) -> None:
         json.dumps(metadata, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    _sync_current_version_assets(song_id)
 
 
 def get_audio_metadata(song_id: str) -> dict | None:
@@ -166,10 +178,12 @@ def _write_versions_index(song_id: str, index: dict) -> None:
 
 
 def _version_snapshot_path(song_id: str, version_number: int) -> Path:
+    """旧结构兼容路径：versions/vN.json（迁移时读取）。"""
     return _versions_dir(song_id) / f"v{version_number}.json"
 
 
 def _write_version_snapshot(song_id: str, version_number: int, snapshot: dict) -> None:
+    """旧结构写入（保留给迁移/兼容使用）。"""
     path = _version_snapshot_path(song_id, version_number)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -179,51 +193,177 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _ensure_version_layout(song_id: str) -> None:
+    """懒迁移：确保项目使用目录式版本布局（幂等）。"""
+    ensure_version_layout(_project_dir(song_id))
+
+
+def _version_dir(song_id: str, version_number: int) -> Path:
+    return _versions_dir(song_id) / f"v{version_number}"
+
+
+def _write_current_pointer(song_id: str, current_version_id: str | None) -> None:
+    """写入根目录 current_version_id.txt 与 current.json（当前版本兼容指针）。"""
+    project_dir = _project_dir(song_id)
+    (project_dir / CURRENT_VERSION_ID_FILENAME).write_text(current_version_id or "", encoding="utf-8")
+    (project_dir / CURRENT_JSON_FILENAME).write_text(
+        json.dumps(
+            {
+                "schema_version": VERSION_SCHEMA_VERSION,
+                "current_version_id": current_version_id,
+                "updated_at": _now_iso(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_version_dir(
+    song_id: str,
+    version_number: int,
+    version: dict,
+    music_spec: MusicSpec,
+    edit_spec: dict | None,
+    diff: list[dict] | None,
+) -> None:
+    """写入目录式版本：version_metadata.json / music_spec.json / edit_spec.json / diff.json。"""
+    version_dir = _version_dir(song_id, version_number)
+    version_dir.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "version_id": version["version_id"],
+        "index": version_number,
+        "parent_version_id": version.get("parent_version_id"),
+        "created_at": version.get("created_at") or _now_iso(),
+        "kind": version.get("kind", "edit"),
+        "prompt": version.get("prompt"),
+        "edit_instruction": version.get("edit_instruction") or version.get("instruction"),
+        "notes": version.get("notes"),
+        "path": f"{VERSIONS_DIR_NAME}/v{version_number}",
+    }
+    (version_dir / VERSION_METADATA_FILENAME).write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (version_dir / "music_spec.json").write_text(
+        json.dumps(music_spec.model_dump(mode="json"), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    if edit_spec is not None:
+        (version_dir / EDIT_SPEC_FILENAME).write_text(
+            json.dumps(edit_spec, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    if diff is not None:
+        (version_dir / DIFF_FILENAME).write_text(
+            json.dumps(diff, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    copy_current_assets_to_version(_project_dir(song_id), version_dir)
+
+
+def _read_version_dir(song_id: str, entry: dict, version_dir: Path) -> dict:
+    """读取目录式版本并组装统一快照 dict（兼容旧字段）。"""
+    metadata_path = version_dir / VERSION_METADATA_FILENAME
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"版本目录缺少 version_metadata.json：{version_dir}")
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    number = int(entry.get("version_number") or metadata.get("index"))
+    music_spec_path = version_dir / "music_spec.json"
+    if not music_spec_path.exists():
+        raise FileNotFoundError(f"版本目录缺少 music_spec.json：{version_dir}")
+    edit_spec_path = version_dir / EDIT_SPEC_FILENAME
+    diff_path = version_dir / DIFF_FILENAME
+    return {
+        "version_id": metadata.get("version_id") or entry.get("version_id"),
+        "version_number": number,
+        "index": metadata.get("index", number),
+        "created_at": metadata.get("created_at"),
+        "instruction": metadata.get("edit_instruction") or entry.get("instruction"),
+        "edit_instruction": metadata.get("edit_instruction"),
+        "parent_version_id": metadata.get("parent_version_id"),
+        "kind": metadata.get("kind"),
+        "prompt": metadata.get("prompt"),
+        "notes": metadata.get("notes"),
+        "path": metadata.get("path") or entry.get("path"),
+        "edit_spec": (
+            json.loads(edit_spec_path.read_text(encoding="utf-8")) if edit_spec_path.exists() else None
+        ),
+        "music_spec": json.loads(music_spec_path.read_text(encoding="utf-8")),
+        "diff": json.loads(diff_path.read_text(encoding="utf-8")) if diff_path.exists() else None,
+    }
+
+
+def _sync_current_version_assets(song_id: str) -> None:
+    """把根目录当前版本镜像资产同步到当前版本目录。"""
+    current = get_current_version(song_id)
+    if not current:
+        return
+    version_dir = _version_dir(song_id, int(current["version_number"]))
+    copy_current_assets_to_version(_project_dir(song_id), version_dir)
+
+
 def init_version_if_needed(song_id: str, music_spec: MusicSpec | None = None) -> dict:
-    """旧项目自动初始化 v1；已初始化则直接返回索引。"""
+    """旧项目自动初始化 v1（目录式）；已初始化则迁移/返回索引。"""
     index = _read_versions_index(song_id)
     if index.get("versions"):
+        _ensure_version_layout(song_id)
         return index
     if music_spec is None:
         music_spec = get_project(song_id)
     version = {
-        "version_id": str(uuid.uuid4()),
+        "version_id": "v1",
         "version_number": 1,
+        "index": 1,
         "created_at": _now_iso(),
         "instruction": None,
+        "edit_instruction": None,
         "parent_version_id": None,
+        "kind": "initial",
+        "prompt": music_spec.prompt,
+        "notes": None,
+        "path": "versions/v1",
     }
-    snapshot = {
-        **version,
-        "edit_spec": None,
-        "music_spec": music_spec.model_dump(mode="json"),
+    _write_version_dir(song_id, 1, version, music_spec, edit_spec=None, diff=None)
+    index = {
+        "schema_version": VERSION_SCHEMA_VERSION,
+        "current_version_id": version["version_id"],
+        "versions": [version],
     }
-    _write_version_snapshot(song_id, version["version_number"], snapshot)
-    index = {"current_version_id": version["version_id"], "versions": [version]}
     _write_versions_index(song_id, index)
+    _write_current_pointer(song_id, version["version_id"])
     return index
 
 
 def create_version(song_id: str, music_spec: MusicSpec, instruction: str, edit_spec: dict | None) -> dict:
-    """创建新版本并设为当前版本，同时把 music_spec.json 同步为当前快照。"""
+    """创建目录式新版本 vN 并设为当前版本，同时同步根目录 music_spec.json。"""
     index = init_version_if_needed(song_id)
     version_number = max((v["version_number"] for v in index["versions"]), default=0) + 1
     version = {
-        "version_id": str(uuid.uuid4()),
+        "version_id": f"v{version_number}",
         "version_number": version_number,
+        "index": version_number,
         "created_at": _now_iso(),
         "instruction": instruction,
+        "edit_instruction": instruction,
         "parent_version_id": index["current_version_id"],
+        "kind": "edit",
+        "prompt": music_spec.prompt,
+        "notes": None,
+        "path": f"versions/v{version_number}",
     }
-    snapshot = {
-        **version,
-        "edit_spec": edit_spec,
-        "music_spec": music_spec.model_dump(mode="json"),
-    }
-    _write_version_snapshot(song_id, version_number, snapshot)
+    diff = None
+    if version["parent_version_id"]:
+        try:
+            parent_snapshot = get_version(song_id, version["parent_version_id"])
+            parent_spec = MusicSpec.model_validate(parent_snapshot["music_spec"])
+            diff = diff_music_specs(parent_spec, music_spec)
+        except (FileNotFoundError, KeyError, ValueError):
+            diff = None
+    _write_version_dir(song_id, version_number, version, music_spec, edit_spec=edit_spec, diff=diff)
     index["versions"].append(version)
     index["current_version_id"] = version["version_id"]
+    index["schema_version"] = VERSION_SCHEMA_VERSION
     _write_versions_index(song_id, index)
+    _write_current_pointer(song_id, version["version_id"])
     _write_spec_file(_project_dir(song_id), music_spec)
     return version
 
@@ -235,14 +375,21 @@ def list_versions(song_id: str) -> list[dict]:
 
 
 def get_version(song_id: str, version_id: str) -> dict:
-    """按 version_id 读取版本快照；不存在抛出 FileNotFoundError。"""
+    """按 version_id 读取版本（目录式优先，旧 vN.json 兼容）。不存在抛 FileNotFoundError。"""
     index = init_version_if_needed(song_id)
     for version in index["versions"]:
         if version["version_id"] == version_id:
-            snapshot = json.loads(
-                _version_snapshot_path(song_id, version["version_number"]).read_text(encoding="utf-8")
-            )
-            return snapshot
+            number = int(version["version_number"] or version.get("index"))
+            version_dir = _version_dir(song_id, number)
+            if (version_dir / VERSION_METADATA_FILENAME).exists():
+                return _read_version_dir(song_id, version, version_dir)
+            # 兼容旧 vN.json 快照
+            legacy = _version_snapshot_path(song_id, number)
+            if legacy.exists():
+                snapshot = json.loads(legacy.read_text(encoding="utf-8"))
+                snapshot.setdefault("version_number", number)
+                snapshot.setdefault("index", number)
+                return snapshot
     raise FileNotFoundError(f"版本不存在：{version_id}")
 
 
@@ -332,6 +479,8 @@ def get_version_diff(song_id: str, version_id: str) -> dict:
 
 def get_current_version(song_id: str) -> dict | None:
     """返回当前版本信息；未初始化返回 None。"""
+    if (_versions_dir(song_id) / VERSIONS_INDEX_FILE).exists():
+        _ensure_version_layout(song_id)
     index = _read_versions_index(song_id)
     current_id = index.get("current_version_id")
     if not current_id:
@@ -343,12 +492,17 @@ def get_current_version(song_id: str) -> dict | None:
 
 
 def restore_version(song_id: str, version_id: str) -> MusicSpec:
-    """恢复指定版本：设为当前版本并同步根目录 music_spec.json。"""
+    """恢复指定版本：设为当前版本并同步根目录 music_spec.json。
+
+    注意：T12 只恢复 MusicSpec 与版本指针；MIDI / WAV / Mix / Stems 等
+    历史资产的完整恢复将在 T13 完成。
+    """
     snapshot = get_version(song_id, version_id)
     music_spec = MusicSpec.model_validate(snapshot["music_spec"])
     index = _read_versions_index(song_id)
     index["current_version_id"] = version_id
     _write_versions_index(song_id, index)
+    _write_current_pointer(song_id, version_id)
     _write_spec_file(_project_dir(song_id), music_spec)
     return music_spec
 
@@ -357,6 +511,8 @@ def restore_version(song_id: str, version_id: str) -> MusicSpec:
 
 def _artifact_dir(song_id: str, version_id: str | None = None) -> Path:
     """版本感知的资源目录：versions/{version_id} 或当前版本目录；未启用版本则项目根。"""
+    if (_versions_dir(song_id) / VERSIONS_INDEX_FILE).exists():
+        _ensure_version_layout(song_id)
     project_dir = _project_dir(song_id)
     if version_id:
         return project_dir / VERSIONS_DIR_NAME / version_id

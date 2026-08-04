@@ -3,9 +3,10 @@
 ## 当前版本状态
 
 - 阶段 1-6 已完成：MusicSpec / MIDI / WAV / 修改与版本 / 混音与导出 / 风格、参考、工程 IO、评估
-- 修复任务：T01（.aimusic.zip 导入跨平台修复）、T02（前端依赖与构建）、T03（质量门禁）、T04（本阶段文档同步）已完成
+- 修复任务：T01-T11 已完成（工程导入 / 前端依赖 / 质量门禁 / 文档 / 版本详情与 diff / auto_render /
+  统一错误响应 / API Response Model / MusicSpec 语义校验 / LLM Provider 产品化）
+- T12 第一步完成：目录式版本资产结构（versions/vN/）+ 旧结构懒迁移 + 根目录兼容镜像
 - 当前分支：`master`
-- 版本详情 API（GET /versions/{version_id}）与版本 diff API（GET /versions/{version_id}/diff）已完成并提交
 
 ## 已完成功能
 
@@ -28,7 +29,7 @@
 ## 当前测试结果
 
 ```text
-pytest -q：185 passed（2026-08-04 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+pytest -q：270 passed（2026-08-04 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
 ```
 
 ## 当前前端构建结果
@@ -50,7 +51,8 @@ npm run build：passed（Vite 5.4.21，tsc 无错误）
 - API 错误响应格式不统一（部分 400 返回 `detail` 字符串，部分结构不同）。
 - API 响应模型未完全明确化（部分接口返回裸 dict）。
 - MusicSpec 语义校验库已实现（`check_music_spec` 返回 errors/warnings），但尚未接入生成/编辑 API 的对外报告。
-- 版本资产为“目录 + 快照文件”并存结构，尚未做统一的“版本资产目录”重构。
+- 版本资产目录式结构第一步已完成（新项目 v1/vN 目录 + 旧结构懒迁移）。
+- 完整 restore 历史资产同步（MIDI / WAV / Mix / Stems）待 T13；`.aimusic.zip` 适配新版本结构待 T14。
 - MIDI Parser 与 Fallback Renderer 在重叠音符（同音同轨 note_on 未闭合）场景可能异常。
 - 乐器命名与 GM Program 映射存在别名不统一。
 - Evaluation Runner 的 trait 打分语义较粗（如 `has_track_role2` 与 `has_track_role` 重复）。

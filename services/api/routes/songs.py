@@ -45,6 +45,7 @@ from packages.music_core.styles.style_applier import apply_style_template_to_mus
 from packages.music_core.styles.style_library import get_style_template, list_style_templates
 from packages.music_core.styles.style_models import StyleTemplateSpec
 from packages.music_core.validation.spec_validator import validate_music_spec_semantics
+from packages.music_core.versioning.version_assets import mirror_stems_to_root
 from packages.renderer.factory import get_audio_renderer
 from packages.renderer.stem_renderer import export_stems as export_stems_impl
 from services.api.dependencies.config import get_settings
@@ -577,6 +578,8 @@ def restore_version_route(song_id: str, version_id: str) -> RestoreVersionRespon
         raise version_not_found(song_id, version_id) from None
     except ValueError as exc:
         raise invalid_request(str(exc)) from None
+    # T12 最低要求：restore 只恢复 MusicSpec 与版本指针；
+    # 完整历史资产（MIDI / WAV / Mix / Stems）恢复将在 T13 完成。
     _regenerate_audio_for(song_id)
     return RestoreVersionResponse(
         song_id=song_id,
@@ -804,6 +807,8 @@ def export_stems(song_id: str) -> StemExportResponse:
             sample_rate=settings.audio_sample_rate,
             gain=settings.audio_gain,
         )
+        # 根目录兼容镜像：版本目录 stems/ → 项目根 stems/
+        mirror_stems_to_root(stems_dir, get_project_dir(song_id) / "stems")
         stems = [
             StemInfo(
                 track_id=item["track_id"],
