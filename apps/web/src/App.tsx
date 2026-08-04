@@ -12,13 +12,14 @@ import {
   type EditSongResponse,
   type GenerateMidiResponse,
   type MusicSpec,
+  type OptimizeResponse,
   type RenderAudioResponse,
   type VersionInfo,
 } from "./api/musicApi";
+import ArrangementInspector from "./components/ArrangementInspector";
 import AudioPlayer from "./components/AudioPlayer";
-import MusicSummary from "./components/MusicSummary";
-import SectionTimeline from "./components/SectionTimeline";
-import TrackList from "./components/TrackList";
+import MixerPanel from "./components/MixerPanel";
+import StemExportPanel from "./components/StemExportPanel";
 
 function audioResultFromAssets(
   songId: string,
@@ -72,6 +73,7 @@ export default function App() {
   const [lastDiff, setLastDiff] = useState<DiffItem[] | null>(null);
   const [versions, setVersions] = useState<VersionInfo[] | null>(null);
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
+  const [pianoRefreshKey, setPianoRefreshKey] = useState(0);
 
   const refreshAudioFromAssets = (songId: string, assets: EditSongResponse["assets"]) => {
     const next = audioResultFromAssets(songId, assets);
@@ -81,6 +83,13 @@ export default function App() {
     } else {
       setAudioStreamUrl(null);
     }
+  };
+
+  const refreshVersions = async () => {
+    if (!songId) return;
+    const result = await getVersions(songId);
+    setVersions(result.versions);
+    setCurrentVersionId(result.current_version_id);
   };
 
   const handleGenerateSpec = async () => {
@@ -149,9 +158,8 @@ export default function App() {
       setMusicSpec(result.music_spec);
       setLastDiff(result.diff);
       refreshAudioFromAssets(songId, result.assets);
-      const versionsResp = await getVersions(songId);
-      setVersions(versionsResp.versions);
-      setCurrentVersionId(versionsResp.current_version_id);
+      await refreshVersions();
+      setPianoRefreshKey((k) => k + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -164,9 +172,7 @@ export default function App() {
     setLoadingVersions(true);
     setError(null);
     try {
-      const result = await getVersions(songId);
-      setVersions(result.versions);
-      setCurrentVersionId(result.current_version_id);
+      await refreshVersions();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -181,12 +187,23 @@ export default function App() {
       const result = await restoreVersion(songId, versionId);
       setMusicSpec(result.music_spec);
       refreshAudioFromAssets(songId, result.assets);
-      const versionsResp = await getVersions(songId);
-      setVersions(versionsResp.versions);
-      setCurrentVersionId(versionsResp.current_version_id);
+      await refreshVersions();
+      setPianoRefreshKey((k) => k + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
+  };
+
+  const handleMixApplied = (assets: EditSongResponse["assets"]) => {
+    refreshAudioFromAssets(songId ?? "", assets);
+    setPianoRefreshKey((k) => k + 1);
+  };
+
+  const handleOptimized = async (result: OptimizeResponse) => {
+    setMusicSpec(result.music_spec);
+    refreshAudioFromAssets(result.song_id, result.assets);
+    await refreshVersions();
+    setPianoRefreshKey((k) => k + 1);
   };
 
   const midiDownloadUrl = midiResult ? resolveUrl(midiResult.download_url) : null;
@@ -195,7 +212,9 @@ export default function App() {
     <div className="container">
       <header>
         <h1>AI Music MVP</h1>
-        <p className="subtitle">一句话生成 MusicSpec → MIDI → 试听 WAV → 自然语言修改与版本管理</p>
+        <p className="subtitle">
+          生成 MusicSpec → MIDI → WAV → 修改/版本 → 混音/可视化/质量/导出
+        </p>
       </header>
 
       <section className="panel">
@@ -218,18 +237,10 @@ export default function App() {
       {musicSpec && songId && (
         <>
           <section className="panel result">
-            <h2>MusicSpec 摘要</h2>
+            <h2>播放与下载</h2>
             <p className="song-id">
               song_id：<code>{songId}</code>
             </p>
-            <MusicSummary spec={musicSpec} />
-
-            <h3>段落结构</h3>
-            <SectionTimeline sections={musicSpec.form} />
-
-            <h3>轨道列表</h3>
-            <TrackList tracks={musicSpec.tracks} />
-
             <div className="midi-actions">
               <button onClick={handleGenerateMidi} disabled={loadingMidi}>
                 {loadingMidi ? "MIDI 生成中…" : "生成 MIDI"}
@@ -240,11 +251,7 @@ export default function App() {
                 </a>
               )}
             </div>
-          </section>
-
-          {midiResult && (
-            <section className="panel result">
-              <h2>MIDI 已生成</h2>
+            {midiResult && (
               <div className="summary">
                 <div className="summary-row">
                   <span className="summary-label">轨道数</span>
@@ -259,27 +266,40 @@ export default function App() {
                   <span className="summary-value">{midiResult.summary.bpm}</span>
                 </div>
               </div>
-              <div className="midi-actions">
-                <button onClick={handleRenderAudio} disabled={loadingAudio}>
-                  {loadingAudio ? "WAV 渲染中…" : "渲染 WAV"}
-                </button>
-              </div>
-            </section>
-          )}
+            )}
+            <div className="midi-actions">
+              <button onClick={handleRenderAudio} disabled={loadingAudio}>
+                {loadingAudio ? "WAV 渲染中…" : "渲染 WAV"}
+              </button>
+            </div>
+            {audioResult && audioStreamUrl && (
+              <>
+                <AudioPlayer
+                  audioUrl={audioStreamUrl}
+                  downloadUrl={resolveUrl(audioResult.download_url)}
+                />
+                <AudioMeta metadata={audioResult.metadata} />
+              </>
+            )}
+          </section>
 
-          {audioResult && audioStreamUrl && (
-            <section className="panel result">
-              <h2>音频试听</h2>
-              <AudioPlayer
-                audioUrl={audioStreamUrl}
-                downloadUrl={resolveUrl(audioResult.download_url)}
-              />
-              <AudioMeta metadata={audioResult.metadata} />
-            </section>
-          )}
+          <details className="panel result" open>
+            <summary>
+              <h2>编曲检查（摘要 / 段落 / 轨道 / 钢琴卷帘 / 质量）</h2>
+            </summary>
+            <ArrangementInspector
+              songId={songId}
+              spec={musicSpec}
+              refreshKey={pianoRefreshKey}
+              onOptimized={handleOptimized}
+              onError={(msg) => setError(msg)}
+            />
+          </details>
 
-          <section className="panel result">
-            <h2>自然语言修改</h2>
+          <details className="panel result">
+            <summary>
+              <h2>自然语言修改与版本管理</h2>
+            </summary>
             <textarea
               value={editPrompt}
               onChange={(e) => setEditPrompt(e.target.value)}
@@ -301,10 +321,6 @@ export default function App() {
             {lastDiff && lastDiff.length === 0 && (
               <p className="muted-note">本次修改未产生字段变化。</p>
             )}
-          </section>
-
-          <section className="panel result">
-            <h2>版本管理</h2>
             <div className="actions">
               <button onClick={handleLoadVersions} disabled={loadingVersions}>
                 {loadingVersions ? "加载中…" : "查看版本"}
@@ -327,10 +343,7 @@ export default function App() {
                       {v.instruction ?? "初始版本"} · {new Date(v.created_at).toLocaleString()}
                     </div>
                     {v.version_id !== currentVersionId && (
-                      <button
-                        className="restore-btn"
-                        onClick={() => handleRestore(v.version_id)}
-                      >
+                      <button className="restore-btn" onClick={() => handleRestore(v.version_id)}>
                         恢复此版本
                       </button>
                     )}
@@ -338,7 +351,26 @@ export default function App() {
                 ))}
               </div>
             )}
-          </section>
+          </details>
+
+          <details className="panel result">
+            <summary>
+              <h2>混音器</h2>
+            </summary>
+            <MixerPanel
+              songId={songId}
+              refreshKey={pianoRefreshKey}
+              onApplied={handleMixApplied}
+              onError={(msg) => setError(msg)}
+            />
+          </details>
+
+          <details className="panel result">
+            <summary>
+              <h2>分轨导出</h2>
+            </summary>
+            <StemExportPanel songId={songId} onError={(msg) => setError(msg)} />
+          </details>
         </>
       )}
     </div>

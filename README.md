@@ -3,149 +3,182 @@
 自然语言生成音乐的 MVP 工程。
 
 - **第一阶段**：基础工程、MusicSpec v0.1 / MusicEditSpec v0.1 协议、LLM 适配层（MockProvider / DeepSeekProvider）、一句话生成 MusicSpec、项目 JSON 保存与读取。
-- **第二阶段**：MusicSpec → 编曲数据 → 标准 MIDI 文件（多轨，含旋律 / 和弦伴奏 / 贝斯 / 鼓组 / Pad 铺底），确定性 seed 复现，MIDI 生成与下载 API。
+- **第二阶段**：MusicSpec → 编曲数据 → 标准 MIDI 文件（多轨），确定性 seed 复现，MIDI 生成与下载 API。
 - **第三阶段**：MIDI → WAV 音频渲染（FluidSynth + SoundFont，无 FluidSynth 时 fallback 合成），在线试听、下载 MIDI/WAV、基础轨道与段落展示。
 - **第四阶段**：自然语言修改（MusicEditSpec 真正执行）+ 版本管理（v1 自动初始化、每次修改生成新版本、历史版本恢复、根目录资源同步）。
+- **第五阶段**：轨道级混音（MixSpec / TrackMixSpec）、钢琴卷帘可视化、编曲质量检查、保守自动优化、分轨 MIDI/WAV stems 导出与打包。
 
 > 当前阶段不实现 AI 人声、歌词演唱、音色克隆、VST 插件、专业混音母带、DAW 深度集成与实时多人协作。
 
-## 一、第四阶段新增能力
+## 一、第五阶段新增能力
 
-- `apply_music_edit`：把 MusicEditSpec 应用到 MusicSpec，**不修改原始对象**（`model_copy(deep=True)`），结果始终通过校验
-- 支持操作：`tempo` / `tonality` / `energy` / `velocity` / `add_instrument` / `remove_instrument` / `chinese_style` / `style` / `mood`
-- `preserve` 机制：列出不可变字段，相关操作自动跳过
-- 段落目标：`target.section=chorus` 时只允许段落级操作（energy / 段落内加乐器），全局操作跳过
-- `diff_music_specs`：对比新旧 MusicSpec，输出字段级变化
-- 版本管理：旧项目自动初始化 v1；每次 edit 生成新版本；restore 恢复历史版本并同步根目录 `music_spec.json` / `output.mid` / `output.wav`
-- 新 API：`/songs/{id}/edit`、`/songs/{id}/versions`、`/songs/{id}/versions/{version_id}/restore`；`/assets` 增加 `current_version`
-- 前端：修改指令输入、diff 展示、版本列表与恢复、播放器自动刷新
+- `MixSpec / TrackMixSpec`：每轨 volume / pan / mute / solo / enabled / velocity_scale，可从 MusicSpec 自动初始化并同步
+- `MixEngine`：`create_default_mix_spec` / `sync_mix_spec_with_music_spec` / `apply_mix_to_composition` / `update_track_mix`
+  - volume / velocity_scale / master_volume 缩放 velocity（1-127）
+  - mute / enabled=false 不输出；solo 优先；全部静音时保留 melody 并返回 warning
+  - pan 写入 MIDI Control Change 10（-1 → 0，0 → 64，1 → 127）
+- MIDI Writer 扩展：pan CC、track_name、可选只写指定轨道（分轨导出）
+- `midi_splitter`：按轨道拆分单轨 MIDI
+- `stem_renderer`：分轨 MIDI → WAV → `stems.zip` + `stems_metadata.json`
+- `midi_parser`：mido 解析（note_on velocity=0 视为 note_off、channel 9 标记 is_drum、beat 时间）
+- `piano_roll`：前端友好的钢琴卷帘 JSON（段落、轨道、音符、截断保护）
+- `quality_checker`：结构 / 轨道 / 音域 / 密度 / 和声 / 混音诊断，评分 0-100，保存 `quality_report.json`
+- `arrangement_optimizer`：保守规则优化（补 melody/harmony/pad、五声音阶、chorus energy、velocity），创建新版本
+- 新 API：`/mix`、`/mix/apply`、`/piano-roll`、`/quality/check`、`/quality/report`、`/quality/optimize`、`/stems/export`、`/stems/download`、`/stems/{track_id}/{kind}/download`
+- 前端：MixerPanel、PianoRoll（SVG）、QualityReport、StemExportPanel、ArrangementInspector
 
-## 二、自然语言修改流程
+## 二、MixSpec / TrackMixSpec 说明
 
-```text
-修改指令（如“副歌更亮一点”）
-   │
-   ▼
-LLMProvider.generate_music_edit(instruction, spec)
-   │   （MockProvider 规则解析 / DeepSeekProvider JSON 生成 + 校验）
-   ▼
-MusicEditSpec（target / preserve / operations）
-   │
-   ▼
-apply_music_edit(spec, edit_spec)
-   │   基于 model_copy(deep=True)，不修改原对象
-   │   段落目标只改段落字段；preserve 字段跳过；最终 validate_music_spec
-   ▼
-新 MusicSpec
-   │
-   ├─ diff_music_specs(old, new) → diff 列表
-   ├─ create_version() → 新版本快照 + versions/index.json 更新 + 根目录 music_spec.json 同步
-   └─ 重新生成 output.mid / output.wav（保证资源一致）
+```json
+{
+  "version": "0.1",
+  "song_id": "...",
+  "version_id": "...",
+  "master_volume": 1.0,
+  "tracks": [
+    {
+      "track_id": "piano",
+      "role": "harmony",
+      "volume": 0.8,
+      "pan": -0.2,
+      "mute": false,
+      "solo": false,
+      "enabled": true,
+      "velocity_scale": 1.0,
+      "program": 0,
+      "instrument": "piano"
+    }
+  ]
+}
 ```
 
-MockProvider 支持的常见中文指令示例：
+- 单独保存为 `mix_spec.json`（版本目录 + 项目根目录同步），不塞入 MusicSpec
+- MusicSpec 增删轨道后，`sync_mix_spec_with_music_spec` 自动同步
 
-| 指令 | 解析结果 |
-|------|----------|
-| 整首更快一点 / 更慢一点 | tempo ±10 |
-| 更亮 / 明亮 / 更暗 / 忧郁 | tonality C major / D minor |
-| 副歌更亮一点 / 更激昂 | section=chorus + energy ±0.15 |
-| 贝斯音量加大 / 力度 | track=bass + velocity +5 |
-| 加点中国风 | chinese_style（pentatonic + 风格标签） |
-| 加钢琴 / 加鼓 / 加弦乐 | add_instrument |
-| 去掉鼓 / 删除贝斯 / 不要钢琴 | remove_instrument |
-| 副歌加鼓 | section=chorus + add_instrument（enabled_sections=[chorus]） |
+## 三、轨道音量、声像、静音、独奏说明
 
-## 三、版本管理存储结构
+- **volume / velocity_scale / master_volume**：MIDI 无音频音量概念，MVP 通过缩放 velocity 近似（1-127 截断）
+- **mute / enabled**：对应轨道不输出 NoteEvent（不删除 MusicSpec 中的 track）
+- **solo**：任意轨道 solo 时只输出 solo 轨道，优先级高于 mute
+- **pan**：写入 MIDI Control Change 10（0-127）
+- 所有轨道被静音时，保留 melody（或第一条可用轨道）保证输出非空，并返回 warning
+
+## 四、分轨导出说明
 
 ```text
-data/projects/{song_id}/
-├── music_spec.json          # 当前版本快照（兼容第一至三阶段读取）
-├── output.mid / output.wav / audio_metadata.json
-└── versions/
-    ├── index.json           # { current_version_id, versions: [meta...] }
-    ├── v1.json              # 版本 1 快照（music_spec + edit_spec + meta）
-    └── v2.json              # 版本 2 快照 ...
+data/projects/{song_id}/versions/{version_id}/stems/
+├── midi/melody.mid ...（每轨一个单轨 MIDI）
+├── wav/melody.wav ...（每轨渲染 WAV）
+├── stems.zip
+└── stems_metadata.json
 ```
 
-- 旧项目首次访问 `/versions`、`/edit` 或 `/assets` 时自动初始化 v1
-- 每次 `/edit` 追加新版本并设为当前版本
-- `/restore` 恢复指定版本：更新 `current_version_id`、同步根目录 `music_spec.json`，并重新生成 MIDI / WAV
+未启用版本系统时兼容 `data/projects/{song_id}/stems/`。空轨道跳过并记录 warning；渲染失败不影响整体导出。
 
-## 四、API 示例
+## 五、Piano Roll 可视化说明
 
-### 1. 自然语言修改
+- `GET /api/v1/songs/{song_id}/piano-roll` 返回段落、轨道、音符（beat 单位）
+- 前端用 SVG 绘制：横轴 beat/bar、纵轴 pitch、段落背景、轨道颜色区分、音符 tooltip
+- 音符过多时截断（默认 5000）并返回 `truncated=true`
+
+## 六、Quality Report 说明
+
+- 检查：结构（小节覆盖/重叠）、轨道（空轨/重复 id/缺 melody）、音域（旋律/贝斯）、密度（过空/过密/energy 不匹配）、和声（缺失/空进行）、混音（力度极端）
+- 评分 0-100（error 15 / warning 8 / info 2 扣分），level：excellent / good / fair / poor
+- 仅诊断，不影响生成；保存 `quality_report.json`
+
+## 七、自动优化说明
+
+- 保守规则优化：缺 melody/harmony 补轨道、cinematic 补 strings pad、中国风设五声音阶、chorus energy 低于 verse 时提高、整体力度过低时提升
+- 不调用 LLM、不大改作品；优化后创建新版本（旧版本保留）
+- 优化报告保存为 `optimize_report.json`
+
+## 八、API 示例
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/songs/{song_id}/edit \
+# 获取 MixSpec
+curl http://localhost:8000/api/v1/songs/{song_id}/mix
+
+# 修改混音并立即重渲染
+curl -X PATCH "http://localhost:8000/api/v1/songs/{song_id}/mix?apply=true" \
   -H "Content-Type: application/json" \
-  -d '{"instruction":"副歌更亮一点"}'
+  -d '{"tracks":[{"track_id":"piano","volume":0.7,"pan":-0.2}]}'
+
+# 应用混音（重新生成 MIDI/WAV）
+curl -X POST http://localhost:8000/api/v1/songs/{song_id}/mix/apply
+
+# 钢琴卷帘数据
+curl "http://localhost:8000/api/v1/songs/{song_id}/piano-roll?max_notes=5000"
+
+# 检查质量
+curl -X POST http://localhost:8000/api/v1/songs/{song_id}/quality/check
+
+# 读取质量报告（未生成会自动生成）
+curl http://localhost:8000/api/v1/songs/{song_id}/quality/report
+
+# 自动优化（创建新版本）
+curl -X POST http://localhost:8000/api/v1/songs/{song_id}/quality/optimize \
+  -H "Content-Type: application/json" \
+  -d '{"auto_render":true}'
+
+# 导出分轨
+curl -X POST http://localhost:8000/api/v1/songs/{song_id}/stems/export
+
+# 下载 stems.zip
+curl -L http://localhost:8000/api/v1/songs/{song_id}/stems/download -o stems.zip
+
+# 下载单轨 stem
+curl -L http://localhost:8000/api/v1/songs/{song_id}/stems/melody/midi/download -o melody.mid
+curl -L http://localhost:8000/api/v1/songs/{song_id}/stems/melody/wav/download -o melody.wav
 ```
 
-返回 `version_id`、`edit_spec`、`diff`、`music_spec` 与 `assets`（含 `current_version`）。
+## 九、前端使用流程
 
-### 2. 版本列表
+1. 输入一句话生成 MusicSpec
+2. 生成 MIDI、渲染 WAV、试听与下载
+3. 自然语言修改 + 版本管理（恢复）
+4. **混音器**：调节每轨 volume / pan / velocity_scale / mute / solo / enabled，应用后重新渲染并刷新播放器
+5. **编曲检查**：摘要、段落结构、轨道列表、钢琴卷帘、质量报告、自动优化（成功后刷新版本与播放器）
+6. **分轨导出**：单轨 MIDI/WAV 下载 + stems.zip
+
+## 十、后端安装与启动
 
 ```bash
-curl http://localhost:8000/api/v1/songs/{song_id}/versions
+cd ai-music-mvp
+python -m venv .venv
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn services.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 3. 恢复版本
+前端：
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/songs/{song_id}/versions/{version_id}/restore
+cd apps/web
+npm install
+npm run dev
 ```
 
-### 4. 资源状态（含当前版本）
-
-```bash
-curl http://localhost:8000/api/v1/songs/{song_id}/assets
-```
-
-## 五、前端使用流程
-
-1. 输入一句话生成 MusicSpec，查看摘要 / 段落结构 / 轨道列表
-2. 生成 MIDI 并下载
-3. 渲染 WAV 并试听（播放 / 暂停 / 下载）
-4. 输入自然语言修改指令 → “应用修改”：摘要与播放器自动刷新，展示 diff
-5. “查看版本”：列出 v1/v2/…（指令与时间），可一键“恢复此版本”，播放器同步更新
-
-## 六、环境变量
-
-```env
-# LLM
-LLM_PROVIDER=mock
-DEEPSEEK_API_KEY=
-DEEPSEEK_BASE_URL=
-DEEPSEEK_MODEL=
-
-# 音频渲染（第三阶段）
-AUDIO_RENDERER=auto          # auto / fluidsynth / fallback
-FLUIDSYNTH_BIN=fluidsynth
-SOUNDFONT_PATH=
-AUDIO_SAMPLE_RATE=44100
-AUDIO_GAIN=0.6
-```
-
-## 七、测试
+## 十一、测试
 
 ```bash
 cd ai-music-mvp
 pytest
 ```
 
-覆盖：第一至三阶段全部回归 + 第四阶段编辑引擎（不可变性 / preserve / 段落目标 / 加去乐器 / 中国风 / diff）与版本 API（v1 初始化、edit 建版本、restore 同步、assets 版本指针、404）。
+覆盖：第一至四阶段全部回归 + 第五阶段混音模型/引擎、MIDI 解析、stems 导出、质量检查与优化、混音/钢琴卷帘/stems API。前端 `tsc --noEmit` 检查。测试强制 `AUDIO_RENDERER=fallback`，不依赖系统 FluidSynth。
 
-## 八、当前不支持（第四阶段范围外）
+## 十二、当前不支持（第五阶段范围外）
 
 - AI 人声、歌词演唱、音色克隆、VST 插件宿主
 - 专业混音母带、DAW 深度集成、实时多人协作
+- 音频波形级剪辑、实时音频合成引擎、商业级钢琴卷帘编辑器
 
-## 九、第五阶段计划
+## 十三、第六阶段计划
 
-1. 专业混音：轨道音量 / 声像 / 均衡（Web Audio API 或后端 DSP）
-2. 音频可视化：波形、频谱、播放进度与段落高亮联动
-3. 版本对比 UI：字段级 diff 可视化、分支 / 合并
+1. 音频可视化增强：波形 / 频谱 / 播放进度与段落高亮联动
+2. 混音进阶：EQ、压缩、sidechain、自动化曲线
+3. 钢琴卷帘编辑：拖拽移动音符、量化、力度编辑
 4. 音质提升：FluidSynth 参数调优、SoundFont 选择器
 5. AI 人声 / 歌词演唱（可选）
 6. 工程化：Docker、CI、生产部署

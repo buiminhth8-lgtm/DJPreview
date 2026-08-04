@@ -30,6 +30,7 @@ class TrackEvents:
     channel: int
     program: int | None
     notes: list[NoteEvent] = field(default_factory=list)
+    pan: int | None = field(default=None)
 
 
 @dataclass
@@ -43,6 +44,7 @@ class CompositionResult:
     total_bars: int = 0
     beats_per_bar: int = 4
     tracks: list[TrackEvents] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 def beats_per_bar(music_spec: MusicSpec) -> int:

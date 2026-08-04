@@ -152,11 +152,114 @@ export interface RestoreVersionResponse {
   assets: AssetsResponse;
 }
 
+// ---------- 第五阶段 ----------
+
+export interface TrackMixSpec {
+  track_id: string;
+  role: string | null;
+  volume: number;
+  pan: number;
+  mute: boolean;
+  solo: boolean;
+  enabled: boolean;
+  velocity_scale: number;
+  program: number | null;
+  instrument: string | null;
+}
+
+export interface MixSpec {
+  version: string;
+  song_id: string | null;
+  version_id: string | null;
+  master_volume: number;
+  tracks: TrackMixSpec[];
+  notes: string | null;
+}
+
+export interface TrackMixPatch {
+  track_id: string;
+  volume?: number;
+  pan?: number;
+  mute?: boolean;
+  solo?: boolean;
+  enabled?: boolean;
+  velocity_scale?: number;
+}
+
+export interface MixResponse {
+  song_id: string;
+  version_id: string | null;
+  mix_spec: MixSpec;
+}
+
+export interface ApplyMixResponse {
+  song_id: string;
+  mix_spec: MixSpec;
+  assets: AssetsResponse;
+  warnings: string[];
+}
+
+export interface PianoRollData {
+  ticks_per_beat: number;
+  bpm: number | null;
+  beats_per_bar: number;
+  total_bars: number;
+  total_notes: number;
+  truncated: boolean;
+  sections: Array<{ id: string; name: string; start_bar: number; bars: number; energy: number }>;
+  tracks: Array<{
+    track_index: number;
+    track_name: string | null;
+    role: string | null;
+    min_pitch: number | null;
+    max_pitch: number | null;
+    notes: Array<{
+      pitch: number;
+      pitch_name: string;
+      start_beat: number;
+      duration_beats: number;
+      velocity: number;
+      is_drum: boolean;
+    }>;
+  }>;
+}
+
+export interface QualityIssue {
+  severity: string;
+  category: string;
+  message: string;
+  target: Record<string, unknown> | null;
+  suggestion: string | null;
+}
+
+export interface QualityReport {
+  score: number;
+  level: string;
+  issues: QualityIssue[];
+  suggestions: string[];
+  summary: string;
+}
+
+export interface OptimizeResponse {
+  song_id: string;
+  version_id: string;
+  music_spec: MusicSpec;
+  quality_report_before: QualityReport;
+  optimize_report: { changes: string[]; warnings: string[] };
+  assets: AssetsResponse;
+}
+
+export interface StemExportResponse {
+  song_id: string;
+  stems: Array<{ track_id: string; midi_download_url: string; wav_download_url: string }>;
+  zip_download_url: string;
+  warnings: string[];
+}
+
 // 后端 API 地址可通过 VITE_API_BASE_URL 环境变量配置，默认 http://localhost:8000
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 async function handleError(response: Response): Promise<never> {
-  // 先读取文本，再尝试解析 JSON，避免 response.json() 失败后 body 被消费
   const text = await response.text();
   let detail = text || "未知错误";
   try {
@@ -170,11 +273,11 @@ async function handleError(response: Response): Promise<never> {
   throw new Error(`请求失败（HTTP ${response.status}）：${detail}`);
 }
 
-async function postJson<T>(url: string, payload?: unknown): Promise<T> {
+async function requestJson<T>(url: string, method: string, payload?: unknown): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${url}`, {
-    method: "POST",
-    headers: payload ? { "Content-Type": "application/json" } : undefined,
-    body: payload ? JSON.stringify(payload) : undefined,
+    method,
+    headers: payload !== undefined ? { "Content-Type": "application/json" } : undefined,
+    body: payload !== undefined ? JSON.stringify(payload) : undefined,
   });
   if (!response.ok) {
     return handleError(response);
@@ -182,40 +285,70 @@ async function postJson<T>(url: string, payload?: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${url}`);
-  if (!response.ok) {
-    return handleError(response);
-  }
-  return (await response.json()) as T;
-}
-
 export function generateMusicSpec(prompt: string): Promise<GenerateSongResponse> {
-  return postJson("/api/v1/songs/generate", { prompt });
+  return requestJson("/api/v1/songs/generate", "POST", { prompt });
 }
 
 export function generateMidi(songId: string): Promise<GenerateMidiResponse> {
-  return postJson(`/api/v1/songs/${songId}/midi/generate`);
+  return requestJson(`/api/v1/songs/${songId}/midi/generate`, "POST");
 }
 
 export function renderAudio(songId: string): Promise<RenderAudioResponse> {
-  return postJson(`/api/v1/songs/${songId}/audio/render`);
+  return requestJson(`/api/v1/songs/${songId}/audio/render`, "POST");
 }
 
 export function getAssets(songId: string): Promise<AssetsResponse> {
-  return getJson(`/api/v1/songs/${songId}/assets`);
+  return requestJson(`/api/v1/songs/${songId}/assets`, "GET");
 }
 
 export function editSong(songId: string, instruction: string): Promise<EditSongResponse> {
-  return postJson(`/api/v1/songs/${songId}/edit`, { instruction });
+  return requestJson(`/api/v1/songs/${songId}/edit`, "POST", { instruction });
 }
 
 export function getVersions(songId: string): Promise<VersionsResponse> {
-  return getJson(`/api/v1/songs/${songId}/versions`);
+  return requestJson(`/api/v1/songs/${songId}/versions`, "GET");
 }
 
 export function restoreVersion(songId: string, versionId: string): Promise<RestoreVersionResponse> {
-  return postJson(`/api/v1/songs/${songId}/versions/${versionId}/restore`);
+  return requestJson(`/api/v1/songs/${songId}/versions/${versionId}/restore`, "POST");
+}
+
+export function getMix(songId: string): Promise<MixResponse> {
+  return requestJson(`/api/v1/songs/${songId}/mix`, "GET");
+}
+
+export function updateMix(
+  songId: string,
+  patch: { master_volume?: number; tracks: TrackMixPatch[] },
+  apply: boolean,
+): Promise<{ song_id: string; version_id: string | null; mix_spec: MixSpec; assets: AssetsResponse | null }> {
+  return requestJson(`/api/v1/songs/${songId}/mix?apply=${apply}`, "PATCH", patch);
+}
+
+export function applyMix(songId: string): Promise<ApplyMixResponse> {
+  return requestJson(`/api/v1/songs/${songId}/mix/apply`, "POST");
+}
+
+export function getPianoRoll(songId: string, trackId?: string, maxNotes = 5000): Promise<PianoRollData> {
+  const params = new URLSearchParams({ max_notes: String(maxNotes) });
+  if (trackId) params.set("track_id", trackId);
+  return requestJson(`/api/v1/songs/${songId}/piano-roll?${params.toString()}`, "GET");
+}
+
+export function checkQuality(songId: string): Promise<QualityReport> {
+  return requestJson(`/api/v1/songs/${songId}/quality/check`, "POST");
+}
+
+export function getQualityReport(songId: string): Promise<QualityReport> {
+  return requestJson(`/api/v1/songs/${songId}/quality/report`, "GET");
+}
+
+export function optimizeArrangement(songId: string, autoRender = true): Promise<OptimizeResponse> {
+  return requestJson(`/api/v1/songs/${songId}/quality/optimize`, "POST", { auto_render: autoRender });
+}
+
+export function exportStems(songId: string): Promise<StemExportResponse> {
+  return requestJson(`/api/v1/songs/${songId}/stems/export`, "POST");
 }
 
 export function resolveUrl(path: string): string {

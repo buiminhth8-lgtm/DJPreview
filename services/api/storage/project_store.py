@@ -1,4 +1,4 @@
-"""项目存储：保存 / 读取 MusicSpec JSON、MIDI、音频与版本历史。"""
+"""项目存储：保存 / 读取 MusicSpec、MIDI、音频、版本、混音与质量报告。"""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from packages.music_core.mix.mix_models import MixSpec
 from services.api.dependencies.config import get_settings
 from services.api.schemas.music_spec import MusicSpec
 
@@ -25,6 +26,10 @@ AUDIO_GENERATOR_VERSION = "stage-3-audio-v0.1"
 
 VERSIONS_DIR_NAME = "versions"
 VERSIONS_INDEX_FILE = "index.json"
+
+MIX_FILENAME = "mix_spec.json"
+QUALITY_FILENAME = "quality_report.json"
+OPTIMIZE_FILENAME = "optimize_report.json"
 
 
 def is_valid_song_id(song_id: str) -> bool:
@@ -49,13 +54,7 @@ def create_project(music_spec: MusicSpec) -> str:
     song_id = str(uuid.uuid4())
     project_dir = _project_dir(song_id)
     project_dir.mkdir(parents=True, exist_ok=True)
-    spec_path = project_dir / "music_spec.json"
-    payload = json.dumps(
-        music_spec.model_dump(mode="json"),
-        ensure_ascii=False,
-        indent=2,
-    )
-    spec_path.write_text(payload, encoding="utf-8")
+    _write_spec_file(project_dir, music_spec)
     return song_id
 
 
@@ -267,3 +266,72 @@ def restore_version(song_id: str, version_id: str) -> MusicSpec:
     _write_versions_index(song_id, index)
     _write_spec_file(_project_dir(song_id), music_spec)
     return music_spec
+
+
+# ---------- 第五阶段：混音 / 质量 / stems 存储 ----------
+
+def _artifact_dir(song_id: str, version_id: str | None = None) -> Path:
+    """版本感知的资源目录：versions/{version_id} 或当前版本目录；未启用版本则项目根。"""
+    project_dir = _project_dir(song_id)
+    if version_id:
+        return project_dir / VERSIONS_DIR_NAME / version_id
+    current = get_current_version(song_id)
+    if current:
+        return project_dir / VERSIONS_DIR_NAME / current["version_id"]
+    return project_dir
+
+
+def _write_artifact_json(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def get_mix_spec_path(song_id: str, version_id: str | None = None) -> Path:
+    return _artifact_dir(song_id, version_id) / MIX_FILENAME
+
+
+def save_mix_spec(song_id: str, mix_spec: MixSpec, version_id: str | None = None) -> None:
+    """保存 mix_spec.json 到版本目录，并同步一份到项目根目录。"""
+    data = mix_spec.model_dump(mode="json")
+    _write_artifact_json(get_mix_spec_path(song_id, version_id), data)
+    _write_artifact_json(_project_dir(song_id) / MIX_FILENAME, data)
+
+
+def get_mix_spec(song_id: str, version_id: str | None = None) -> MixSpec | None:
+    path = get_mix_spec_path(song_id, version_id)
+    if not path.exists():
+        return None
+    return MixSpec.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+
+def get_quality_report_path(song_id: str, version_id: str | None = None) -> Path:
+    return _artifact_dir(song_id, version_id) / QUALITY_FILENAME
+
+
+def save_quality_report(song_id: str, report: dict, version_id: str | None = None) -> None:
+    _write_artifact_json(get_quality_report_path(song_id, version_id), report)
+    _write_artifact_json(_project_dir(song_id) / QUALITY_FILENAME, report)
+
+
+def get_quality_report(song_id: str, version_id: str | None = None) -> dict | None:
+    path = get_quality_report_path(song_id, version_id)
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def get_optimize_report_path(song_id: str, version_id: str | None = None) -> Path:
+    return _artifact_dir(song_id, version_id) / OPTIMIZE_FILENAME
+
+
+def save_optimize_report(song_id: str, report: dict, version_id: str | None = None) -> None:
+    _write_artifact_json(get_optimize_report_path(song_id, version_id), report)
+    _write_artifact_json(_project_dir(song_id) / OPTIMIZE_FILENAME, report)
+
+
+def get_stems_dir(song_id: str, version_id: str | None = None) -> Path:
+    return _artifact_dir(song_id, version_id) / "stems"
+
+
+def get_stems_zip_path(song_id: str, version_id: str | None = None) -> Path:
+    return get_stems_dir(song_id, version_id) / "stems.zip"

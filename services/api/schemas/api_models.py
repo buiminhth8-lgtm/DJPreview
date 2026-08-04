@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field, field_validator
 
+from packages.music_core.mix.mix_models import MixSpec
 from services.api.schemas.music_edit_spec import MusicEditSpec
 from services.api.schemas.music_spec import MusicSpec
 
@@ -149,3 +150,70 @@ class RestoreVersionResponse(BaseModel):
     version_id: str
     music_spec: MusicSpec
     assets: AssetsResponse
+
+
+# ---------- 第五阶段：混音 / 质量 / stems ----------
+
+class TrackMixPatch(BaseModel):
+    track_id: str
+    role: str | None = None
+    volume: float | None = Field(default=None, ge=0.0, le=1.5)
+    pan: float | None = Field(default=None, ge=-1.0, le=1.0)
+    mute: bool | None = None
+    solo: bool | None = None
+    enabled: bool | None = None
+    velocity_scale: float | None = Field(default=None, ge=0.1, le=2.0)
+    program: int | None = None
+    instrument: str | None = None
+
+
+class UpdateMixRequest(BaseModel):
+    master_volume: float | None = Field(default=None, ge=0.0, le=1.5)
+    tracks: list[TrackMixPatch] = Field(default_factory=list)
+    notes: str | None = None
+
+
+class MixResponse(BaseModel):
+    song_id: str
+    version_id: str | None = None
+    mix_spec: MixSpec
+
+
+class MixUpdateResponse(BaseModel):
+    song_id: str
+    version_id: str | None = None
+    mix_spec: MixSpec
+    assets: AssetsResponse | None = None
+
+
+class ApplyMixResponse(BaseModel):
+    song_id: str
+    mix_spec: MixSpec
+    assets: AssetsResponse
+    warnings: list[str]
+
+
+class OptimizeRequest(BaseModel):
+    auto_render: bool = True
+
+
+class OptimizeResponse(BaseModel):
+    song_id: str
+    version_id: str
+    music_spec: MusicSpec
+    quality_report_before: dict
+    optimize_report: dict
+    assets: AssetsResponse
+
+
+class StemInfo(BaseModel):
+    track_id: str
+    midi_download_url: str
+    wav_download_url: str
+
+
+class StemExportResponse(BaseModel):
+    song_id: str
+    stems: list[StemInfo]
+    zip_download_url: str
+    warnings: list[str]

@@ -1,21 +1,34 @@
-"""歌曲生成、查询、MIDI、音频渲染与版本管理 API。"""
+"""歌曲生成、查询、MIDI、音频渲染、版本管理、混音、分析与导出 API。"""
 
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from packages.llm.factory import get_llm_provider
+from packages.music_core.analysis.midi_parser import parse_midi_to_notes
+from packages.music_core.analysis.piano_roll import build_piano_roll_data
+from packages.music_core.analysis.quality_checker import QualityReport, check_arrangement_quality
 from packages.music_core.composer.music_composer import compose_music
 from packages.music_core.editing.diff import diff_music_specs
 from packages.music_core.editing.edit_engine import apply_music_edit
 from packages.music_core.midi.midi_writer import write_midi
+from packages.music_core.mix.mix_engine import (
+    apply_mix_to_composition,
+    create_default_mix_spec,
+    sync_mix_spec_with_music_spec,
+    update_track_mix,
+)
+from packages.music_core.mix.mix_models import MixSpec
+from packages.music_core.optimization.arrangement_optimizer import optimize_arrangement
 from packages.music_core.planner.music_planner import generate_music_spec_from_prompt
 from packages.renderer.factory import get_audio_renderer
+from packages.renderer.stem_renderer import export_stems as export_stems_impl
 from services.api.dependencies.config import get_settings
 from services.api.schemas.api_models import (
+    ApplyMixResponse,
     AssetsResponse,
     AudioAssetInfo,
     AudioMetadata,
@@ -31,8 +44,15 @@ from services.api.schemas.api_models import (
     MidiAssetInfo,
     MidiInfo,
     MidiSummary,
+    MixResponse,
+    MixUpdateResponse,
+    OptimizeRequest,
+    OptimizeResponse,
     RenderAudioResponse,
     RestoreVersionResponse,
+    StemExportResponse,
+    StemInfo,
+    UpdateMixRequest,
     VersionInfo,
     VersionsResponse,
 )
@@ -44,8 +64,15 @@ from services.api.storage.project_store import (
     get_audio_metadata,
     get_current_version,
     get_midi_path,
+    get_mix_spec,
+    get_mix_spec_path,
+    get_optimize_report_path,
     get_project,
     get_project_dir,
+    get_quality_report as get_quality_report_store,
+    get_quality_report_path,
+    get_stems_dir,
+    get_stems_zip_path,
     get_version,
     get_wav_path,
     init_version_if_needed,
@@ -54,6 +81,9 @@ from services.api.storage.project_store import (
     restore_version,
     save_audio_metadata,
     save_midi_file,
+    save_mix_spec,
+    save_optimize_report,
+    save_quality_report,
 )
 
 logger = logging.getLogger(__name__)
@@ -132,12 +162,29 @@ def _render_audio_for(song_id: str) -> RenderAudioResponse:
 
 
 def _regenerate_audio_for(song_id: str) -> None:
-    """版本修改/恢复后重新生成 MIDI 与 WAV，保证根目录资源与当前版本一致。"""
+    """版本修改/恢复后重新生成 MIDI 与 WAV（不应用混音）。"""
     _generate_midi_for(song_id)
     try:
         _render_audio_for(song_id)
     except Exception as exc:  # noqa: BLE001 - 音频渲染失败不影响版本保存
         logger.warning("版本更新后音频重新渲染失败：%s", exc)
+
+
+def _regenerate_with_mix(song_id: str, mix_spec: MixSpec) -> list[str]:
+    """按 MixSpec 重新 compose、应用混音、写 MIDI 并渲染 WAV，返回 warning。"""
+    spec = get_project(song_id)
+    composition = compose_music(spec)
+    composition = apply_mix_to_composition(composition, mix_spec)
+    midi_path = _project_dir_for(song_id) / "output.mid"
+    write_midi(composition, midi_path)
+    save_midi_file(song_id, midi_path)
+    warnings = list(composition.warnings)
+    try:
+        _render_audio_for(song_id)
+    except Exception as exc:  # noqa: BLE001
+        warnings.append(f"音频渲染失败：{exc}")
+        logger.warning("mix apply 音频渲染失败：%s", exc)
+    return warnings
 
 
 def _assets_response(song_id: str) -> AssetsResponse:
@@ -164,6 +211,22 @@ def _assets_response(song_id: str) -> AssetsResponse:
         ),
         current_version=VersionInfo.model_validate(current) if current else None,
     )
+
+
+def _load_or_create_mix(song_id: str) -> tuple[MixSpec, str | None]:
+    """读取或创建当前版本 MixSpec，并自动同步 MusicSpec 轨道变化。"""
+    spec = get_project(song_id)
+    init_version_if_needed(song_id)
+    current = get_current_version(song_id)
+    version_id = current["version_id"] if current else None
+    mix = get_mix_spec(song_id, version_id)
+    if mix is None:
+        mix = create_default_mix_spec(spec, song_id=song_id, version_id=version_id)
+    else:
+        mix = sync_mix_spec_with_music_spec(mix, spec)
+        mix = mix.model_copy(update={"song_id": song_id, "version_id": version_id})
+    save_mix_spec(song_id, mix, version_id)
+    return mix, version_id
 
 
 @router.get("/health", response_model=HealthResponse, summary="健康检查")
@@ -368,6 +431,212 @@ def restore_version_route(song_id: str, version_id: str) -> RestoreVersionRespon
             music_spec=spec,
             assets=_assets_response(song_id),
         )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+# ---------- 第五阶段：混音 ----------
+
+@router.get("/songs/{song_id}/mix", response_model=MixResponse, summary="获取 MixSpec")
+def get_mix(song_id: str) -> MixResponse:
+    try:
+        get_project(song_id)
+        mix, version_id = _load_or_create_mix(song_id)
+        return MixResponse(song_id=song_id, version_id=version_id, mix_spec=mix)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@router.patch("/songs/{song_id}/mix", response_model=MixUpdateResponse, summary="更新 MixSpec")
+def update_mix(song_id: str, req: UpdateMixRequest, apply: bool = Query(default=False)) -> MixUpdateResponse:
+    try:
+        get_project(song_id)
+        mix, version_id = _load_or_create_mix(song_id)
+        if req.master_volume is not None:
+            mix = mix.model_copy(update={"master_volume": req.master_volume})
+        if req.notes is not None:
+            mix = mix.model_copy(update={"notes": req.notes})
+        for patch in req.tracks:
+            mix = update_track_mix(mix, patch.track_id, patch.model_dump(exclude_none=True))
+        mix = mix.model_copy(update={"song_id": song_id, "version_id": version_id})
+        save_mix_spec(song_id, mix, version_id)
+        assets = None
+        if apply:
+            _regenerate_with_mix(song_id, mix)
+            assets = _assets_response(song_id)
+        return MixUpdateResponse(song_id=song_id, version_id=version_id, mix_spec=mix, assets=assets)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@router.post("/songs/{song_id}/mix/apply", response_model=ApplyMixResponse, summary="应用混音并重新渲染")
+def apply_mix(song_id: str) -> ApplyMixResponse:
+    try:
+        get_project(song_id)
+        mix, _ = _load_or_create_mix(song_id)
+        warnings = _regenerate_with_mix(song_id, mix)
+        return ApplyMixResponse(
+            song_id=song_id,
+            mix_spec=mix,
+            assets=_assets_response(song_id),
+            warnings=warnings,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+# ---------- 第五阶段：Piano Roll / 质量 / 优化 / stems ----------
+
+@router.get("/songs/{song_id}/piano-roll", summary="获取钢琴卷帘数据")
+def get_piano_roll(
+    song_id: str,
+    track_id: str | None = Query(default=None),
+    max_notes: int = Query(default=5000, ge=1, le=100000),
+) -> dict:
+    try:
+        spec = get_project(song_id)
+        midi_path = _ensure_midi_for(song_id)
+        parsed = parse_midi_to_notes(midi_path)
+        return build_piano_roll_data(parsed, spec, max_notes=max_notes, track_id=track_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@router.post("/songs/{song_id}/quality/check", response_model=QualityReport, summary="生成编曲质量报告")
+def check_quality(song_id: str) -> QualityReport:
+    try:
+        spec = get_project(song_id)
+        midi_path = _ensure_midi_for(song_id)
+        parsed = parse_midi_to_notes(midi_path)
+        report = check_arrangement_quality(spec, parsed_midi=parsed)
+        save_quality_report(song_id, report.model_dump(mode="json"))
+        return report
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@router.get("/songs/{song_id}/quality/report", response_model=QualityReport, summary="获取质量报告")
+def get_quality_report(song_id: str) -> QualityReport:
+    try:
+        get_project(song_id)
+        saved = get_quality_report_store(song_id)
+        if saved is not None:
+            return QualityReport.model_validate(saved)
+        return check_quality(song_id)  # 未生成过则自动生成
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@router.post("/songs/{song_id}/quality/optimize", response_model=OptimizeResponse, summary="自动优化编曲")
+def optimize_song(song_id: str, req: OptimizeRequest) -> OptimizeResponse:
+    try:
+        spec = get_project(song_id)
+        midi_path = _ensure_midi_for(song_id)
+        parsed = parse_midi_to_notes(midi_path)
+        report = check_arrangement_quality(spec, parsed_midi=parsed)
+        save_quality_report(song_id, report.model_dump(mode="json"))
+
+        new_spec, optimize_report = optimize_arrangement(spec, report)
+        version = create_version(song_id, new_spec, "自动优化编曲", None)
+        _generate_midi_for(song_id)
+        if req.auto_render:
+            try:
+                _render_audio_for(song_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("优化后音频渲染失败：%s", exc)
+        save_optimize_report(song_id, optimize_report)
+        return OptimizeResponse(
+            song_id=song_id,
+            version_id=version["version_id"],
+            music_spec=new_spec,
+            quality_report_before=report.model_dump(mode="json"),
+            optimize_report=optimize_report,
+            assets=_assets_response(song_id),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"优化失败：{exc}") from None
+
+
+@router.post("/songs/{song_id}/stems/export", response_model=StemExportResponse, summary="导出分轨 stems")
+def export_stems(song_id: str) -> StemExportResponse:
+    try:
+        spec = get_project(song_id)
+        mix, version_id = _load_or_create_mix(song_id)
+        settings = get_settings()
+        stems_dir = get_stems_dir(song_id, version_id)
+        result = export_stems_impl(
+            song_id,
+            spec,
+            mix,
+            stems_dir,
+            sample_rate=settings.audio_sample_rate,
+            gain=settings.audio_gain,
+        )
+        stems = [
+            StemInfo(
+                track_id=item["track_id"],
+                midi_download_url=f"/api/v1/songs/{song_id}/stems/{item['track_id']}/midi/download",
+                wav_download_url=f"/api/v1/songs/{song_id}/stems/{item['track_id']}/wav/download",
+            )
+            for item in result.tracks
+        ]
+        return StemExportResponse(
+            song_id=song_id,
+            stems=stems,
+            zip_download_url=f"/api/v1/songs/{song_id}/stems/download",
+            warnings=result.warnings,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"stems 导出失败：{exc}") from None
+
+
+@router.get("/songs/{song_id}/stems/download", summary="下载 stems.zip")
+def download_stems_zip(song_id: str) -> FileResponse:
+    try:
+        zip_path = get_stems_zip_path(song_id)
+        if not zip_path.exists():
+            raise FileNotFoundError(f"项目 {song_id} 尚未导出 stems")
+        return FileResponse(zip_path, media_type="application/zip", filename=f"{song_id}_stems.zip")
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@router.get("/songs/{song_id}/stems/{track_id}/{kind}/download", summary="下载单轨 stem")
+def download_stem(song_id: str, track_id: str, kind: str) -> FileResponse:
+    if kind not in ("midi", "wav"):
+        raise HTTPException(status_code=400, detail="kind 只能是 midi 或 wav")
+    try:
+        stems_dir = get_stems_dir(song_id)
+        if kind == "midi":
+            path = stems_dir / "midi" / f"{track_id}.mid"
+        else:
+            path = stems_dir / "wav" / f"{track_id}.wav"
+        if not path.exists():
+            raise FileNotFoundError(f"轨道 {track_id} 的 {kind} stem 不存在")
+        media_type = "audio/midi" if kind == "midi" else "audio/wav"
+        return FileResponse(path, media_type=media_type, filename=f"{track_id}.{kind}")
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
     except ValueError as exc:
