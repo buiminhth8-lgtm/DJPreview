@@ -1,0 +1,143 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --bg: #10141c;
+  --panel: #1a2130;
+  --border: #2b3448;
+  --text: #e6e9f0;
+  --muted: #8b94a8;
+  --accent: #6c8cff;
+  --error: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+header h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  letter-spacing: 0.5px;
+}
+
+.subtitle {
+  margin: 0 0 24px;
+  color: var(--muted);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  background: #0d1119;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+textarea:focus {
+  outline: 2px solid var(--accent);
+}
+
+.actions {
+  margin-top: 14px;
+}
+
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  color: var(--error);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  word-break: break-all;
+}
+
+.result h2 {
+  margin-top: 0;
+}
+
+.song-id {
+  color: var(--muted);
+}
+
+.song-id code {
+  color: var(--text);
+  background: #0d1119;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 6px 12px;
+  margin: 16px 0;
+}
+
+.summary-row {
+  display: contents;
+}
+
+.summary-label {
+  color: var(--muted);
+}
+
+.summary-value {
+  color: var(--text);
+  word-break: break-all;
+}
+
+.result h3 {
+  margin: 20px 0 8px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+pre {
+  background: #0d1119;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  max-height: 480px;
+}

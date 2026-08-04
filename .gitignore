@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 生成的项目数据
+data/projects/*
+!data/projects/.gitkeep
+data/test_projects/
+
+# Node / 前端
+node_modules/
+dist/
+.vite/
+*.local
+
+# 其他
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+tsconfig.tsbuildinfo
