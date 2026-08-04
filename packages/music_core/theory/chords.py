@@ -33,6 +33,15 @@ _FALLBACK_ROOT = "C"
 _FALLBACK_INTERVALS = (0, 4, 7)
 
 
+def _match_root(symbol: str) -> str | None:
+    """匹配根音；无法识别返回 None。"""
+    upper = (symbol or "").strip().upper()
+    for root in _ROOT_CANDIDATES:
+        if upper.startswith(root):
+            return root
+    return None
+
+
 def _split_chord_symbol(symbol: str) -> tuple[str, str]:
     """拆分为 (根音, 后缀)，例如 Dm7 -> ('D', 'm7')。保留原始大小写以区分 m7 / M7。"""
     text = (symbol or "").strip()
@@ -50,6 +59,15 @@ def _canonical_suffix(suffix: str) -> str:
     if suffix == "M":
         return "maj"
     return suffix.lower()
+
+
+def is_valid_chord_symbol(symbol: str) -> bool:
+    """严格校验和弦符号：根音与后缀都必须被支持（不会悄悄回退 C major）。"""
+    root = _match_root(symbol)
+    if root is None:
+        return False
+    suffix = (symbol or "").strip().upper()[len(root):]
+    return _canonical_suffix(suffix) in _CHORD_INTERVALS
 
 
 def parse_chord_symbol(symbol: str, key: str | None = None) -> list[int]:

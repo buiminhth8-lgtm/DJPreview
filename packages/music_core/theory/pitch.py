@@ -42,6 +42,11 @@ def normalize_note_name(note: str) -> str:
     return _FLAT_TO_SHARP.get(cleaned, cleaned)
 
 
+def is_valid_note_name(note: str) -> bool:
+    """判断音名是否被支持（C/C#/Db/D/.../B）。"""
+    return normalize_note_name(note) in _NOTE_TO_SEMITONE
+
+
 def note_name_to_midi(note: str, octave: int) -> int:
     """将音名与八度转换为 MIDI 编号，例如 C4 -> 60。"""
     name = normalize_note_name(note)

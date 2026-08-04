@@ -7,6 +7,7 @@ import uuid
 import zipfile
 from pathlib import Path
 
+from packages.music_core.validation.spec_validator import validate_music_spec
 from services.api.schemas.music_spec import MusicSpec
 
 
@@ -55,7 +56,7 @@ def import_project_bundle(bundle_path: Path, projects_root: Path) -> dict:
     spec_path = target_root / "music_spec.json"
     if not spec_path.exists():
         raise ValueError("缺少 music_spec.json")
-    spec = MusicSpec.model_validate(json.loads(spec_path.read_text(encoding="utf-8")))
+    spec = validate_music_spec(json.loads(spec_path.read_text(encoding="utf-8")))
 
     summary = {
         "tracks": len(spec.tracks),

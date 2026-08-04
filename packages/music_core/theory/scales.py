@@ -18,6 +18,13 @@ _SCALE_INTERVALS: dict[str, tuple[int, ...]] = {
     "minor_pentatonic": (0, 3, 5, 7, 10),
 }
 
+SUPPORTED_MODES = frozenset(_SCALE_INTERVALS)
+
+
+def is_supported_mode(mode: str) -> bool:
+    """判断调式是否被支持。"""
+    return (mode or "").strip().lower() in SUPPORTED_MODES
+
 
 def get_scale_pitches(key: str, mode: str, octave: int = 4) -> list[int]:
     """返回指定调式在给定八度的 MIDI 音高列表。
