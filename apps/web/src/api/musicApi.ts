@@ -153,6 +153,31 @@ export interface RestoreVersionResponse {
   assets: AssetsResponse;
 }
 
+export interface VersionDetailResponse extends VersionInfo {
+  music_spec: MusicSpec;
+  edit_spec: {
+    version: string;
+    instruction: string;
+    target: { section: string | null; track: string | null; scope: string };
+    preserve: string[];
+    operations: Array<{ type: string; amount: number | null; value: unknown; params: unknown }>;
+  } | null;
+  is_current: boolean;
+  assets: AssetsResponse;
+}
+
+export interface VersionDiffResponse {
+  song_id: string;
+  version_id: string;
+  version_number: number;
+  is_current: boolean;
+  base_version_id: string;
+  base_version_number: number;
+  diff: DiffItem[];
+  music_spec: MusicSpec;
+  assets: AssetsResponse;
+}
+
 export interface TrackMixSpec {
   track_id: string;
   role: string | null;
@@ -438,6 +463,14 @@ export function getVersions(songId: string): Promise<VersionsResponse> {
 
 export function restoreVersion(songId: string, versionId: string): Promise<RestoreVersionResponse> {
   return requestJson(`/api/v1/songs/${songId}/versions/${versionId}/restore`, "POST");
+}
+
+export function getVersion(songId: string, versionId: string): Promise<VersionDetailResponse> {
+  return requestJson(`/api/v1/songs/${songId}/versions/${versionId}`, "GET");
+}
+
+export function getVersionDiff(songId: string, versionId: string): Promise<VersionDiffResponse> {
+  return requestJson(`/api/v1/songs/${songId}/versions/${versionId}/diff`, "GET");
 }
 
 export function getMix(songId: string): Promise<MixResponse> {

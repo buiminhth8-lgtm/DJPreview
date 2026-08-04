@@ -52,6 +52,19 @@ curl -X POST http://localhost:8000/api/v1/songs/{song_id}/regenerate \
 
 支持 scope：section（只改目标段落）、track（只改目标轨道）、section_track、overall（改 seed）。每次重生成创建新版本，keep_harmony / keep_melody / keep_rhythm 控制保留项。
 
+### 版本详情与 diff
+
+```bash
+# 版本详情（metadata + music_spec + edit_spec + is_current + assets）
+curl http://localhost:8000/api/v1/songs/{song_id}/versions/{version_id}
+
+# 指定版本与当前版本的字段级 diff
+curl http://localhost:8000/api/v1/songs/{song_id}/versions/{version_id}/diff
+```
+
+- 详情接口兼容 `versions/index.json` 与 `versions/vN.json` 存储，未初始化的项目自动建 v1。
+- diff 方向：`old=指定版本`，`new=当前版本`（例如 tempo.bpm 72 → 82）。
+
 ## 五、参考 MIDI 分析
 
 ```bash

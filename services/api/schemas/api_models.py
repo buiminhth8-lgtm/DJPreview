@@ -118,6 +118,27 @@ class AssetsResponse(BaseModel):
     current_version: VersionInfo | None = None
 
 
+class VersionDetailResponse(VersionDetail):
+    """单版本详情：metadata + music_spec + edit_spec + is_current + assets。"""
+
+    is_current: bool = False
+    assets: AssetsResponse
+
+
+class VersionDiffResponse(BaseModel):
+    """指定版本与当前版本的字段级 diff。"""
+
+    song_id: str
+    version_id: str
+    version_number: int
+    is_current: bool
+    base_version_id: str
+    base_version_number: int
+    diff: list[dict]
+    music_spec: MusicSpec
+    assets: AssetsResponse
+
+
 class GenerateWithAudioResponse(BaseModel):
     song_id: str
     music_spec: MusicSpec
