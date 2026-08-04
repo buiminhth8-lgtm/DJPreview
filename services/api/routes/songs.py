@@ -88,6 +88,7 @@ from services.api.schemas.api_models import (
     PianoRollResponse,
     ProjectImportResponse,
     RenderAudioResponse,
+    RestoreSummary,
     RestoreVersionResponse,
     StemExportResponse,
     StemInfo,
@@ -236,6 +237,9 @@ def _assets_response(song_id: str) -> AssetsResponse:
     project_dir = get_project_dir(song_id)
     has_midi = (project_dir / "output.mid").exists()
     has_audio = (project_dir / "output.wav").exists()
+    has_mix = (project_dir / "mix_spec.json").exists()
+    has_quality_report = (project_dir / "quality_report.json").exists()
+    has_stems = (project_dir / "stems").exists()
     audio_meta = get_audio_metadata(song_id)
     current = get_current_version(song_id)
     return AssetsResponse(
@@ -243,6 +247,9 @@ def _assets_response(song_id: str) -> AssetsResponse:
         has_music_spec=True,
         has_midi=has_midi,
         has_audio=has_audio,
+        has_mix=has_mix,
+        has_quality_report=has_quality_report,
+        has_stems=has_stems,
         midi=MidiAssetInfo(download_url=f"/api/v1/songs/{song_id}/midi/download") if has_midi else None,
         audio=(
             AudioAssetInfo(
@@ -573,19 +580,19 @@ def restore_version_route(song_id: str, version_id: str) -> RestoreVersionRespon
     except ValueError as exc:
         raise invalid_request(str(exc)) from None
     try:
-        spec = restore_version(song_id, version_id)
+        spec, restore_summary = restore_version(song_id, version_id)
     except FileNotFoundError as exc:
         raise version_not_found(song_id, version_id) from None
     except ValueError as exc:
         raise invalid_request(str(exc)) from None
-    # T12 最低要求：restore 只恢复 MusicSpec 与版本指针；
-    # 完整历史资产（MIDI / WAV / Mix / Stems）恢复将在 T13 完成。
-    _regenerate_audio_for(song_id)
     return RestoreVersionResponse(
         song_id=song_id,
         version_id=version_id,
+        restored_version_id=version_id,
+        current_version_id=version_id,
         music_spec=spec,
         assets=_assets_response(song_id),
+        restore_summary=RestoreSummary.model_validate(restore_summary),
     )
 
 

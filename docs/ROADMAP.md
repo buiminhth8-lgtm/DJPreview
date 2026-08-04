@@ -100,12 +100,16 @@
   根目录写入 `current.json` / `current_version_id.txt` 兼容指针
 - 说明：完整 restore 历史资产同步留到 T13；`.aimusic.zip` 适配新结构留到 T14
 
-## T13 版本资产恢复重构 ⬜
+## T13 版本资产恢复重构 ✅
 
 - 目标：restore 基于新版本目录恢复并同步根目录资源
 - 优先级：P1
 - 依赖：T12
-- 验收标准：恢复后 assets 与版本一致；测试通过
+- 验收标准：恢复时从 `versions/vN/` 复制完整资产（music_spec / midi / wav / mix / quality / stems），
+  缺失资产清理根目录旧镜像，不重新生成 MIDI / WAV；恢复后 assets 与版本一致
+- 实现：`version_assets.restore_version_assets_to_current`（restored / removed / missing_optional 摘要）；
+  `project_store.restore_version` 返回 (music_spec, summary) 并更新版本指针；
+  restore 路由移除 `_regenerate_audio_for`，返回 `restore_summary`；`AssetsResponse` 增加 has_mix / has_quality_report / has_stems
 
 ## T14 工程导入导出适配新版本结构 ⬜
 

@@ -144,6 +144,9 @@ export interface AssetsResponse {
   has_music_spec: boolean;
   has_midi: boolean;
   has_audio: boolean;
+  has_mix: boolean;
+  has_quality_report: boolean;
+  has_stems: boolean;
   midi: { download_url: string } | null;
   audio: {
     stream_url: string;
@@ -185,8 +188,17 @@ export interface EditSongResponse {
 export interface RestoreVersionResponse {
   song_id: string;
   version_id: string;
+  restored_version_id: string;
+  current_version_id: string;
   music_spec: MusicSpec;
   assets: AssetsResponse;
+  restore_summary: RestoreSummary | null;
+}
+
+export interface RestoreSummary {
+  restored: string[];
+  removed: string[];
+  missing_optional: string[];
 }
 
 export interface VersionAssetInfo {

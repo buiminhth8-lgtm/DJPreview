@@ -280,10 +280,21 @@ SECTION_COVERAGE_GAP          存在未被任何段落覆盖的小节
 - 完整的历史资产恢复（restore 时复制 MIDI / WAV / Mix / Stems）将在 T13 完成；
   `.aimusic.zip` 工程导入导出完整适配新结构将在 T14 完成。
 
+## 版本恢复完整资产（T13）
+
+- `POST /api/v1/songs/{song_id}/versions/{version_id}/restore` 现在会从 `versions/vN/`
+  复制该版本的完整资产（music_spec / output.mid / output.wav / audio_metadata / mix_spec / quality_report / stems）
+  到根目录当前版本镜像，并更新 `current_version_id.txt`、`versions/index.json` 与 `current.json`。
+- **恢复时不重新生成 MIDI、不重新渲染 WAV**，只基于版本目录已有资产复制/清理。
+- 如果目标版本缺少某项可选资产，根目录对应的旧资产会被清理（例如恢复到无音频版本会删除旧 `output.wav`，
+  `GET /assets` 返回 `has_audio=false`，下载接口返回 `ASSET_NOT_FOUND`）。
+- 恢复接口返回 `restore_summary`（restored / removed / missing_optional）与 `has_mix / has_quality_report / has_stems` 状态。
+- 旧 `versions/vN.json` 结构在恢复前自动迁移为目录式，旧文件保留。
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（270 passed，2026-08-04 实测）
+后端测试：pytest -q passed（279 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

@@ -1,5 +1,7 @@
 """T05：版本详情 API 测试（GET /songs/{song_id}/versions/{version_id}）。"""
 
+import json
+
 from fastapi.testclient import TestClient
 
 from services.api.dependencies.config import get_settings
@@ -113,6 +115,120 @@ def test_edit_creates_v2_directory_and_api_reads_it():
     diff = client.get(f"/api/v1/songs/{song_id}/versions/v2/diff").json()
     assert diff["parent_version_id"] == "v1"
     assert any(d["field"] == "tempo.bpm" for d in diff["diff"])
+
+
+# ---------- T13：恢复版本完整资产 ----------
+
+def test_restore_updates_current_version_pointer():
+    song_id = _create_song()
+    client.post(f"/api/v1/songs/{song_id}/edit", json={"instruction": "整首更快一点"})
+    resp = client.post(f"/api/v1/songs/{song_id}/versions/v1/restore")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["restored_version_id"] == "v1"
+    assert data["current_version_id"] == "v1"
+
+    project_dir = get_settings().projects_dir / song_id
+    assert (project_dir / "current_version_id.txt").read_text(encoding="utf-8") == "v1"
+    index = json.loads((project_dir / "versions" / "index.json").read_text(encoding="utf-8"))
+    assert index["current_version_id"] == "v1"
+    versions = client.get(f"/api/v1/songs/{song_id}/versions").json()
+    assert versions["current_version_id"] == "v1"
+
+
+def test_restore_recovers_music_spec():
+    song_id = _create_song()
+    client.post(f"/api/v1/songs/{song_id}/edit", json={"instruction": "整首更快一点"})
+    resp = client.post(f"/api/v1/songs/{song_id}/versions/v1/restore")
+    assert resp.status_code == 200
+    assert resp.json()["music_spec"]["tempo"]["bpm"] == 72
+
+    project_dir = get_settings().projects_dir / song_id
+    root_spec = json.loads((project_dir / "music_spec.json").read_text(encoding="utf-8"))
+    v1_spec = json.loads((project_dir / "versions" / "v1" / "music_spec.json").read_text(encoding="utf-8"))
+    assert root_spec == v1_spec
+    assert root_spec["tempo"]["bpm"] == 72
+    got = client.get(f"/api/v1/songs/{song_id}").json()
+    assert got["music_spec"]["tempo"]["bpm"] == 72
+
+
+def test_restore_does_not_regenerate_midi_or_wav(monkeypatch):
+    song_id = _create_song()
+    client.post(f"/api/v1/songs/{song_id}/edit", json={"instruction": "整首更快一点"})
+
+    def boom(*args, **kwargs):
+        raise AssertionError("restore 不应重新生成 MIDI / WAV")
+
+    monkeypatch.setattr("services.api.routes.songs._generate_midi_for", boom)
+    monkeypatch.setattr("services.api.routes.songs._render_audio_for", boom)
+    resp = client.post(f"/api/v1/songs/{song_id}/versions/v1/restore")
+    assert resp.status_code == 200
+    assert resp.json()["restored_version_id"] == "v1"
+
+
+def test_restore_copies_midi_asset():
+    song_id = _create_song()
+    client.post(f"/api/v1/songs/{song_id}/midi/generate")
+    project_dir = get_settings().projects_dir / song_id
+    v1_midi = (project_dir / "versions" / "v1" / "output.mid").read_bytes()
+    assert v1_midi
+
+    client.post(f"/api/v1/songs/{song_id}/edit", json={"instruction": "整首更快一点"})
+    resp = client.post(f"/api/v1/songs/{song_id}/versions/v1/restore")
+    assert resp.status_code == 200
+    assert (project_dir / "output.mid").read_bytes() == v1_midi
+    assert (project_dir / "versions" / "v1" / "output.mid").read_bytes() == v1_midi
+
+
+def test_restore_to_no_audio_version_cleans_wav():
+    song_id = _create_song()
+    client.post(f"/api/v1/songs/{song_id}/edit", json={"instruction": "整首更快一点"})
+    project_dir = get_settings().projects_dir / song_id
+    assert (project_dir / "output.wav").exists()  # v2 渲染过音频
+
+    resp = client.post(f"/api/v1/songs/{song_id}/versions/v1/restore")
+    assert resp.status_code == 200
+    assert not (project_dir / "output.wav").exists()
+    assert not (project_dir / "audio_metadata.json").exists()
+
+    assets = client.get(f"/api/v1/songs/{song_id}/assets").json()
+    assert assets["has_audio"] is False
+    download = client.get(f"/api/v1/songs/{song_id}/audio/download")
+    assert download.status_code == 404
+    assert download.json()["error_code"] == "ASSET_NOT_FOUND"
+
+
+def test_restore_recovers_mix_and_cleans_quality():
+    song_id = _create_song()
+    project_dir = get_settings().projects_dir / song_id
+    client.get(f"/api/v1/songs/{song_id}/mix")  # 创建 v1 mix
+    v1_mix = json.loads((project_dir / "versions" / "v1" / "mix_spec.json").read_text(encoding="utf-8"))
+
+    client.post(f"/api/v1/songs/{song_id}/edit", json={"instruction": "整首更快一点"})
+    v2_mix = {**v1_mix, "notes": "v2 changed"}
+    (project_dir / "versions" / "v2" / "mix_spec.json").write_text(
+        json.dumps(v2_mix, ensure_ascii=False), encoding="utf-8"
+    )
+    (project_dir / "mix_spec.json").write_text(
+        json.dumps(v2_mix, ensure_ascii=False), encoding="utf-8"
+    )
+    client.post(f"/api/v1/songs/{song_id}/quality/check")  # v2 生成 quality
+    assert (project_dir / "quality_report.json").exists()
+
+    resp = client.post(f"/api/v1/songs/{song_id}/versions/v1/restore")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert json.loads((project_dir / "mix_spec.json").read_text(encoding="utf-8")) == v1_mix
+    assert not (project_dir / "quality_report.json").exists()
+    assert "mix_spec.json" in data["restore_summary"]["restored"]
+    assert "quality_report.json" in data["restore_summary"]["removed"]
+
+
+def test_restore_missing_version_404():
+    song_id = _create_song()
+    resp = client.post(f"/api/v1/songs/{song_id}/versions/not-exist/restore")
+    assert resp.status_code == 404
+    assert resp.json()["error_code"] == "VERSION_NOT_FOUND"
 
 
 # ---------- T06：版本 diff API ----------

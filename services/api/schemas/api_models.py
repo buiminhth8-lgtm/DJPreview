@@ -140,6 +140,9 @@ class AssetsResponse(BaseModel):
     has_music_spec: bool
     has_midi: bool
     has_audio: bool
+    has_mix: bool = False
+    has_quality_report: bool = False
+    has_stems: bool = False
     midi: MidiAssetInfo | None = None
     audio: AudioAssetInfo | None = None
     current_version: VersionInfo | None = None
@@ -225,11 +228,24 @@ class VersionsResponse(BaseModel):
     versions: list[VersionInfo]
 
 
+class RestoreSummary(BaseModel):
+    """恢复版本时的资产操作摘要。"""
+
+    restored: list[str] = Field(default_factory=list)
+    removed: list[str] = Field(default_factory=list)
+    missing_optional: list[str] = Field(default_factory=list)
+
+
 class RestoreVersionResponse(BaseModel):
+    """恢复版本响应：兼容旧字段 version_id / music_spec / assets。"""
+
     song_id: str
     version_id: str
+    restored_version_id: str
+    current_version_id: str
     music_spec: MusicSpec
     assets: AssetsResponse
+    restore_summary: RestoreSummary | None = None
 
 
 # ---------- 第五阶段：混音 / 质量 / stems ----------

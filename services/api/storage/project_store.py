@@ -10,7 +10,10 @@ from pathlib import Path
 
 from packages.music_core.editing.diff import diff_music_specs
 from packages.music_core.mix.mix_models import MixSpec
-from packages.music_core.versioning.version_assets import copy_current_assets_to_version
+from packages.music_core.versioning.version_assets import (
+    copy_current_assets_to_version,
+    restore_version_assets_to_current,
+)
 from packages.music_core.versioning.version_migration import ensure_version_layout
 from services.api.dependencies.config import get_settings
 from services.api.schemas.music_spec import MusicSpec
@@ -491,20 +494,25 @@ def get_current_version(song_id: str) -> dict | None:
     return None
 
 
-def restore_version(song_id: str, version_id: str) -> MusicSpec:
-    """恢复指定版本：设为当前版本并同步根目录 music_spec.json。
+def restore_version(song_id: str, version_id: str) -> tuple[MusicSpec, dict]:
+    """恢复指定版本：从版本目录复制完整资产到根目录当前镜像，更新版本指针。
 
-    注意：T12 只恢复 MusicSpec 与版本指针；MIDI / WAV / Mix / Stems 等
-    历史资产的完整恢复将在 T13 完成。
+    T13：恢复基于已有版本目录资产复制/清理，不重新生成 MIDI / WAV；
+    版本目录缺失的可选资产会清理根目录旧资产，避免显示错误的旧资源。
+    返回 (music_spec, restore_summary)。
     """
+    _ensure_version_layout(song_id)  # 旧结构先懒迁移
     snapshot = get_version(song_id, version_id)
     music_spec = MusicSpec.model_validate(snapshot["music_spec"])
+    version_dir = _version_dir(
+        song_id, int(snapshot["version_number"] or snapshot.get("index"))
+    )
+    summary = restore_version_assets_to_current(_project_dir(song_id), version_dir)
     index = _read_versions_index(song_id)
     index["current_version_id"] = version_id
     _write_versions_index(song_id, index)
     _write_current_pointer(song_id, version_id)
-    _write_spec_file(_project_dir(song_id), music_spec)
-    return music_spec
+    return music_spec, summary
 
 
 # ---------- 第五阶段：混音 / 质量 / stems 存储 ----------

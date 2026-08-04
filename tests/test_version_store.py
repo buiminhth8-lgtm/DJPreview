@@ -193,3 +193,110 @@ def test_migration_falls_back_to_root_spec(tmp_path):
     ensure_version_layout(project)
     assert (project / "versions" / "v1" / "music_spec.json").exists()
     assert (project / "versions" / "v1" / "version_metadata.json").exists()
+
+
+def test_restore_copies_assets_and_cleans_missing(tmp_path, monkeypatch):
+    """T13：恢复 v1 时复制 MIDI/Mix，并清理 v2 才有的 WAV/Quality/Stems。"""
+    projects = _setup(tmp_path, monkeypatch)
+    song_id = create_project(_new_spec())
+    project_dir = projects / song_id
+
+    # v1：midi + mix，无 wav / quality / stems
+    save_midi_file(song_id, b"MIDI-V1")
+    v1_mix = {"version": "0.1", "master_volume": 0.7, "notes": None}
+    (project_dir / "versions" / "v1" / "mix_spec.json").write_text(
+        json.dumps(v1_mix, ensure_ascii=False), encoding="utf-8"
+    )
+    (project_dir / "mix_spec.json").write_text(json.dumps(v1_mix, ensure_ascii=False), encoding="utf-8")
+
+    # v2：不同 midi + wav + quality + stems
+    base = _new_spec()
+    new_spec = base.model_copy(update={"tempo": base.tempo.model_copy(update={"bpm": 82})})
+    create_version(song_id, new_spec, "更快", None)
+    v2 = project_dir / "versions" / "v2"
+    (project_dir / "output.mid").write_bytes(b"MIDI-V2")
+    (v2 / "output.mid").write_bytes(b"MIDI-V2")
+    (project_dir / "output.wav").write_bytes(b"RIFF-V2")
+    (v2 / "output.wav").write_bytes(b"RIFF-V2")
+    (project_dir / "audio_metadata.json").write_text('{"renderer": "fallback"}', encoding="utf-8")
+    (v2 / "audio_metadata.json").write_text('{"renderer": "fallback"}', encoding="utf-8")
+    (project_dir / "quality_report.json").write_text('{"score": 80}', encoding="utf-8")
+    (v2 / "quality_report.json").write_text('{"score": 80}', encoding="utf-8")
+    (project_dir / "stems").mkdir()
+    (project_dir / "stems" / "melody.mid").write_bytes(b"stem")
+    (v2 / "stems").mkdir()
+    (v2 / "stems" / "melody.mid").write_bytes(b"stem")
+
+    spec, summary = project_store.restore_version(song_id, "v1")
+    assert spec.tempo.bpm == 72
+    assert (project_dir / "output.mid").read_bytes() == b"MIDI-V1"
+    assert json.loads((project_dir / "mix_spec.json").read_text(encoding="utf-8")) == v1_mix
+    assert not (project_dir / "output.wav").exists()
+    assert not (project_dir / "audio_metadata.json").exists()
+    assert not (project_dir / "quality_report.json").exists()
+    assert not (project_dir / "stems").exists()
+
+    assert "music_spec.json" in summary["restored"]
+    assert "output.mid" in summary["restored"]
+    assert "mix_spec.json" in summary["restored"]
+    assert "output.wav" in summary["removed"]
+    assert "audio_metadata.json" in summary["removed"]
+    assert "quality_report.json" in summary["removed"]
+    assert "stems" in summary["removed"]
+
+    assert (project_dir / "current_version_id.txt").read_text(encoding="utf-8") == "v1"
+    index = json.loads((project_dir / "versions" / "index.json").read_text(encoding="utf-8"))
+    assert index["current_version_id"] == "v1"
+
+
+def test_restore_legacy_layout_migrates_and_restores(tmp_path, monkeypatch):
+    """T13：旧 vN.json 结构恢复前自动迁移，恢复不崩溃。"""
+    projects = _setup(tmp_path, monkeypatch)
+    song_id = create_project(_new_spec())
+    project_dir = projects / song_id
+    v1_dir = project_dir / "versions" / "v1"
+    spec_data = json.loads((v1_dir / "music_spec.json").read_text(encoding="utf-8"))
+
+    old_id = "old-version-uuid"
+    old_snapshot = {
+        "version_id": old_id,
+        "version_number": 1,
+        "created_at": "2026-01-01T00:00:00Z",
+        "instruction": None,
+        "parent_version_id": None,
+        "edit_spec": None,
+        "music_spec": spec_data,
+    }
+    import shutil
+
+    shutil.rmtree(v1_dir)
+    (project_dir / "versions" / "v1.json").write_text(
+        json.dumps(old_snapshot, ensure_ascii=False), encoding="utf-8"
+    )
+    (project_dir / "versions" / "index.json").write_text(
+        json.dumps(
+            {
+                "current_version_id": old_id,
+                "versions": [
+                    {
+                        "version_id": old_id,
+                        "version_number": 1,
+                        "created_at": "2026-01-01T00:00:00Z",
+                        "instruction": None,
+                        "parent_version_id": None,
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    spec, summary = project_store.restore_version(song_id, "v1")
+    assert spec.tempo.bpm == 72
+    assert "music_spec.json" in summary["restored"]
+    # 迁移后目录式结构存在，旧文件保留
+    assert (project_dir / "versions" / "v1" / "version_metadata.json").exists()
+    assert (project_dir / "versions" / "v1" / "music_spec.json").exists()
+    assert (project_dir / "versions" / "v1.json").exists()
+    assert (project_dir / "current_version_id.txt").read_text(encoding="utf-8") == "v1"
