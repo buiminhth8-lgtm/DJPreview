@@ -118,11 +118,31 @@ class AssetsResponse(BaseModel):
     current_version: VersionInfo | None = None
 
 
-class VersionDetailResponse(VersionDetail):
-    """单版本详情：metadata + music_spec + edit_spec + is_current + assets。"""
+class VersionAssetInfo(BaseModel):
+    """版本详情中的资产链接与存在状态。
 
+    注意：旧版本结构（根目录 output.mid / output.wav）下返回的是当前根目录资产，
+    并非历史版本的资产快照。
+    """
+
+    has_midi: bool = False
+    has_audio: bool = False
+    midi_download_url: str | None = None
+    audio_stream_url: str | None = None
+    audio_download_url: str | None = None
+
+
+class VersionDetailResponse(BaseModel):
+    """版本详情：metadata + music_spec + edit_spec + diff(相对父版本) + is_current + assets。"""
+
+    song_id: str
+    version_id: str
     is_current: bool = False
-    assets: AssetsResponse
+    metadata: dict
+    music_spec: MusicSpec
+    edit_spec: MusicEditSpec | None = None
+    diff: list[dict] | None = None
+    assets: VersionAssetInfo
 
 
 class VersionDiffResponse(BaseModel):

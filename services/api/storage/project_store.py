@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from packages.music_core.editing.diff import diff_music_specs
 from packages.music_core.mix.mix_models import MixSpec
 from services.api.dependencies.config import get_settings
 from services.api.schemas.music_spec import MusicSpec
@@ -243,6 +244,46 @@ def get_version(song_id: str, version_id: str) -> dict:
             )
             return snapshot
     raise FileNotFoundError(f"版本不存在：{version_id}")
+
+
+def get_version_detail(song_id: str, version_id: str) -> dict:
+    """读取版本详情：metadata / music_spec / edit_spec / diff（相对父版本） / is_current。
+
+    兼容旧结构 versions/vN.json：缺失字段返回 None，不崩溃。
+    """
+    snapshot = get_version(song_id, version_id)
+    music_spec = MusicSpec.model_validate(snapshot["music_spec"])
+    edit_spec = snapshot.get("edit_spec")
+    parent_version_id = snapshot.get("parent_version_id")
+
+    diff = None
+    if parent_version_id:
+        try:
+            parent_snapshot = get_version(song_id, parent_version_id)
+            parent_spec = MusicSpec.model_validate(parent_snapshot["music_spec"])
+            diff = diff_music_specs(parent_spec, music_spec)
+        except FileNotFoundError:
+            diff = None
+
+    current = get_current_version(song_id)
+    metadata = {
+        "version_id": snapshot["version_id"],
+        "index": snapshot["version_number"],
+        "parent_version_id": parent_version_id,
+        "created_at": snapshot.get("created_at"),
+        "prompt": None,  # 旧结构未单独保存 prompt
+        "edit_instruction": snapshot.get("instruction"),
+        "notes": snapshot.get("notes"),
+    }
+    return {
+        "song_id": song_id,
+        "version_id": snapshot["version_id"],
+        "is_current": bool(current and current["version_id"] == version_id),
+        "metadata": metadata,
+        "music_spec": music_spec,
+        "edit_spec": edit_spec,
+        "diff": diff,
+    }
 
 
 def get_current_version(song_id: str) -> dict | None:

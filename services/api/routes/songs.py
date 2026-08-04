@@ -71,6 +71,7 @@ from services.api.schemas.api_models import (
     StemExportResponse,
     StemInfo,
     UpdateMixRequest,
+    VersionAssetInfo,
     VersionDiffResponse,
     VersionDetailResponse,
     VersionInfo,
@@ -91,6 +92,7 @@ from services.api.storage.project_store import (
     get_stems_dir,
     get_stems_zip_path,
     get_version,
+    get_version_detail as get_version_detail_store,
     get_wav_path,
     init_version_if_needed,
     is_valid_song_id,
@@ -512,29 +514,41 @@ def restore_version_route(song_id: str, version_id: str) -> RestoreVersionRespon
 
 @router.get("/songs/{song_id}/versions/{version_id}", response_model=VersionDetailResponse, summary="版本详情")
 def get_version_detail(song_id: str, version_id: str) -> VersionDetailResponse:
-    """返回版本 metadata、music_spec、edit_spec、is_current 与 assets（兼容 vN.json 存储）。"""
+    """返回版本 metadata、music_spec、edit_spec、diff、is_current 与 assets（兼容 vN.json 存储）。"""
     try:
         get_project(song_id)
-        snapshot = get_version(song_id, version_id)
-        current = get_current_version(song_id)
-        music_spec = MusicSpec.model_validate(snapshot["music_spec"])
-        edit_spec = MusicEditSpec.model_validate(snapshot["edit_spec"]) if snapshot.get("edit_spec") else None
-        is_current = current is not None and current["version_id"] == version_id
+        detail = get_version_detail_store(song_id, version_id)
+        edit_spec = (
+            MusicEditSpec.model_validate(detail["edit_spec"]) if detail.get("edit_spec") else None
+        )
         return VersionDetailResponse(
-            version_id=snapshot["version_id"],
-            version_number=snapshot["version_number"],
-            created_at=snapshot["created_at"],
-            instruction=snapshot.get("instruction"),
-            parent_version_id=snapshot.get("parent_version_id"),
-            music_spec=music_spec,
+            song_id=song_id,
+            version_id=detail["version_id"],
+            is_current=detail["is_current"],
+            metadata=detail["metadata"],
+            music_spec=detail["music_spec"],
             edit_spec=edit_spec,
-            is_current=is_current,
-            assets=_assets_response(song_id),
+            diff=detail["diff"],
+            assets=_version_asset_info(song_id),
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+def _version_asset_info(song_id: str) -> VersionAssetInfo:
+    """版本详情用资产信息：旧结构下返回当前根目录资产状态（并非历史版本资产快照）。"""
+    project_dir = get_project_dir(song_id)
+    has_midi = (project_dir / "output.mid").exists()
+    has_audio = (project_dir / "output.wav").exists()
+    return VersionAssetInfo(
+        has_midi=has_midi,
+        has_audio=has_audio,
+        midi_download_url=f"/api/v1/songs/{song_id}/midi/download" if has_midi else None,
+        audio_stream_url=f"/api/v1/songs/{song_id}/audio/stream" if has_audio else None,
+        audio_download_url=f"/api/v1/songs/{song_id}/audio/download" if has_audio else None,
+    )
 
 
 @router.get("/songs/{song_id}/versions/{version_id}/diff", response_model=VersionDiffResponse, summary="版本 diff")

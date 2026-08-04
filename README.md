@@ -154,6 +154,14 @@ GET  /api/v1/evaluation/cases
 
 更完整的接口清单请查看 http://localhost:8000/docs。
 
+版本详情示例：
+
+```bash
+curl http://localhost:8000/api/v1/songs/{song_id}/versions/v1
+```
+
+返回 `song_id`、`version_id`、`is_current`、`metadata`、`music_spec`、`edit_spec`、`diff`（相对父版本）与 `assets`。
+
 ## 当前项目状态
 
 ```text

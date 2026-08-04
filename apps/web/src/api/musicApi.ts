@@ -153,7 +153,27 @@ export interface RestoreVersionResponse {
   assets: AssetsResponse;
 }
 
-export interface VersionDetailResponse extends VersionInfo {
+export interface VersionAssetInfo {
+  has_midi: boolean;
+  has_audio: boolean;
+  midi_download_url: string | null;
+  audio_stream_url: string | null;
+  audio_download_url: string | null;
+}
+
+export interface VersionDetailResponse {
+  song_id: string;
+  version_id: string;
+  is_current: boolean;
+  metadata: {
+    version_id: string;
+    index: number;
+    parent_version_id: string | null;
+    created_at: string | null;
+    prompt: string | null;
+    edit_instruction: string | null;
+    notes: string | null;
+  };
   music_spec: MusicSpec;
   edit_spec: {
     version: string;
@@ -162,8 +182,8 @@ export interface VersionDetailResponse extends VersionInfo {
     preserve: string[];
     operations: Array<{ type: string; amount: number | null; value: unknown; params: unknown }>;
   } | null;
-  is_current: boolean;
-  assets: AssetsResponse;
+  diff: DiffItem[] | null;
+  assets: VersionAssetInfo;
 }
 
 export interface VersionDiffResponse {

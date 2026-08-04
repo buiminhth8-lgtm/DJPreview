@@ -26,11 +26,16 @@ def test_version_detail():
     assert resp.status_code == 200
     data = resp.json()
     assert data["version_id"] == v1["version_id"]
-    assert data["version_number"] == 1
+    assert data["song_id"] == song_id
+    assert data["metadata"]["index"] == 1
+    assert data["metadata"]["version_id"] == v1["version_id"]
+    assert data["diff"] is None  # v1 无父版本
     assert data["music_spec"]["tempo"]["bpm"] == 72
     assert data["edit_spec"] is None
     assert data["is_current"] is True
-    assert data["assets"]["song_id"] == song_id
+    assert data["assets"]["has_midi"] is False
+    assert data["assets"]["has_audio"] is False
+    assert data["assets"]["midi_download_url"] is None
 
 
 def test_version_detail_after_edit_has_edit_spec_and_not_current():
@@ -49,6 +54,9 @@ def test_version_detail_after_edit_has_edit_spec_and_not_current():
     assert data2["is_current"] is True
     assert data2["edit_spec"]["instruction"] == "整首更快一点"
     assert data2["music_spec"]["tempo"]["bpm"] == 82
+    assert data2["metadata"]["edit_instruction"] == "整首更快一点"
+    assert data2["metadata"]["parent_version_id"] == v1["version_id"]
+    assert any(d["field"] == "tempo.bpm" for d in data2["diff"])
 
 
 def test_version_diff_after_edit():
@@ -67,7 +75,6 @@ def test_version_diff_after_edit():
     assert data["base_version_number"] == 2
     assert data["is_current"] is False
     assert data["music_spec"]["tempo"]["bpm"] == 72  # 返回目标版本 spec
-    assert data["assets"]["song_id"] == song_id
 
 
 def test_version_diff_current_version_empty():
