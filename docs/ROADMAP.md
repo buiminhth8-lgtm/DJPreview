@@ -151,7 +151,7 @@
   `midi_constants.GM_PROGRAMS` 由注册表生成；MockProvider / Style Library 改用 canonical id；
   `spec_validator` 新增 `UNKNOWN_INSTRUMENT_ALIAS` warning；新增 `tests/test_instrument_registry.py`
 
-## T18-T22 音乐质量增强（T18 旋律 ✅，T19 和声 ✅，T20-T22 进行中）
+## T18-T22 音乐质量增强（T18 旋律 ✅，T19 和声 ✅，T20 鼓组 ✅，T21-T22 进行中）
 
 - 目标：旋律动机、和声进行/终止式、能量曲线、节奏模板、编曲密度调优
 - 优先级：P2
@@ -166,6 +166,11 @@
   bridge deceptive / outro tonic）；`build_bar_harmony` 内置终止式补强；新增
   `theory/roman_numerals.py`、`composer/harmony_models.py`、`composer/harmony_progressions.py`、
   `analysis/harmony_analysis.py`；语义校验新增 `WEAK_SECTION_CADENCE` / `REPETITIVE_CHORD_PROGRESSION` warning
+- T20 已完成：鼓组 groove 增强（pop / rock / lo-fi / cinematic / chinese / electronic）+ 段落强度
+  （intro 稀疏 / verse 基础 / pre_chorus 推进 + fill / chorus 最强 + crash / bridge 对比 / outro 收束）+
+  fill（snare / tom / hat）+ swing（lo-fi 0.62）+ velocity accent + ghost note；GM drum note + channel 9；
+  新增 `theory/rhythm.py`、`composer/drum_models.py`、`composer/drum_patterns.py`、
+  `composer/groove_library.py`、`analysis/rhythm_analysis.py`，重写 `drums/drum_engine.py`
 
 ## T23-T25 前端工作台重构 ⬜
 

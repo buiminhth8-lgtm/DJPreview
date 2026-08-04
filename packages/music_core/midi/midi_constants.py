@@ -15,6 +15,12 @@ for _alias, _canonical in INSTRUMENT_ALIASES.items():
 DRUM_NOTES: dict[str, int] = {
     "kick": 36,
     "snare": 38,
+    "side_stick": 37,
+    "clap": 39,
+    "low_tom": 45,
+    "mid_tom": 47,
+    "high_tom": 50,
+    "pedal_hihat": 44,
     "closed_hihat": 42,
     "open_hihat": 46,
     "crash": 49,

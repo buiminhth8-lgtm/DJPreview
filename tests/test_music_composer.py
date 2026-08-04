@@ -65,3 +65,14 @@ def test_composer_keeps_bass_drums_and_harmony():
     for role in ("bass", "drums", "harmony"):
         assert by_role[role].notes
         assert all(n.duration_beats > 0 for n in by_role[role].notes)
+
+
+def test_drum_events_valid():
+    """T20：鼓组事件 velocity / pitch / time 合法。"""
+    result = compose_music(build_spec())
+    drums = next(t for t in result.tracks if t.role == "drums")
+    assert drums.notes
+    assert all(1 <= n.velocity <= 127 for n in drums.notes)
+    assert all(0 <= n.pitch <= 127 for n in drums.notes)
+    assert all(n.start_beat >= 0 and n.duration_beats > 0 for n in drums.notes)
+    assert all(n.channel == 9 and n.is_drum for n in drums.notes)

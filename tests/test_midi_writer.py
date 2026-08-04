@@ -63,3 +63,19 @@ def test_program_change_uses_registry_mapping(tmp_path):
     assert programs.get(1) == 0  # unknown → fallback program 0
     assert 9 not in programs  # 鼓组不写 melodic program
     assert 9 in drum_channels  # 鼓组使用 MIDI channel 9
+
+
+def test_drum_track_uses_gm_notes(tmp_path):
+    """T20：drums 轨道只使用 GM drum note，并走 channel 9。"""
+    from packages.music_core.midi.midi_constants import DRUM_NOTES
+
+    composition = compose_music(_spec_with_instruments())
+    output = write_midi(composition, tmp_path / "drums_gm.mid")
+    gm_notes = set(DRUM_NOTES.values())
+    drum_note_on = 0
+    for track in mido.MidiFile(str(output)).tracks:
+        for msg in track:
+            if msg.type == "note_on" and msg.channel == 9:
+                drum_note_on += 1
+                assert msg.note in gm_notes
+    assert drum_note_on > 0

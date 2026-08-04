@@ -88,6 +88,39 @@ def test_harmony_analysis_helpers():
     assert section_tension_curve_detected(progressions, "D", "minor") is True
 
 
+def test_rhythm_analysis_helpers():
+    """T20：轻量鼓组/节奏分析辅助函数可运行且结果有界。"""
+    from packages.music_core.analysis.rhythm_analysis import (
+        chorus_intensity_lift_detected,
+        drum_density_score,
+        section_fill_detected,
+        swing_feel_detected,
+        velocity_variation_score,
+    )
+    from packages.music_core.composer.music_composer import compose_music
+
+    spec = build_spec()
+    result = compose_music(spec)
+    drums = next(t for t in result.tracks if t.role == "drums").notes
+    assert drum_density_score(drums) > 0
+    assert 0.0 <= velocity_variation_score(drums) <= 1.0
+    assert isinstance(section_fill_detected(drums), bool)
+    assert isinstance(swing_feel_detected(drums), bool)
+
+    sections: dict[str, list] = {}
+    for note in drums:
+        bar = int(note.start_beat // 4) + 1
+        for section in spec.form:
+            if section.start_bar <= bar < section.start_bar + section.bars:
+                sections.setdefault(section.id, []).append(note)
+                break
+    if sections.get("verse") and sections.get("chorus"):
+        assert isinstance(
+            chorus_intensity_lift_detected(sections["verse"], sections["chorus"]),
+            bool,
+        )
+
+
 def test_optimizer_fixes_missing_melody_and_harmony():
     spec = build_spec()
     spec.tracks = [t for t in spec.tracks if t.role not in ("melody", "harmony")]

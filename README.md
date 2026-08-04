@@ -354,10 +354,24 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
   轻量和声分析辅助 `analysis/harmony_analysis.py`（cadence_score / harmonic_variety_score /
   chord_symbol_validity / section_tension_curve_detected）。
 
+## 鼓组 groove 增强（T20）
+
+- 风格化 groove：pop / rock / lo-fi（syncopated kick + ghost snare + swing 0.62）/ cinematic（稀疏低频 + tom）/
+  chinese（tom 模拟民族鼓）/ electronic（four-on-the-floor + offbeat hats）。
+- 段落强度：intro 仅 kick/hat 低力度、verse 基础 groove、pre_chorus 密度提升 + 段落末 fill、
+  chorus 最强（crash 标记段首、力度 +8）、bridge 去 crash/ride 加 tom 对比、outro 收束（kick + 轻 hat）。
+- fill：段落末尾（verse / pre_chorus / bridge / outro）与 chorus 每 8 小节，使用 snare / tom / hat 16th 填充，不越界。
+- swing（`theory/rhythm.apply_swing`）：lo-fi 默认 0.62 后移 offbeat，pop/rock straight，不产生负时间。
+- velocity accent：downbeat kick / snare 2-4 高力度、ghost snare 25-45、hat 强弱交替、段落力度修正，全部 clamp 1-127。
+- 统一 GM drum note（kick 36 / snare 38 / clap 39 / toms / hats / crash 49 / ride 51），走 MIDI channel 9、
+  不写 melodic program；MIDI Writer / Fallback Renderer / Evaluation 均不受影响。
+- 轻量节奏分析辅助 `analysis/rhythm_analysis.py`（drum_density_score / section_fill_detected /
+  chorus_intensity_lift_detected / swing_feel_detected / velocity_variation_score）。
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（364 passed，2026-08-04 实测）
+后端测试：pytest -q passed（386 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

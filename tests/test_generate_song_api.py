@@ -52,3 +52,11 @@ def test_generated_harmony_parseable():
     for section in data["music_spec"]["harmony"]:
         assert section["progression"]
         assert all(is_valid_chord_symbol(c) for c in section["progression"])
+
+
+def test_generated_song_has_drums_track():
+    """T20：MockProvider 默认生成包含 drums track。"""
+    resp = client.post("/api/v1/songs/generate", json={"prompt": "生成一段忧郁空灵的钢琴配乐"})
+    assert resp.status_code == 200
+    tracks = resp.json()["music_spec"]["tracks"]
+    assert any(t["role"] == "drums" for t in tracks)
