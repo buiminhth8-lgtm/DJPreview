@@ -6,6 +6,7 @@ __pycache__/
 venv/
 .env
 .pytest_cache/
+.pytest-tmp/
 .env.docker
 runtime-data/
 .mypy_cache/

@@ -2,42 +2,53 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
 
 jobs:
-  backend:
+  backend-test:
     name: Backend pytest
     runs-on: ubuntu-latest
+    env:
+      LLM_PROVIDER: mock
+      AUDIO_RENDERER: fallback
+      PYTHONPATH: ${{ github.workspace }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Install dependencies
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install backend dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
+
       - name: Run pytest
-        env:
-          LLM_PROVIDER: mock
-          AUDIO_RENDERER: fallback
         run: pytest -q
 
-  frontend:
+  frontend-build:
     name: Frontend build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - name: npm ci
+
+      - name: Install frontend dependencies
         working-directory: apps/web
-        run: npm ci --no-audit --no-fund
-      - name: npm run build
+        run: npm ci
+
+      - name: Build frontend
         working-directory: apps/web
         run: npm run build

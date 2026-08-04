@@ -173,6 +173,42 @@ pytest
 
 覆盖六个阶段全部回归 + 第六阶段 12 个新测试文件（风格库/应用器、Motif、Cadence、重生成、参考分析、工程导入导出、评估、风格/参考/重生成/工程 API）。测试环境 `LLM_PROVIDER=mock`、`AUDIO_RENDERER=fallback`。
 
+## 十一·五、本地质量检查（Quality Gates）
+
+仓库提供一键检查脚本（后端 pytest + 前端 npm ci / build），每次 push 与 pull request 也会由 GitHub Actions（`.github/workflows/ci.yml`）自动执行。
+
+### Windows PowerShell
+
+```powershell
+.\scripts\check-backend.ps1
+.\scripts\check-frontend.ps1
+.\scripts\check-all.ps1
+```
+
+### Linux / macOS
+
+```bash
+./scripts/check-backend.sh
+./scripts/check-frontend.sh
+./scripts/check-all.sh
+```
+
+### 手动执行
+
+```bash
+pytest -q
+cd apps/web
+npm ci
+npm run build
+```
+
+说明：
+
+- 后端测试默认使用 `LLM_PROVIDER=mock`（不依赖真实 DeepSeek API）。
+- 音频渲染测试默认使用 `AUDIO_RENDERER=fallback`（不依赖系统 FluidSynth）。
+- 前端构建不会调用真实后端。
+- CI 会在 push（main / master）和 pull request 时自动运行后端 pytest 与前端构建。
+
 ## 十二、当前不支持（第六阶段范围外）
 
 - AI 人声、歌词演唱、音色克隆、VST 插件宿主
