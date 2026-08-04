@@ -32,20 +32,24 @@ def _collect_notes(midi_path: Path) -> tuple[float, list[tuple[float, float, flo
 
     for track in midi.tracks:
         tick = 0
-        active: dict[int, int] = {}
+        # 同一 (channel, note) 允许多个活动音符；list + FIFO 配对，
+        # 避免同音重叠时后一个 note_on 覆盖前一个。
+        active: dict[tuple[int, int], list[tuple[int, int]]] = {}
         for msg in track:
             tick += msg.time
             if msg.type == "set_tempo":
                 tempo = msg.tempo
             elif msg.type == "note_on" and msg.velocity > 0:
-                active[msg.note] = tick
+                active.setdefault((msg.channel, msg.note), []).append((tick, msg.velocity))
             elif msg.type == "note_off" or (msg.type == "note_on" and msg.velocity == 0):
-                start_tick = active.pop(msg.note, None)
-                if start_tick is None:
+                pending = active.get((msg.channel, msg.note))
+                if not pending:
+                    # 未配对 note_off：忽略，不崩溃
                     continue
+                start_tick, velocity = pending.pop(0)  # FIFO
                 start_sec = start_tick / tpb * tempo / 1_000_000
                 dur_sec = max(0.05, (tick - start_tick) / tpb * tempo / 1_000_000)
-                notes.append((start_sec, dur_sec, midi_to_freq(msg.note), msg.velocity / 127.0))
+                notes.append((start_sec, dur_sec, midi_to_freq(msg.note), velocity / 127.0))
 
     notes.sort(key=lambda item: item[0])
     total_seconds = max((n[0] + n[1] for n in notes), default=0.0) + 1.0

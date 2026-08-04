@@ -309,10 +309,19 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
 
 > 测试环境推荐 `AUDIO_RENDERER=fallback`，无需安装 FluidSynth。
 
+## MIDI 重叠音符解析与渲染（T16）
+
+- MIDI Parser（`packages/music_core/analysis/midi_parser.py`）与 Fallback Renderer
+  （`packages/renderer/fallback_renderer.py`）改用 **list + FIFO** 记录活动音符：
+  同一 `(channel, note)` 的多个 `note_on` 不再互相覆盖，同音高重叠可解析/渲染出多个音符。
+- `note_on velocity=0` 按 MIDI 规范等价于 `note_off`。
+- 未配对 `note_off` 与文件结束仍未关闭的 `note_on` 均不崩溃（未关闭 note 按现有行为丢弃）。
+- Piano Roll、Quality Checker、Evaluation 均基于修复后的 parser，重叠音符数据更准确。
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（285 passed，2026-08-04 实测）
+后端测试：pytest -q passed（291 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

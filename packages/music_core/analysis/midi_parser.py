@@ -58,7 +58,9 @@ def parse_midi_to_notes(midi_path: str | Path) -> ParsedMidi:
     for track_index, track in enumerate(midi.tracks):
         tick = 0
         track_name: str | None = None
-        active: dict[int, tuple[int, int]] = {}
+        # 同一 (channel, note) 允许多个活动音符；用 list 保存并按 FIFO 配对，
+        # 避免后一个 note_on 覆盖前一个导致同音重叠音符丢失。
+        active: dict[tuple[int, int], list[tuple[int, int, int]]] = {}
         for msg in track:
             tick += msg.time
             if msg.type == "set_tempo":
@@ -66,23 +68,26 @@ def parse_midi_to_notes(midi_path: str | Path) -> ParsedMidi:
             elif msg.type == "track_name":
                 track_name = msg.name
             elif msg.type == "note_on" and msg.velocity > 0:
-                active[msg.note] = (tick, msg.velocity)
+                active.setdefault((msg.channel, msg.note), []).append(
+                    (tick, msg.velocity, msg.channel)
+                )
             elif _is_note_off(msg):
-                info = active.pop(msg.note, None)
-                if info is None:
+                pending = active.get((msg.channel, msg.note))
+                if not pending:
+                    # 未配对 note_off：忽略，不崩溃
                     continue
-                start_tick, velocity = info
+                start_tick, velocity, channel = pending.pop(0)  # FIFO
                 raw_notes.append(
                     ParsedNote(
                         track_index=track_index,
                         track_name=track_name,
-                        channel=msg.channel,
+                        channel=channel,
                         pitch=msg.note,
                         pitch_name=midi_to_note_name(msg.note),
                         start_beat=round(start_tick / tpb, 4),
                         duration_beats=round(max(0.05, (tick - start_tick) / tpb), 4),
                         velocity=velocity,
-                        is_drum=(msg.channel == DRUM_CHANNEL),
+                        is_drum=(channel == DRUM_CHANNEL),
                     )
                 )
 

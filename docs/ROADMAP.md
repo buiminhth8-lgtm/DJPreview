@@ -130,12 +130,14 @@
   （`data/evaluations/{run_id}/cases/case_NNN_id/`）并按需调用 `get_audio_renderer()`；
   API 默认 `render_audio=false`；新增 `tests/test_evaluation_api.py`
 
-## T16 MIDI Parser / Fallback Renderer 重叠音符修复 ⬜
+## T16 MIDI Parser / Fallback Renderer 重叠音符修复 ✅
 
 - 目标：重叠同音 note_on 正确闭合，渲染不产生异常波形
 - 优先级：P2
 - 依赖：无
-- 验收标准：解析测试与 WAV 渲染测试通过
+- 验收标准：解析测试与 WAV 渲染测试通过；同音重叠不丢失；velocity=0 按 note_off；未配对/未关闭不崩溃
+- 实现：parser 与 fallback renderer 的活动音符改为 `dict[(channel, note), list[(start_tick, velocity)]]`，
+  note_off 按 FIFO pop(0) 配对；fallback 使用 note_on 的 velocity；新增重叠同音 / 多 channel / 边界用例测试
 
 ## T17 乐器命名与 GM Program 映射统一 ⬜
 
