@@ -70,8 +70,8 @@ def spec_validation_failed(message: str = "MusicSpec 校验失败") -> HTTPExcep
     return api_error(400, ApiErrorCode.MUSIC_SPEC_VALIDATION_FAILED, message)
 
 
-def llm_error(message: str = "模型调用失败") -> HTTPException:
-    return api_error(502, ApiErrorCode.LLM_PROVIDER_ERROR, message)
+def llm_error(message: str = "模型调用失败", details: dict[str, Any] | None = None) -> HTTPException:
+    return api_error(502, ApiErrorCode.LLM_PROVIDER_ERROR, message, details)
 
 
 def render_failed(message: str = "音频渲染失败") -> HTTPException:

@@ -105,7 +105,25 @@ LLM_PROVIDER=deepseek
 DEEPSEEK_API_KEY=your_key_here
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_TIMEOUT_SECONDS=60
 ```
+
+### T11：LLM Provider 产品化
+
+- **Prompt Registry**（`packages/llm/prompt_registry.py`）：统一读取 `prompts/` 目录，
+  新增 `music_spec_generator.md`、`music_editor.md`、`json_repair.md`，支持 `{变量}` 渲染。
+- **结构化调用**：`LLMProvider.generate_structured(system_prompt, user_prompt, response_model, task_name, ...)`，
+  DeepSeekProvider 为核心实现；MockProvider 提供规则版（不依赖网络 / API Key）。
+- **JSON 提取与二次修复**：`packages/llm/json_utils.py` 支持纯 JSON、```json 代码块、前后带文本；
+  `packages/llm/structured_call.py` 在解析或 Pydantic 校验失败时调用 `json_repair` 提示词修复，最多重试 2 次，
+  仍失败抛 `LLMOutputError`。
+- **LLM 调用日志**：`packages/llm/call_logger.py` 记录 provider、model、prompt、响应、耗时、错误、解析结果。
+  有 `project_id` 时写入 `data/projects/{project_id}/llm_calls/`，否则写入 `data/llm_calls/`；
+  **日志自动剔除 API Key / Authorization，不会提交到 Git。**
+- **错误响应**：API Key 缺失 / 网络失败 / 输出解析失败统一返回 `LLM_PROVIDER_ERROR`。
+- **安全**：不要提交真实 API Key；`.env` 已被 `.gitignore` 忽略。
+
+> MockProvider 仍是默认开发模式：`LLM_PROVIDER=mock` 时无需任何 API Key 即可跑通全流程。
 
 ## 测试与质量检查
 

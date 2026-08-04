@@ -75,12 +75,17 @@
   覆盖 track/section 唯一性、段落重叠与越界、harmony/enabled_sections 引用、和弦可解析、key/mode/拍号合法性；
   前端 `musicApi.ts` 同步 `ValidationIssue / ValidationResult` 类型；`tests/test_semantic_validator.py` 覆盖
 
-## T11 DeepSeek / LLM Provider 产品化 ⬜
+## T11 DeepSeek / LLM Provider 产品化 ✅
 
 - 目标：真实 LLM 接入稳定（JSON 校验、重试、超时、降级）
 - 优先级：P1
 - 依赖：T10
-- 验收标准：DeepSeek 可生成合法 MusicSpec；失败时清晰报错且可回退 mock
+- 验收标准：Prompt Registry 管理 prompt；`generate_structured` 统一入口；JSON 提取 + Pydantic 校验 + 二次修复；
+  LLM 调用日志（不含 API Key）；mock httpx 测试通过；失败返回 `LLM_PROVIDER_ERROR`；MockProvider 行为不变
+- 实现：`prompt_registry`（含 `music_spec_generator` / `music_editor` / `json_repair`）、`json_utils`、
+  `structured_call`、`call_logger`、`models`；DeepSeekProvider 重构为结构化调用并接入 project_id 日志；
+  新增 `tests/test_prompt_registry.py`、`tests/test_llm_json_utils.py`、`tests/test_deepseek_provider.py`、
+  `tests/test_llm_call_logger.py`、`tests/test_llm_provider.py`
 
 ## T12 版本资产目录式重构 ⬜
 

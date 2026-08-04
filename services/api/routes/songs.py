@@ -10,6 +10,11 @@ from fastapi import APIRouter, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 
 from packages.llm.factory import get_llm_provider
+from packages.llm.structured_call import (
+    LLMAPIError,
+    LLMConfigurationError,
+    LLMOutputError,
+)
 from packages.music_core.analysis.midi_parser import parse_midi_to_notes
 from packages.music_core.analysis.piano_roll import build_piano_roll_data
 from packages.music_core.analysis.quality_checker import QualityReport, check_arrangement_quality
@@ -297,6 +302,10 @@ def generate_song(req: GenerateSongRequest) -> GenerateSongResponse:
         if req.style_template_id:
             style_template = get_style_template(req.style_template_id)
             spec = apply_style_template_to_music_spec(spec, style_template, req.style_strength)
+    except LLMOutputError as exc:
+        raise llm_error("模型输出解析失败", details={"task_name": exc.task_name}) from None
+    except (LLMConfigurationError, LLMAPIError) as exc:
+        raise llm_error("模型调用失败", details={"reason": str(exc)}) from None
     except ValueError as exc:
         raise spec_validation_failed(f"生成失败：{exc}") from None
     except RuntimeError as exc:
@@ -318,6 +327,10 @@ def generate_song_with_midi(req: GenerateSongRequest) -> GenerateWithMidiRespons
         if req.style_template_id:
             template = get_style_template(req.style_template_id)
             spec = apply_style_template_to_music_spec(spec, template, req.style_strength)
+    except LLMOutputError as exc:
+        raise llm_error("模型输出解析失败", details={"task_name": exc.task_name}) from None
+    except (LLMConfigurationError, LLMAPIError) as exc:
+        raise llm_error("模型调用失败", details={"reason": str(exc)}) from None
     except ValueError as exc:
         raise spec_validation_failed(f"生成失败：{exc}") from None
     except RuntimeError as exc:
@@ -340,6 +353,10 @@ def generate_song_with_audio(req: GenerateSongRequest) -> GenerateWithAudioRespo
         if req.style_template_id:
             template = get_style_template(req.style_template_id)
             spec = apply_style_template_to_music_spec(spec, template, req.style_strength)
+    except LLMOutputError as exc:
+        raise llm_error("模型输出解析失败", details={"task_name": exc.task_name}) from None
+    except (LLMConfigurationError, LLMAPIError) as exc:
+        raise llm_error("模型调用失败", details={"reason": str(exc)}) from None
     except ValueError as exc:
         raise spec_validation_failed(f"生成失败：{exc}") from None
     except RuntimeError as exc:
@@ -381,6 +398,10 @@ async def generate_from_reference(
             reference_analysis=analysis,
             style_template=style_template,
         )
+    except LLMOutputError as exc:
+        raise llm_error("模型输出解析失败", details={"task_name": exc.task_name}) from None
+    except (LLMConfigurationError, LLMAPIError) as exc:
+        raise llm_error("模型调用失败", details={"reason": str(exc)}) from None
     except ValueError as exc:
         raise spec_validation_failed(f"生成失败：{exc}") from None
     finally:
@@ -490,7 +511,7 @@ def edit_song(song_id: str, req: EditSongRequest) -> EditSongResponse:
     try:
         spec = get_project(song_id)
         provider = get_llm_provider()
-        edit_spec = provider.generate_music_edit(req.instruction, spec)
+        edit_spec = provider.generate_music_edit(req.instruction, spec, project_id=song_id)
         new_spec = apply_music_edit(spec, edit_spec)
         diff = diff_music_specs(spec, new_spec)
         version = create_version(song_id, new_spec, req.instruction, edit_spec.model_dump(mode="json"))
@@ -515,6 +536,10 @@ def edit_song(song_id: str, req: EditSongRequest) -> EditSongResponse:
         )
     except FileNotFoundError as exc:
         raise project_not_found(song_id) from None
+    except LLMOutputError as exc:
+        raise llm_error("模型输出解析失败", details={"task_name": exc.task_name}) from None
+    except (LLMConfigurationError, LLMAPIError) as exc:
+        raise llm_error("模型调用失败", details={"reason": str(exc)}) from None
     except ValueError as exc:
         raise spec_validation_failed(f"修改失败：{exc}") from None
     except RuntimeError as exc:

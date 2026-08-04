@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import zlib
 
-from packages.llm.base import LLMProvider
+from packages.llm.base import LLMProvider, T
 from services.api.schemas.music_edit_spec import EditOperation, EditTarget, MusicEditSpec
 from services.api.schemas.music_spec import (
     HarmonySectionSpec,
@@ -26,6 +26,28 @@ class MockProvider(LLMProvider):
     _MINOR_KEYWORDS = ("忧郁", "悲伤", "雨夜", "伤感")
     _MAJOR_KEYWORDS = ("欢快", "明亮")
     _PENTATONIC_KEYWORD = "中国风"
+
+    def generate_structured(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        response_model: type[T],
+        task_name: str,
+        project_id: str | None = None,
+        retries: int = 2,
+    ) -> T:
+        """Mock 版结构化调用：不发起网络请求、不依赖 API Key。
+
+        MusicSpec 直接复用规则生成器；其余模型请使用
+        generate_music_spec / generate_music_edit 专用方法。
+        """
+        if response_model is MusicSpec:
+            return self.generate_music_spec(user_prompt)  # type: ignore[return-value]
+        raise ValueError(
+            f"MockProvider.generate_structured 不支持 {response_model.__name__}，"
+            "请使用 generate_music_spec / generate_music_edit"
+        )
 
     def generate_music_spec(self, prompt: str) -> MusicSpec:
         prompt_clean = prompt.strip()
@@ -89,8 +111,16 @@ class MockProvider(LLMProvider):
             notes=f"由 MockProvider 根据提示词生成：{prompt_clean}",
         )
 
-    def generate_music_edit(self, instruction: str, current_spec: MusicSpec) -> MusicEditSpec:
-        """规则化生成修改协议：识别段落/轨道目标与常见中文指令。"""
+    def generate_music_edit(
+        self,
+        instruction: str,
+        current_spec: MusicSpec,
+        project_id: str | None = None,
+    ) -> MusicEditSpec:
+        """规则化生成修改协议：识别段落/轨道目标与常见中文指令。
+
+        project_id 仅用于与 DeepSeekProvider 保持统一签名（Mock 不写日志）。
+        """
         text = instruction.strip()
         target = self._parse_edit_target(text)
 
