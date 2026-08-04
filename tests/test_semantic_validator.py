@@ -153,3 +153,34 @@ def test_canonical_instrument_no_warning():
     spec.tracks[1] = spec.tracks[1].model_copy(update={"instrument": "acoustic_grand_piano"})
     result = validate_music_spec_semantics(spec)
     assert "UNKNOWN_INSTRUMENT_ALIAS" not in _codes(result, "warnings")
+
+
+# ---------- T19：和声扩展与终止式 warnings ----------
+
+def test_extended_chords_pass_validation():
+    spec = build_spec()
+    spec.harmony[2] = spec.harmony[2].model_copy(
+        update={"progression": ["Cmaj7", "Am7", "Dm7", "G7", "Csus4", "Cadd9"]}
+    )
+    result = validate_music_spec_semantics(spec)
+    assert result.valid
+    assert "INVALID_CHORD_SYMBOL" not in _codes(result)
+
+
+def test_weak_section_cadence_is_warning():
+    spec = build_spec()
+    # chorus 结尾非终止式（末和弦不是主和弦）
+    spec.harmony[2] = spec.harmony[2].model_copy(update={"progression": ["Dm", "Bb", "F", "C"]})
+    result = validate_music_spec_semantics(spec)
+    assert result.valid
+    assert "WEAK_SECTION_CADENCE" in _codes(result, "warnings")
+
+
+def test_repetitive_progression_is_warning():
+    spec = build_spec()
+    spec.harmony[1] = spec.harmony[1].model_copy(
+        update={"progression": ["Dm", "Dm", "Dm", "Dm"]}
+    )
+    result = validate_music_spec_semantics(spec)
+    assert result.valid
+    assert "REPETITIVE_CHORD_PROGRESSION" in _codes(result, "warnings")

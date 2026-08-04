@@ -340,10 +340,24 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
 - 新增轻量旋律分析辅助（`analysis/melody_analysis.py`）：motif_repetition_score / phrase_balance_score /
   chorus_lift_detected / outro_theme_recall_detected（不改变 QualityReport 结构）。
 
+## 和声质量增强（T19）
+
+- 新增功能和声模型与进行库（`composer/harmony_models.py`、`composer/harmony_progressions.py`）：
+  major / minor 常见进行、lo-fi / cinematic / chinese 模板。
+- 新增罗马数字转换（`theory/roman_numerals.py`）：`I / ii / IV / V / vi / i / iv / VI / VII` 及
+  `maj7 / m7 / 7 / sus2 / sus4 / add9 / 6 / dim / m7b5` 后缀，minor 中 V/V7 使用 harmonic minor 属和弦。
+- Chord Parser 补齐 `add9 / 6 / dim / m7b5`；`sus4` 不含三音、`add9` 保留三和弦加九音、`maj7` 与 `7` 区分。
+- 终止式：authentic（V/V7→I/i）、half（ii/IV→V）、plagal（IV→I）、deceptive（V→vi/VI）。
+- `build_bar_harmony` 段落感知补强：verse 结尾 half、pre_chorus 结尾 dominant、chorus 结尾 authentic、
+  bridge 用对比性进行 + deceptive、outro 回到 tonic；lo-fi 风格自动上色（maj7/m7/7）。
+- 语义校验新增 `WEAK_SECTION_CADENCE` / `REPETITIVE_CHORD_PROGRESSION` **warning**（不阻断生成）；
+  轻量和声分析辅助 `analysis/harmony_analysis.py`（cadence_score / harmonic_variety_score /
+  chord_symbol_validity / section_tension_curve_detected）。
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（327 passed，2026-08-04 实测）
+后端测试：pytest -q passed（364 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

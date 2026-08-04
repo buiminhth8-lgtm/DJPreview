@@ -64,7 +64,22 @@ class MockProvider(LLMProvider):
             mode = "pentatonic"
             scale = "c-major-pentatonic"
 
-        chords = ["Dm", "Bb", "F", "C"] if mode == "minor" else ["C", "G", "Am", "F"]
+        style_tags: list[str] = []
+        if "中国风" in prompt_clean or "chinese" in prompt_clean.lower():
+            style_tags.append("chinese")
+        if any(k in prompt_clean.lower() for k in ("lo-fi", "lofi", "hiphop")):
+            style_tags.append("lo-fi")
+        if any(k in prompt_clean.lower() for k in ("摇滚", "rock")):
+            style_tags.append("rock")
+        if not style_tags:
+            style_tags = ["pop"]
+
+        if "lo-fi" in style_tags:
+            chords = ["Cmaj7", "Am7", "Dm7", "G7"]
+        elif mode == "minor":
+            chords = ["Dm", "Bb", "F", "C"]
+        else:
+            chords = ["C", "G", "Am", "F"]
 
         # 默认曲式：intro 4 + verse 8 + chorus 16 + outro 4 = 32 小节
         sections = [
@@ -103,7 +118,7 @@ class MockProvider(LLMProvider):
             meter=MeterSpec(numerator=4, denominator=4),
             tonality=TonalitySpec(key=key, mode=mode, scale=scale),
             length=LengthSpec(bars=32),
-            style=["pop"],
+            style=style_tags,
             mood=["calm"] if mode == "minor" else ["bright"],
             form=sections,
             harmony=harmony,

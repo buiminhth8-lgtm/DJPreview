@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from pydantic import BaseModel, Field, ValidationError
 
+from packages.music_core.composer.harmony_progressions import dominant_symbols, tonic_symbol
 from packages.music_core.instruments.registry import is_known_instrument
 from packages.music_core.theory.chords import is_valid_chord_symbol
 from packages.music_core.theory.pitch import is_valid_note_name
@@ -289,6 +290,43 @@ def validate_music_spec_semantics(music_spec: MusicSpec | dict) -> ValidationRes
                         details={"chord": chord},
                     )
                 )
+
+    # T19：终止式与重复进行 warnings（不阻断生成）
+    try:
+        tonic = tonic_symbol(music_spec.tonality.key, music_spec.tonality.mode)
+        dominants = dominant_symbols(music_spec.tonality.key, music_spec.tonality.mode)
+    except ValueError:
+        tonic = None
+        dominants = set()
+    for h in music_spec.harmony:
+        progression = h.progression
+        if len(progression) >= 2:
+            last = progression[-1]
+            prev = progression[-2]
+            if (
+                tonic is not None
+                and h.section in ("chorus", "outro", "副歌", "尾奏")
+                and last != tonic
+                and prev not in dominants
+            ):
+                warnings.append(
+                    ValidationIssue(
+                        code="WEAK_SECTION_CADENCE",
+                        message=f"段落 {h.section} 结尾缺少明确终止式（建议 V/IV → 主和弦）",
+                        path=f"harmony.{h.section}",
+                        details={"section": h.section, "ending": [prev, last]},
+                    )
+                )
+        unique_roots = {c for c in progression}
+        if len(progression) >= 4 and len(unique_roots) < 2:
+            warnings.append(
+                ValidationIssue(
+                    code="REPETITIVE_CHORD_PROGRESSION",
+                    message=f"段落 {h.section} 的和弦进行过于单调（唯一和弦数 {len(unique_roots)}）",
+                    path=f"harmony.{h.section}",
+                    details={"section": h.section, "unique_chords": len(unique_roots)},
+                )
+            )
 
     if not is_valid_note_name(music_spec.tonality.key):
         errors.append(

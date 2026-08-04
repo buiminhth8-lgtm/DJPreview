@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from packages.music_core.composer.harmony_progressions import (
+    apply_chord_colors,
+    cadence_chords,
+    dominant_symbols,
+    tonic_symbol,
+)
 from packages.music_core.theory.chords import chord_symbol_to_pitches
 from packages.music_core.theory.pitch import midi_to_note_name
 from packages.music_core.theory.scales import get_scale_pitches
@@ -46,12 +52,44 @@ def _default_progression(key: str, mode: str) -> list[str]:
     ]
 
 
+def _ends_with_cadence(progression: list[str], key: str, mode: str) -> bool:
+    """粗略判断进行末尾是否已有终止感（主和弦结尾或属和弦倒数第二）。"""
+    if len(progression) < 2:
+        return True  # 短进行（如 intro / outro 单和弦）不强改
+    last = progression[-1]
+    prev = progression[-2]
+    return last == tonic_symbol(key, mode) or prev in dominant_symbols(key, mode)
+
+
+def _section_cadence(
+    section_id: str,
+    key: str,
+    mode: str,
+    progression: list[str],
+) -> list[str] | None:
+    """按段落类型返回末尾两小节的终止式和弦；已有终止感或过短则返回 None。"""
+    if len(progression) < 2 or _ends_with_cadence(progression, key, mode):
+        return None
+    sid = (section_id or "").strip().lower()
+    if sid in ("chorus", "副歌") or sid in ("outro", "尾奏"):
+        return cadence_chords("authentic", key, mode)
+    if sid in ("pre_chorus", "prechorus", "前副歌"):
+        return cadence_chords("half", key, mode)
+    if sid in ("bridge", "桥段"):
+        return cadence_chords("deceptive", key, mode)
+    if sid in ("verse", "主歌"):
+        return cadence_chords("half", key, mode)
+    return None
+
+
 def build_bar_harmony(music_spec: MusicSpec) -> list[BarHarmony]:
     """把 MusicSpec 的和弦进行展开为逐小节 BarHarmony 列表。
 
     规则：
     - 每小节必有和弦；
     - 和弦按 progression 循环填充；
+    - 段落感知终止式（T19）：chorus / outro 结尾 authentic，pre_chorus / verse 结尾 half，
+      bridge 结尾 deceptive；lo-fi 等风格会上色（maj7 / m7 / 7）；
     - 总小节数等于 music_spec.length.bars；
     - section 起止小节来自 music_spec.form；
     - 某个 section 缺少 harmony 时使用按调生成的默认进行。
@@ -61,15 +99,25 @@ def build_bar_harmony(music_spec: MusicSpec) -> list[BarHarmony]:
     for h in music_spec.harmony:
         progression_by_section.setdefault(h.section, list(h.progression))
 
-    default_prog = _default_progression(music_spec.tonality.key, music_spec.tonality.mode)
+    key = music_spec.tonality.key
+    mode = music_spec.tonality.mode
+    style = list(music_spec.style)
+    default_prog = _default_progression(key, mode)
     result: list[BarHarmony] = []
 
     for section in music_spec.form:
         prog = progression_by_section.get(section.id) or default_prog
         if not prog:
             prog = default_prog
-        for bar in range(section.start_bar, section.start_bar + section.bars):
-            symbol = prog[(bar - section.start_bar) % len(prog)]
+        prog = apply_chord_colors(list(prog), style)
+        cadence = _section_cadence(section.id, key, mode, prog)
+        bar_count = section.bars
+        for i in range(bar_count):
+            bar = section.start_bar + i
+            if cadence is not None and i >= bar_count - 2:
+                symbol = cadence[i - (bar_count - 2)]
+            else:
+                symbol = prog[i % len(prog)]
             result.append(
                 BarHarmony(
                     bar_index=bar,

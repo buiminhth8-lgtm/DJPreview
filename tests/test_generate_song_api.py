@@ -39,3 +39,16 @@ def test_empty_prompt_rejected():
 def test_get_missing_song_returns_404():
     resp = client.get("/api/v1/songs/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404
+
+
+def test_generated_harmony_parseable():
+    """T19：MockProvider 生成的 harmony 全部可解析。"""
+    from packages.music_core.theory.chords import is_valid_chord_symbol
+
+    resp = client.post("/api/v1/songs/generate", json={"prompt": "生成一段忧郁空灵的钢琴配乐"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["music_spec"]["harmony"]
+    for section in data["music_spec"]["harmony"]:
+        assert section["progression"]
+        assert all(is_valid_chord_symbol(c) for c in section["progression"])

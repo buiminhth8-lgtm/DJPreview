@@ -66,6 +66,28 @@ def test_melody_analysis_helpers():
     assert 0 <= check_arrangement_quality(build_spec()).score <= 100
 
 
+def test_harmony_analysis_helpers():
+    """T19：轻量和声分析辅助函数可运行且结果有界。"""
+    from packages.music_core.analysis.harmony_analysis import (
+        cadence_score,
+        chord_symbol_validity,
+        harmonic_variety_score,
+        section_tension_curve_detected,
+    )
+
+    progressions = {
+        "verse": ["Dm", "Bb", "Gm", "A"],
+        "pre_chorus": ["Bb", "Gm", "A"],
+        "chorus": ["Dm", "Bb", "F", "C", "A7", "Dm"],
+        "bridge": ["Cm", "A", "G", "Am"],
+        "outro": ["Dm"],
+    }
+    assert chord_symbol_validity(progressions) == 1.0
+    assert 0.0 <= harmonic_variety_score(progressions) <= 1.0
+    assert cadence_score(progressions, "D", "minor") == 1.0
+    assert section_tension_curve_detected(progressions, "D", "minor") is True
+
+
 def test_optimizer_fixes_missing_melody_and_harmony():
     spec = build_spec()
     spec.tracks = [t for t in spec.tracks if t.role not in ("melody", "harmony")]

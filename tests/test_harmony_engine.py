@@ -1,6 +1,7 @@
 """和声引擎测试。"""
 
 from services.api.schemas.music_spec import MusicSpec
+from packages.music_core.theory.chords import is_valid_chord_symbol
 from packages.music_core.harmony.harmony_engine import build_bar_harmony
 
 
@@ -64,3 +65,27 @@ def test_bar_order_and_sections():
     assert harmony[0].section_id == "intro"
     assert harmony[12].section_id == "chorus"
     assert harmony[28].section_id == "outro"
+
+
+def test_section_aware_cadences_applied():
+    """T19：chorus 结尾 authentic（V7→i），verse 结尾 half（iv→V），outro 回 tonic。"""
+    harmony = build_bar_harmony(build_spec())
+    by_section: dict[str, list] = {}
+    for bar in harmony:
+        by_section.setdefault(bar.section_id, []).append(bar)
+
+    chorus = by_section["chorus"]
+    assert chorus[-2].chord_symbol == "A7"  # V7（D minor harmonic dominant）
+    assert chorus[-1].chord_symbol == "Dm"  # i
+
+    verse = by_section["verse"]
+    assert verse[-1].chord_symbol == "A"  # half cadence 落到 V
+
+    outro = by_section["outro"]
+    assert outro[-1].chord_symbol == "Dm"  # 回到 tonic
+
+
+def test_enhanced_harmony_all_parseable():
+    harmony = build_bar_harmony(build_spec())
+    assert all(is_valid_chord_symbol(bar.chord_symbol) for bar in harmony)
+    assert all(len(bar.chord_pitches) >= 3 for bar in harmony)

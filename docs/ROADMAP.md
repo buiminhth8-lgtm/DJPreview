@@ -151,7 +151,7 @@
   `midi_constants.GM_PROGRAMS` 由注册表生成；MockProvider / Style Library 改用 canonical id；
   `spec_validator` 新增 `UNKNOWN_INSTRUMENT_ALIAS` warning；新增 `tests/test_instrument_registry.py`
 
-## T18-T22 音乐质量增强（T18 旋律 ✅，T19-T22 进行中）
+## T18-T22 音乐质量增强（T18 旋律 ✅，T19 和声 ✅，T20-T22 进行中）
 
 - 目标：旋律动机、和声进行/终止式、能量曲线、节奏模板、编曲密度调优
 - 优先级：P2
@@ -161,6 +161,11 @@
   （intro 稀疏 / verse 克制 / pre_chorus 张力 / chorus lift / bridge 对比 / outro 回收）+ 调内量化渲染；
   新增 `composer/melodic_theme.py`、`composer/phrase_builder.py`、`composer/section_planner.py`、
   `analysis/melody_analysis.py`，重写 `melody/melody_engine.py`；确定性与现有 MIDI 输出不受影响
+- T19 已完成：功能和声（Tonic/Predominant/Dominant）+ roman numeral 转换 + authentic/half/plagal/deceptive 终止式 +
+  maj7/m7/7/sus2/sus4/add9/6/dim/m7b5 和弦色彩 + 段落感知和声（verse half / pre_chorus dominant / chorus authentic /
+  bridge deceptive / outro tonic）；`build_bar_harmony` 内置终止式补强；新增
+  `theory/roman_numerals.py`、`composer/harmony_models.py`、`composer/harmony_progressions.py`、
+  `analysis/harmony_analysis.py`；语义校验新增 `WEAK_SECTION_CADENCE` / `REPETITIVE_CHORD_PROGRESSION` warning
 
 ## T23-T25 前端工作台重构 ⬜
 
