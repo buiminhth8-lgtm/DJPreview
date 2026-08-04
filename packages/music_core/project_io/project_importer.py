@@ -12,7 +12,7 @@ from services.api.schemas.music_spec import MusicSpec
 
 
 def _safe_extract_target(projects_root: Path, new_song_id: str, name: str) -> Path:
-    """校验 zip 内路径并返回安全的解压目标（防 zip slip，跨平台兼容）。"""
+    """校验 zip 内路径并返回安全的解压目标（跨平台防 zip slip）。"""
     path = Path(name)
     if path.is_absolute():
         raise ValueError(f"非法绝对路径：{name}")
@@ -44,8 +44,9 @@ def import_project_bundle(bundle_path: Path, projects_root: Path) -> dict:
         if manifest.get("format") != "ai-music-project":
             raise ValueError(f"不支持的工程格式：{manifest.get('format')}")
 
-        for name in names:
-            if name.endswith("/"):
+        for info in zf.infolist():
+            name = info.filename
+            if info.is_dir() or name.endswith("/"):
                 # 目录项：仅创建目录，不写入文件
                 _safe_extract_target(projects_root, new_song_id, name).mkdir(parents=True, exist_ok=True)
                 continue
