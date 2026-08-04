@@ -151,12 +151,16 @@
   `midi_constants.GM_PROGRAMS` 由注册表生成；MockProvider / Style Library 改用 canonical id；
   `spec_validator` 新增 `UNKNOWN_INSTRUMENT_ALIAS` warning；新增 `tests/test_instrument_registry.py`
 
-## T18-T22 音乐质量增强 ⬜
+## T18-T22 音乐质量增强（T18 旋律 ✅，T19-T22 进行中）
 
 - 目标：旋律动机、和声进行/终止式、能量曲线、节奏模板、编曲密度调优
 - 优先级：P2
 - 依赖：T16-T17
 - 验收标准：质量报告平均分提升；可听性主观验收
+- T18 已完成：melodic motif（scale degree 表达）+ question/answer phrase + 段落变奏
+  （intro 稀疏 / verse 克制 / pre_chorus 张力 / chorus lift / bridge 对比 / outro 回收）+ 调内量化渲染；
+  新增 `composer/melodic_theme.py`、`composer/phrase_builder.py`、`composer/section_planner.py`、
+  `analysis/melody_analysis.py`，重写 `melody/melody_engine.py`；确定性与现有 MIDI 输出不受影响
 
 ## T23-T25 前端工作台重构 ⬜
 

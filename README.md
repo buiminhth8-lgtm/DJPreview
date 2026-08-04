@@ -329,10 +329,21 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
 - MockProvider 与内置 Style Template 已改用 canonical 乐器名；未知乐器在语义校验中产生
   `UNKNOWN_INSTRUMENT_ALIAS` **warning**（不阻断生成），MIDI 生成时回退默认音色（program 0）。
 
+## 旋律质量增强（T18）
+
+- 新增 melodic motif（1～2 小节，scale degree 表达，强拍落和弦音）与主题循环 A / A' / B / A''。
+- question / answer phrase：question 结尾落在不稳定度（2/5/7），answer 结尾落在稳定音（1/3/5/和弦音）。
+- 段落变奏：intro 稀疏低音区、verse 克制主题陈述、pre_chorus 上行张力、chorus 音区/力度/密度提升、
+  bridge 轮廓对比变奏、outro 回收主题并以稳定音收尾。
+- 旋律渲染时按 key/mode 量化到调内音（90%+ 调内、强拍优先和弦音），velocity 随段落与拍位变化；
+  使用 `music_spec.seed` 确定性随机，同一 seed 结果可复现。
+- 新增轻量旋律分析辅助（`analysis/melody_analysis.py`）：motif_repetition_score / phrase_balance_score /
+  chorus_lift_detected / outro_theme_recall_detected（不改变 QualityReport 结构）。
+
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（306 passed，2026-08-04 实测）
+后端测试：pytest -q passed（327 passed，2026-08-04 实测）
 前端依赖：npm ci passed
 前端构建：npm run build passed
 ```

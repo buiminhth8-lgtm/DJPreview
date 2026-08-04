@@ -1,5 +1,11 @@
 """质量检查与自动优化测试。"""
 
+from packages.music_core.analysis.melody_analysis import (
+    chorus_lift_detected,
+    motif_repetition_score,
+    outro_theme_recall_detected,
+    phrase_balance_score,
+)
 from packages.music_core.analysis.quality_checker import check_arrangement_quality
 from packages.music_core.optimization.arrangement_optimizer import optimize_arrangement
 from packages.music_core.validation.spec_validator import validate_music_spec
@@ -28,6 +34,35 @@ def test_missing_harmony_produces_warning():
 
 
 def test_score_in_range():
+    assert 0 <= check_arrangement_quality(build_spec()).score <= 100
+
+
+def test_melody_analysis_helpers():
+    """T18：轻量旋律分析辅助函数可运行且结果有界。"""
+    spec = build_spec()
+    from packages.music_core.composer.music_composer import compose_music
+    from packages.music_core.harmony.harmony_engine import build_bar_harmony
+    from packages.music_core.melody.melody_engine import MelodyEngine
+    from packages.music_core.theory.scales import get_scale_pitches
+
+    bar_harmony = build_bar_harmony(spec)
+    notes = MelodyEngine().generate(spec, bar_harmony, channel=0)
+    root = get_scale_pitches(spec.tonality.key, spec.tonality.mode or "major", 4)[0]
+
+    assert 0.0 <= motif_repetition_score(notes) <= 1.0
+    assert 0.0 <= phrase_balance_score(notes, root) <= 1.0
+
+    sections: dict[str, list] = {}
+    for note in notes:
+        bar = int(note.start_beat // 4) + 1
+        for section in spec.form:
+            if section.start_bar <= bar < section.start_bar + section.bars:
+                sections.setdefault(section.id, []).append(note)
+                break
+    if sections.get("verse") and sections.get("chorus"):
+        assert isinstance(chorus_lift_detected(sections["verse"], sections["chorus"]), bool)
+    if sections.get("outro") and sections.get("chorus"):
+        assert isinstance(outro_theme_recall_detected(sections["chorus"], sections["outro"]), bool)
     assert 0 <= check_arrangement_quality(build_spec()).score <= 100
 
 

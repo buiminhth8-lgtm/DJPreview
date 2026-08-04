@@ -1,11 +1,24 @@
-"""主旋律引擎：基于 Motif Engine 生成可复现、有动机感的旋律。"""
+"""主旋律引擎（T18）：motif + question/answer phrase + 段落变奏 + chorus lift + outro recall。"""
 
 from __future__ import annotations
 
 import random
 
 from packages.music_core.composer.events import NoteEvent, beats_per_bar, section_energy
-from packages.music_core.generation.generation_context import GenerationContext
+from packages.music_core.composer.melodic_theme import (
+    MelodicMotif,
+    force_stable_ending,
+    generate_motif,
+    motif_to_note_events,
+    sparsify_motif,
+    variant_motif,
+)
+from packages.music_core.composer.phrase_builder import (
+    build_answer_phrase,
+    build_question_phrase,
+    phrase_to_motif,
+)
+from packages.music_core.composer.section_planner import bar_variant_pattern, melody_profile
 from packages.music_core.harmony.harmony_engine import BarHarmony
 from packages.music_core.theory.scales import get_scale_pitches
 from services.api.schemas.music_spec import MusicSpec
@@ -15,7 +28,7 @@ _MAX_PITCH = 88
 
 
 class MelodyEngine:
-    """按段落生成动机并做 repeat / sequence / intensify / simplify 等变换。"""
+    """按段落生成旋律：主题动机 + 问答句 + 段落轮廓（verse 克制 / chorus 提升 / outro 回收）。"""
 
     def generate(
         self,
@@ -23,9 +36,6 @@ class MelodyEngine:
         bar_harmony: list[BarHarmony],
         channel: int = 0,
     ) -> list[NoteEvent]:
-        # 延迟导入：避免 generation → motif_engine → composer → music_composer → melody_engine 循环
-        from packages.music_core.generation.motif_engine import create_motif, motif_to_note_events, transform_motif
-
         rng = random.Random(music_spec.seed)
         key = music_spec.tonality.key
         mode = music_spec.tonality.mode or "major"
@@ -35,52 +45,66 @@ class MelodyEngine:
         root = scale[0]
         scale_degrees = sorted({p - root for p in scale})
         bpb = beats_per_bar(music_spec)
-        outro_id = music_spec.form[-1].id if music_spec.form else None
 
         sections: dict[str, list[BarHarmony]] = {}
         for bar in bar_harmony:
             sections.setdefault(bar.section_id, []).append(bar)
+        if not sections:
+            return []
+
+        # 主题动机（1 小节）：基于第一小节的音阶与和弦
+        first_bars = next(iter(sections.values()))
+        seed_chord = first_bars[0].chord_pitches or [root, root + 4, root + 7]
+        base_motif = generate_motif(
+            scale,
+            seed_chord,
+            energy=0.6,
+            density=0.55,
+            rng=rng,
+            length_bars=1,
+            beats_per_bar=bpb,
+        )
 
         notes: list[NoteEvent] = []
         for section_id, bars in sections.items():
             energy = section_energy(music_spec, section_id)
-            density = 0.35 + energy * 0.35
-            chord = bars[0].chord_pitches or [root, root + 4, root + 7]
-            motif = create_motif(scale, chord, energy, density, rng)
-            is_outro = section_id == "outro" or section_id == outro_id
-
+            profile = melody_profile(section_id, energy)
+            pattern = bar_variant_pattern(profile["variant"])
             for bar_index, bar in enumerate(bars):
-                transform = self._pick_transform(section_id, energy, is_outro, bar_index, rng)
-                transformed = transform_motif(motif, transform, rng)
-                velocity = int(62 + energy * 36)
-                context = GenerationContext(
-                    start_beat=(bar.bar_index - 1) * bpb,
+                variant = pattern[bar_index % len(pattern)]
+                motif: MelodicMotif
+                if variant in ("answer", "question"):
+                    # 问答句：answer 稳定收束、question 悬而未决（进入 chorus 的张力）
+                    chord_degrees = sorted({p - root for p in (bar.chord_pitches or [root]) if p - root >= 0})
+                    if variant == "question":
+                        phrase = build_question_phrase(scale_degrees, chord_degrees, rng, float(bpb))
+                    else:
+                        phrase = build_answer_phrase(scale_degrees, chord_degrees, rng, float(bpb))
+                    motif = phrase_to_motif(phrase, float(bpb))
+                else:
+                    motif = variant_motif(base_motif, variant, rng)
+                    if profile.get("sparse"):
+                        motif = sparsify_motif(motif, rng, keep_ratio=0.55)
+
+                start_beat = (bar.bar_index - 1) * bpb
+                events = motif_to_note_events(
+                    motif,
+                    start_beat=start_beat,
                     root_pitch=root,
-                    velocity=velocity,
+                    scale_degrees=scale_degrees,
+                    velocity_base=profile["velocity_base"],
                     channel=channel,
                     pitch_min=_MIN_PITCH,
                     pitch_max=_MAX_PITCH,
-                    scale_degrees=scale_degrees,
+                    pitch_shift=profile["pitch_shift"],
                 )
-                notes.extend(motif_to_note_events(transformed, context))
+                if profile.get("end_stable") and bar_index == len(bars) - 1:
+                    events = force_stable_ending(
+                        events,
+                        start_beat + bpb,
+                        bar.chord_pitches or [root],
+                        root,
+                        channel,
+                    )
+                notes.extend(events)
         return notes
-
-    @staticmethod
-    def _pick_transform(
-        section_id: str,
-        energy: float,
-        is_outro: bool,
-        bar_index: int,
-        rng: random.Random,
-    ) -> str:
-        if is_outro:
-            choices = ["simplify", "repeat", "simplify", "rhythm_variation"]
-        elif section_id == "chorus" or energy >= 0.7:
-            choices = ["intensify", "sequence_up", "intensify", "rhythm_variation"]
-        elif section_id == "verse":
-            choices = ["repeat", "ornament", "repeat", "rhythm_variation"]
-        else:
-            choices = ["repeat", "simplify", "repeat", "ornament"]
-        if bar_index < len(choices):
-            return choices[bar_index]
-        return rng.choice(choices)

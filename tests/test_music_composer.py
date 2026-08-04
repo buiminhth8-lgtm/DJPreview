@@ -45,3 +45,23 @@ def test_different_seed_may_differ():
     melody1 = _flatten(r1).get("melody", [])
     melody2 = _flatten(r2).get("melody", [])
     assert melody1 != melody2
+
+
+def test_melody_notes_valid_and_reasonable_count():
+    """T18：旋律音符数量合理、无负 duration / 越界 pitch / 非法 velocity。"""
+    result = compose_music(build_spec())
+    melody = next(t for t in result.tracks if t.role == "melody")
+    assert 16 <= len(melody.notes) <= 256
+    assert all(n.duration_beats > 0 for n in melody.notes)
+    assert all(n.start_beat >= 0 for n in melody.notes)
+    assert all(0 <= n.pitch <= 127 for n in melody.notes)
+    assert all(1 <= n.velocity <= 127 for n in melody.notes)
+
+
+def test_composer_keeps_bass_drums_and_harmony():
+    """T18：旋律增强不破坏 bass / drums / harmony。"""
+    result = compose_music(build_spec())
+    by_role = {t.role: t for t in result.tracks}
+    for role in ("bass", "drums", "harmony"):
+        assert by_role[role].notes
+        assert all(n.duration_beats > 0 for n in by_role[role].notes)
