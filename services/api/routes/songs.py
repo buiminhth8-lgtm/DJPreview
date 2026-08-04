@@ -1,10 +1,12 @@
-"""歌曲生成、查询、MIDI、音频渲染、版本管理、混音、分析与导出 API。"""
+"""歌曲生成、查询、MIDI、音频、版本、混音、分析、风格、参考、工程与评估 API。"""
 
 import logging
+import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
 from packages.llm.factory import get_llm_provider
@@ -14,6 +16,9 @@ from packages.music_core.analysis.quality_checker import QualityReport, check_ar
 from packages.music_core.composer.music_composer import compose_music
 from packages.music_core.editing.diff import diff_music_specs
 from packages.music_core.editing.edit_engine import apply_music_edit
+from packages.music_core.evaluation.eval_fixtures import get_eval_cases
+from packages.music_core.evaluation.eval_models import EvalReport
+from packages.music_core.evaluation.eval_runner import run_generation_eval
 from packages.music_core.midi.midi_writer import write_midi
 from packages.music_core.mix.mix_engine import (
     apply_mix_to_composition,
@@ -24,6 +29,16 @@ from packages.music_core.mix.mix_engine import (
 from packages.music_core.mix.mix_models import MixSpec
 from packages.music_core.optimization.arrangement_optimizer import optimize_arrangement
 from packages.music_core.planner.music_planner import generate_music_spec_from_prompt
+from packages.music_core.project_io.project_bundle import export_project_bundle
+from packages.music_core.project_io.project_importer import import_project_bundle
+from packages.music_core.reference.reference_analyzer import analyze_reference_midi
+from packages.music_core.reference.reference_models import ReferenceMidiAnalysis
+from packages.music_core.reference.reference_to_spec import build_music_spec_from_reference
+from packages.music_core.regeneration.regeneration_engine import regenerate_music_spec
+from packages.music_core.regeneration.regeneration_models import RegenerationRequest, RegenerationResult
+from packages.music_core.styles.style_applier import apply_style_template_to_music_spec
+from packages.music_core.styles.style_library import get_style_template, list_style_templates
+from packages.music_core.styles.style_models import StyleTemplateSpec
 from packages.renderer.factory import get_audio_renderer
 from packages.renderer.stem_renderer import export_stems as export_stems_impl
 from services.api.dependencies.config import get_settings
@@ -34,6 +49,8 @@ from services.api.schemas.api_models import (
     AudioMetadata,
     EditSongRequest,
     EditSongResponse,
+    EvalRunRequest,
+    GenerateFromReferenceResponse,
     GenerateMidiResponse,
     GenerateSongRequest,
     GenerateSongResponse,
@@ -48,6 +65,7 @@ from services.api.schemas.api_models import (
     MixUpdateResponse,
     OptimizeRequest,
     OptimizeResponse,
+    ProjectImportResponse,
     RenderAudioResponse,
     RestoreVersionResponse,
     StemExportResponse,
@@ -65,12 +83,9 @@ from services.api.storage.project_store import (
     get_current_version,
     get_midi_path,
     get_mix_spec,
-    get_mix_spec_path,
-    get_optimize_report_path,
     get_project,
     get_project_dir,
     get_quality_report as get_quality_report_store,
-    get_quality_report_path,
     get_stems_dir,
     get_stems_zip_path,
     get_version,
@@ -89,6 +104,8 @@ from services.api.storage.project_store import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+_MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10MB
 
 
 def _project_dir_for(song_id: str) -> Path:
@@ -162,7 +179,7 @@ def _render_audio_for(song_id: str) -> RenderAudioResponse:
 
 
 def _regenerate_audio_for(song_id: str) -> None:
-    """版本修改/恢复后重新生成 MIDI 与 WAV（不应用混音）。"""
+    """版本修改/恢复/重生成后重新生成 MIDI 与 WAV（不应用混音）。"""
     _generate_midi_for(song_id)
     try:
         _render_audio_for(song_id)
@@ -229,27 +246,51 @@ def _load_or_create_mix(song_id: str) -> tuple[MixSpec, str | None]:
     return mix, version_id
 
 
+def _save_upload(file: UploadFile, suffixes: tuple[str, ...]) -> str:
+    """校验上传文件并保存到临时目录，返回临时路径。"""
+    name = file.filename or ""
+    if not name.lower().endswith(suffixes):
+        raise HTTPException(status_code=400, detail=f"仅支持 {suffixes} 文件")
+    data = file.file.read()
+    if len(data) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="文件超过大小限制（10MB）")
+    suffix = Path(name).suffix or suffixes[0]
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+    return path
+
+
 @router.get("/health", response_model=HealthResponse, summary="健康检查")
 def health() -> HealthResponse:
     return HealthResponse(status="ok")
 
 
-@router.post("/songs/generate", response_model=GenerateSongResponse, summary="生成音乐方案")
+# ---------- 生成 ----------
+
+@router.post("/songs/generate", response_model=GenerateSongResponse, summary="生成音乐方案（支持风格模板）")
 def generate_song(req: GenerateSongRequest) -> GenerateSongResponse:
     try:
         spec = generate_music_spec_from_prompt(req.prompt)
+        style_template = None
+        if req.style_template_id:
+            style_template = get_style_template(req.style_template_id)
+            spec = apply_style_template_to_music_spec(spec, style_template, req.style_strength)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"生成失败：{exc}") from None
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=f"LLM 服务错误：{exc}") from None
     song_id = create_project(spec)
-    return GenerateSongResponse(song_id=song_id, music_spec=spec)
+    return GenerateSongResponse(song_id=song_id, music_spec=spec, style_template=style_template)
 
 
 @router.post("/songs/generate-with-midi", response_model=GenerateWithMidiResponse, summary="一步生成 MusicSpec + MIDI")
 def generate_song_with_midi(req: GenerateSongRequest) -> GenerateWithMidiResponse:
     try:
         spec = generate_music_spec_from_prompt(req.prompt)
+        if req.style_template_id:
+            template = get_style_template(req.style_template_id)
+            spec = apply_style_template_to_music_spec(spec, template, req.style_strength)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"生成失败：{exc}") from None
     except RuntimeError as exc:
@@ -267,6 +308,9 @@ def generate_song_with_midi(req: GenerateSongRequest) -> GenerateWithMidiRespons
 def generate_song_with_audio(req: GenerateSongRequest) -> GenerateWithAudioResponse:
     try:
         spec = generate_music_spec_from_prompt(req.prompt)
+        if req.style_template_id:
+            template = get_style_template(req.style_template_id)
+            spec = apply_style_template_to_music_spec(spec, template, req.style_strength)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"生成失败：{exc}") from None
     except RuntimeError as exc:
@@ -282,6 +326,36 @@ def generate_song_with_audio(req: GenerateSongRequest) -> GenerateWithAudioRespo
     )
 
 
+@router.post("/songs/generate-from-reference", response_model=GenerateFromReferenceResponse, summary="基于参考 MIDI 高层特征生成")
+async def generate_from_reference(
+    file: UploadFile = File(...),
+    prompt: str = Form(...),
+    style_template_id: str | None = Form(default=None),
+    style_strength: float = Form(default=0.7),
+) -> GenerateFromReferenceResponse:
+    temp_path = _save_upload(file, (".mid", ".midi"))
+    try:
+        analysis = analyze_reference_midi(Path(temp_path))
+        # 先应用风格模板补齐轨道/风格，再融合参考特征（参考 tempo/长度/能量优先）
+        base = generate_music_spec_from_prompt(prompt)
+        style_template = None
+        if style_template_id:
+            style_template = get_style_template(style_template_id)
+            base = apply_style_template_to_music_spec(base, style_template, style_strength)
+        spec = build_music_spec_from_reference(prompt, analysis, base_spec=base)
+        song_id = create_project(spec)
+        return GenerateFromReferenceResponse(
+            song_id=song_id,
+            music_spec=spec,
+            reference_analysis=analysis,
+            style_template=style_template,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"生成失败：{exc}") from None
+    finally:
+        os.unlink(temp_path)
+
+
 @router.get("/songs/{song_id}", response_model=GetSongResponse, summary="获取音乐方案")
 def get_song(song_id: str) -> GetSongResponse:
     try:
@@ -292,6 +366,8 @@ def get_song(song_id: str) -> GetSongResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     return GetSongResponse(song_id=song_id, music_spec=spec)
 
+
+# ---------- MIDI ----------
 
 @router.post("/songs/{song_id}/midi/generate", response_model=GenerateMidiResponse, summary="根据 MusicSpec 生成 MIDI")
 def generate_midi(song_id: str) -> GenerateMidiResponse:
@@ -318,10 +394,12 @@ def download_midi(song_id: str) -> FileResponse:
     return FileResponse(midi_path, media_type="audio/midi", filename=f"{song_id}.mid")
 
 
+# ---------- 音频 ----------
+
 @router.post("/songs/{song_id}/audio/render", response_model=RenderAudioResponse, summary="渲染 WAV 音频")
 def render_audio(song_id: str) -> RenderAudioResponse:
     try:
-        get_project(song_id)  # 项目不存在 → 404
+        get_project(song_id)
         return _render_audio_for(song_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
@@ -336,10 +414,7 @@ def stream_audio(song_id: str) -> FileResponse:
     try:
         wav_path = get_wav_path(song_id)
     except FileNotFoundError as exc:
-        raise HTTPException(
-            status_code=404,
-            detail=f"{exc}，请先调用 POST /api/v1/songs/{song_id}/audio/render",
-        ) from None
+        raise HTTPException(status_code=404, detail=f"{exc}，请先调用 POST /api/v1/songs/{song_id}/audio/render") from None
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     return FileResponse(wav_path, media_type="audio/wav")
@@ -350,10 +425,7 @@ def download_audio(song_id: str) -> FileResponse:
     try:
         wav_path = get_wav_path(song_id)
     except FileNotFoundError as exc:
-        raise HTTPException(
-            status_code=404,
-            detail=f"{exc}，请先调用 POST /api/v1/songs/{song_id}/audio/render",
-        ) from None
+        raise HTTPException(status_code=404, detail=f"{exc}，请先调用 POST /api/v1/songs/{song_id}/audio/render") from None
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     return FileResponse(wav_path, media_type="audio/wav", filename=f"{song_id}.wav")
@@ -367,9 +439,11 @@ def get_assets(song_id: str) -> AssetsResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     if not (project_dir / "music_spec.json").exists():
         raise HTTPException(status_code=404, detail=f"项目不存在：{song_id}")
-    init_version_if_needed(song_id)  # 旧项目自动初始化 v1
+    init_version_if_needed(song_id)
     return _assets_response(song_id)
 
+
+# ---------- 编辑与版本 ----------
 
 @router.post("/songs/{song_id}/edit", response_model=EditSongResponse, summary="自然语言修改音乐")
 def edit_song(song_id: str, req: EditSongRequest) -> EditSongResponse:
@@ -379,12 +453,7 @@ def edit_song(song_id: str, req: EditSongRequest) -> EditSongResponse:
         edit_spec = provider.generate_music_edit(req.instruction, spec)
         new_spec = apply_music_edit(spec, edit_spec)
         diff = diff_music_specs(spec, new_spec)
-        version = create_version(
-            song_id,
-            new_spec,
-            req.instruction,
-            edit_spec.model_dump(mode="json"),
-        )
+        version = create_version(song_id, new_spec, req.instruction, edit_spec.model_dump(mode="json"))
         _regenerate_audio_for(song_id)
         return EditSongResponse(
             song_id=song_id,
@@ -437,7 +506,7 @@ def restore_version_route(song_id: str, version_id: str) -> RestoreVersionRespon
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
 
-# ---------- 第五阶段：混音 ----------
+# ---------- 混音 ----------
 
 @router.get("/songs/{song_id}/mix", response_model=MixResponse, summary="获取 MixSpec")
 def get_mix(song_id: str) -> MixResponse:
@@ -481,19 +550,14 @@ def apply_mix(song_id: str) -> ApplyMixResponse:
         get_project(song_id)
         mix, _ = _load_or_create_mix(song_id)
         warnings = _regenerate_with_mix(song_id, mix)
-        return ApplyMixResponse(
-            song_id=song_id,
-            mix_spec=mix,
-            assets=_assets_response(song_id),
-            warnings=warnings,
-        )
+        return ApplyMixResponse(song_id=song_id, mix_spec=mix, assets=_assets_response(song_id), warnings=warnings)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
 
-# ---------- 第五阶段：Piano Roll / 质量 / 优化 / stems ----------
+# ---------- Piano Roll / 质量 / 优化 / stems ----------
 
 @router.get("/songs/{song_id}/piano-roll", summary="获取钢琴卷帘数据")
 def get_piano_roll(
@@ -534,7 +598,7 @@ def get_quality_report(song_id: str) -> QualityReport:
         saved = get_quality_report_store(song_id)
         if saved is not None:
             return QualityReport.model_validate(saved)
-        return check_quality(song_id)  # 未生成过则自动生成
+        return check_quality(song_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
     except ValueError as exc:
@@ -641,3 +705,98 @@ def download_stem(song_id: str, track_id: str, kind: str) -> FileResponse:
         raise HTTPException(status_code=404, detail=str(exc)) from None
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+# ---------- 第六阶段：风格 / 参考 / 重生成 / 工程 / 评估 ----------
+
+@router.get("/styles", summary="获取全部风格模板")
+def get_styles() -> list[StyleTemplateSpec]:
+    return list_style_templates()
+
+
+@router.get("/styles/{style_template_id}", response_model=StyleTemplateSpec, summary="获取指定风格模板")
+def get_style(style_template_id: str) -> StyleTemplateSpec:
+    try:
+        return get_style_template(style_template_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+
+
+@router.post("/reference/analyze", response_model=ReferenceMidiAnalysis, summary="分析参考 MIDI")
+async def analyze_reference(file: UploadFile = File(...)) -> ReferenceMidiAnalysis:
+    temp_path = _save_upload(file, (".mid", ".midi"))
+    try:
+        return analyze_reference_midi(Path(temp_path))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=f"参考 MIDI 解析失败：{exc}") from None
+    finally:
+        os.unlink(temp_path)
+
+
+@router.post("/songs/{song_id}/regenerate", response_model=RegenerationResult, summary="局部重生成")
+def regenerate_song(song_id: str, req: RegenerationRequest) -> RegenerationResult:
+    try:
+        spec = get_project(song_id)
+        parent = get_current_version(song_id)
+        parent_id = parent["version_id"] if parent else ""
+        new_spec, report = regenerate_music_spec(spec, req)
+        version = create_version(song_id, new_spec, req.instruction or f"局部重生成（{req.scope}）", None)
+        _regenerate_audio_for(song_id)
+        return RegenerationResult(
+            song_id=song_id,
+            version_id=version["version_id"],
+            parent_version_id=parent_id,
+            music_spec=new_spec,
+            changed_targets=report["changes"],
+            warnings=report["warnings"],
+            assets=_assets_response(song_id).model_dump(mode="json"),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"重生成失败：{exc}") from None
+
+
+@router.get("/songs/{song_id}/project/export", summary="导出工程 .aimusic.zip")
+def export_project(song_id: str) -> FileResponse:
+    try:
+        project_dir = get_project_dir(song_id)
+        if not (project_dir / "music_spec.json").exists():
+            raise FileNotFoundError(f"项目不存在：{song_id}")
+        output_dir = get_settings().projects_dir / "exports"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output = export_project_bundle(song_id, project_dir, output_dir / f"{song_id}.aimusic.zip")
+        return FileResponse(output, media_type="application/zip", filename=f"{song_id}.aimusic.zip")
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@router.post("/projects/import", response_model=ProjectImportResponse, summary="导入工程 .aimusic.zip")
+async def import_project(file: UploadFile = File(...)) -> ProjectImportResponse:
+    if not (file.filename or "").lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="仅支持 .aimusic.zip 文件")
+    temp_path = _save_upload(file, (".zip",))
+    try:
+        result = import_project_bundle(Path(temp_path), get_settings().projects_dir)
+        return ProjectImportResponse(song_id=result["song_id"], imported=True, summary=result["summary"])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"导入失败：{exc}") from None
+    finally:
+        os.unlink(temp_path)
+
+
+@router.get("/evaluation/cases", summary="获取内置评估用例")
+def eval_cases():
+    return get_eval_cases()
+
+
+@router.post("/evaluation/run", response_model=EvalReport, summary="运行批量评估")
+def eval_run(req: EvalRunRequest) -> EvalReport:
+    cases = get_eval_cases()
+    if req.case_ids:
+        cases = [c for c in cases if c.id in req.case_ids]
+    if not cases:
+        raise HTTPException(status_code=400, detail="未选择有效的评估用例")
+    return run_generation_eval(cases, render_audio=req.render_audio)

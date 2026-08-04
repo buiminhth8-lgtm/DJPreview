@@ -2,15 +2,21 @@
 
 from pydantic import BaseModel, Field, field_validator
 
+from packages.music_core.evaluation.eval_models import EvalReport
 from packages.music_core.mix.mix_models import MixSpec
+from packages.music_core.reference.reference_models import ReferenceMidiAnalysis
+from packages.music_core.regeneration.regeneration_models import RegenerationRequest, RegenerationResult
+from packages.music_core.styles.style_models import StyleTemplateSpec
 from services.api.schemas.music_edit_spec import MusicEditSpec
 from services.api.schemas.music_spec import MusicSpec
 
 
 class GenerateSongRequest(BaseModel):
-    """POST /api/v1/songs/generate 请求体。"""
+    """POST /api/v1/songs/generate 请求体（兼容无风格模板的旧请求）。"""
 
     prompt: str = Field(min_length=1, description="自然语言音乐描述")
+    style_template_id: str | None = Field(default=None, description="可选风格模板 id")
+    style_strength: float = Field(default=0.7, ge=0.0, le=1.0, description="风格影响强度")
 
     @field_validator("prompt")
     @classmethod
@@ -24,6 +30,7 @@ class GenerateSongRequest(BaseModel):
 class GenerateSongResponse(BaseModel):
     song_id: str
     music_spec: MusicSpec
+    style_template: StyleTemplateSpec | None = None
 
 
 class GetSongResponse(BaseModel):
@@ -217,3 +224,31 @@ class StemExportResponse(BaseModel):
     stems: list[StemInfo]
     zip_download_url: str
     warnings: list[str]
+
+
+# ---------- 第六阶段：风格 / 参考 / 重生成 / 工程 / 评估 ----------
+
+class GenerateFromReferenceResponse(BaseModel):
+    song_id: str
+    music_spec: MusicSpec
+    reference_analysis: ReferenceMidiAnalysis
+    style_template: StyleTemplateSpec | None = None
+
+
+class EvalRunRequest(BaseModel):
+    case_ids: list[str] = Field(default_factory=list)
+    render_audio: bool = False
+
+
+class ProjectImportResponse(BaseModel):
+    song_id: str
+    imported: bool
+    summary: dict
+
+
+# 复用外部模型
+RegenerationRequest = RegenerationRequest
+RegenerationResult = RegenerationResult
+ReferenceMidiAnalysis = ReferenceMidiAnalysis
+EvalReport = EvalReport
+StyleTemplateSpec = StyleTemplateSpec

@@ -12,3 +12,6 @@ python-rtmidi
 
 # 音频渲染（第三阶段）
 numpy
+
+# 文件上传（第六阶段）
+python-multipart

@@ -432,6 +432,56 @@ select {
   margin-top: 12px;
 }
 
+/* ---- 第六阶段 ---- */
+.style-panel,
+.reference-panel,
+.regeneration-panel,
+.project-io-panel,
+.evaluation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.style-detail {
+  background: #0d1119;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.style-detail p {
+  margin: 4px 0;
+}
+
+.reference-summary {
+  margin: 6px 0;
+}
+
+.eval-case-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.eval-case-item {
+  background: #0d1119;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.eval-result {
+  background: #0d1119;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
 pre {
   background: #0d1119;
   border: 1px solid var(--border);

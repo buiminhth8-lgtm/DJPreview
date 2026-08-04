@@ -3,6 +3,7 @@ import {
   editSong,
   generateMidi,
   generateMusicSpec,
+  getSong,
   getVersions,
   renderAudio,
   resolveUrl,
@@ -10,16 +11,23 @@ import {
   type AudioMetadata,
   type DiffItem,
   type EditSongResponse,
+  type GenerateFromReferenceResponse,
   type GenerateMidiResponse,
   type MusicSpec,
   type OptimizeResponse,
+  type RegenerationResult,
   type RenderAudioResponse,
   type VersionInfo,
 } from "./api/musicApi";
 import ArrangementInspector from "./components/ArrangementInspector";
 import AudioPlayer from "./components/AudioPlayer";
+import EvaluationPanel from "./components/EvaluationPanel";
 import MixerPanel from "./components/MixerPanel";
+import ProjectIOPanel from "./components/ProjectIOPanel";
+import ReferenceMidiPanel from "./components/ReferenceMidiPanel";
+import RegenerationPanel from "./components/RegenerationPanel";
 import StemExportPanel from "./components/StemExportPanel";
+import StyleTemplatePanel from "./components/StyleTemplatePanel";
 
 function audioResultFromAssets(
   songId: string,
@@ -56,6 +64,8 @@ function formatDiff(diff: DiffItem[]): string {
 
 export default function App() {
   const [prompt, setPrompt] = useState("");
+  const [styleId, setStyleId] = useState("");
+  const [styleStrength, setStyleStrength] = useState(0.7);
   const [loadingSpec, setLoadingSpec] = useState(false);
   const [loadingMidi, setLoadingMidi] = useState(false);
   const [loadingAudio, setLoadingAudio] = useState(false);
@@ -92,6 +102,14 @@ export default function App() {
     setCurrentVersionId(result.current_version_id);
   };
 
+  const resetDerived = () => {
+    setMidiResult(null);
+    setAudioResult(null);
+    setAudioStreamUrl(null);
+    setVersions(null);
+    setLastDiff(null);
+  };
+
   const handleGenerateSpec = async () => {
     if (!prompt.trim()) {
       setError("请输入音乐描述");
@@ -99,13 +117,9 @@ export default function App() {
     }
     setLoadingSpec(true);
     setError(null);
-    setMidiResult(null);
-    setAudioResult(null);
-    setAudioStreamUrl(null);
-    setVersions(null);
-    setLastDiff(null);
+    resetDerived();
     try {
-      const result = await generateMusicSpec(prompt.trim());
+      const result = await generateMusicSpec(prompt.trim(), styleId || null, styleStrength);
       setSongId(result.song_id);
       setMusicSpec(result.music_spec);
     } catch (e) {
@@ -113,6 +127,22 @@ export default function App() {
     } finally {
       setLoadingSpec(false);
     }
+  };
+
+  const loadSong = async (newSongId: string) => {
+    const result = await getSong(newSongId);
+    setSongId(newSongId);
+    setMusicSpec(result.music_spec);
+    resetDerived();
+    setPianoRefreshKey((k) => k + 1);
+  };
+
+  const handleGenerateFromReference = async (result: GenerateFromReferenceResponse) => {
+    await loadSong(result.song_id);
+  };
+
+  const handleImported = async (newSongId: string) => {
+    await loadSong(newSongId);
   };
 
   const handleGenerateMidi = async () => {
@@ -206,6 +236,13 @@ export default function App() {
     setPianoRefreshKey((k) => k + 1);
   };
 
+  const handleRegenerated = async (result: RegenerationResult) => {
+    setMusicSpec(result.music_spec);
+    refreshAudioFromAssets(songId ?? "", result.assets);
+    await refreshVersions();
+    setPianoRefreshKey((k) => k + 1);
+  };
+
   const midiDownloadUrl = midiResult ? resolveUrl(midiResult.download_url) : null;
 
   return (
@@ -213,7 +250,7 @@ export default function App() {
       <header>
         <h1>AI Music MVP</h1>
         <p className="subtitle">
-          生成 MusicSpec → MIDI → WAV → 修改/版本 → 混音/可视化/质量/导出
+          生成 → MIDI → WAV → 修改/版本 → 混音/可视化/质量 → 风格/参考/重生成/评估
         </p>
       </header>
 
@@ -224,6 +261,15 @@ export default function App() {
           placeholder="例如：生成一段忧郁空灵的钢琴配乐，72 BPM，D 小调"
           rows={4}
           disabled={loadingSpec}
+        />
+        <StyleTemplatePanel
+          value={styleId}
+          strength={styleStrength}
+          onChange={(id, strength) => {
+            setStyleId(id);
+            setStyleStrength(strength);
+          }}
+          onError={(msg) => setError(msg)}
         />
         <div className="actions">
           <button onClick={handleGenerateSpec} disabled={loadingSpec}>
@@ -370,6 +416,48 @@ export default function App() {
               <h2>分轨导出</h2>
             </summary>
             <StemExportPanel songId={songId} onError={(msg) => setError(msg)} />
+          </details>
+
+          <details className="panel result">
+            <summary>
+              <h2>局部重生成</h2>
+            </summary>
+            <RegenerationPanel
+              songId={songId}
+              spec={musicSpec}
+              onRegenerated={handleRegenerated}
+              onError={(msg) => setError(msg)}
+            />
+          </details>
+
+          <details className="panel result">
+            <summary>
+              <h2>参考 MIDI 分析与生成</h2>
+            </summary>
+            <ReferenceMidiPanel
+              styleTemplateId={styleId || null}
+              styleStrength={styleStrength}
+              onGenerated={handleGenerateFromReference}
+              onError={(msg) => setError(msg)}
+            />
+          </details>
+
+          <details className="panel result">
+            <summary>
+              <h2>工程导入导出</h2>
+            </summary>
+            <ProjectIOPanel
+              songId={songId}
+              onImported={handleImported}
+              onError={(msg) => setError(msg)}
+            />
+          </details>
+
+          <details className="panel result">
+            <summary>
+              <h2>批量评估</h2>
+            </summary>
+            <EvaluationPanel onError={(msg) => setError(msg)} />
           </details>
         </>
       )}

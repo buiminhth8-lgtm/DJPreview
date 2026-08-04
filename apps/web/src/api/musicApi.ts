@@ -62,6 +62,7 @@ export interface MusicSpec {
 export interface GenerateSongResponse {
   song_id: string;
   music_spec: MusicSpec;
+  style_template: StyleTemplateSpec | null;
 }
 
 export interface MidiSummary {
@@ -151,8 +152,6 @@ export interface RestoreVersionResponse {
   music_spec: MusicSpec;
   assets: AssetsResponse;
 }
-
-// ---------- 第五阶段 ----------
 
 export interface TrackMixSpec {
   track_id: string;
@@ -256,6 +255,112 @@ export interface StemExportResponse {
   warnings: string[];
 }
 
+// ---------- 第六阶段 ----------
+
+export interface StyleTemplateSpec {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+  default_tempo: number | null;
+  tempo_range: [number, number] | null;
+  preferred_keys: string[];
+  preferred_modes: string[];
+  preferred_scales: string[];
+  default_meter: string;
+  default_length_bars: number;
+  default_form: Array<Record<string, unknown>>;
+  default_tracks: Array<Record<string, unknown>>;
+  harmony_presets: string[][];
+  rhythm_presets: string[];
+  melody_profile: Record<string, unknown>;
+  arrangement_curve: Record<string, unknown>;
+  mix_hints: Record<string, unknown> | null;
+  notes: string | null;
+}
+
+export interface ReferenceMidiAnalysis {
+  file_name: string;
+  ticks_per_beat: number;
+  bpm: number | null;
+  estimated_bars: number;
+  track_count: number;
+  note_count: number;
+  pitch_range: { min: number | null; max: number | null };
+  density: { notes_per_bar: number; avg_velocity: number; max_velocity: number };
+  rhythm_profile: { has_drums: boolean; avg_duration_beats: number };
+  energy_curve: Array<{ segment_index: number; start_bar: number; note_count: number; energy: number }>;
+  track_summaries: Array<Record<string, unknown>>;
+  possible_roles: string[];
+  suggested_style_tags: string[];
+  suggested_tempo_range: [number, number] | null;
+  suggested_tracks: Array<{ role: string; instrument: string }>;
+  warnings: string[];
+}
+
+export interface GenerateFromReferenceResponse {
+  song_id: string;
+  music_spec: MusicSpec;
+  reference_analysis: ReferenceMidiAnalysis;
+  style_template: StyleTemplateSpec | null;
+}
+
+export interface RegenerationRequest {
+  scope: "section" | "track" | "section_track" | "overall";
+  section_id?: string | null;
+  track_id?: string | null;
+  instruction?: string | null;
+  keep_harmony: boolean;
+  keep_melody: boolean;
+  keep_rhythm: boolean;
+  variation_strength: number;
+  seed_offset: number;
+  auto_render: boolean;
+}
+
+export interface RegenerationResult {
+  song_id: string;
+  version_id: string;
+  parent_version_id: string;
+  music_spec: MusicSpec;
+  changed_targets: Array<Record<string, unknown>>;
+  warnings: string[];
+  assets: AssetsResponse;
+}
+
+export interface EvalCase {
+  id: string;
+  prompt: string;
+  style_template_id: string | null;
+  expected_traits: Record<string, unknown>;
+  notes: string | null;
+}
+
+export interface EvalResult {
+  case_id: string;
+  song_id: string | null;
+  score: number;
+  quality_score: number;
+  trait_matches: Record<string, boolean>;
+  warnings: string[];
+  errors: string[];
+}
+
+export interface EvalReport {
+  created_at: string;
+  total_cases: number;
+  passed_cases: number;
+  average_score: number;
+  results: EvalResult[];
+  summary: string;
+}
+
+export interface ProjectImportResponse {
+  song_id: string;
+  imported: boolean;
+  summary: Record<string, unknown>;
+}
+
 // 后端 API 地址可通过 VITE_API_BASE_URL 环境变量配置，默认 http://localhost:8000
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -285,8 +390,30 @@ async function requestJson<T>(url: string, method: string, payload?: unknown): P
   return (await response.json()) as T;
 }
 
-export function generateMusicSpec(prompt: string): Promise<GenerateSongResponse> {
-  return requestJson("/api/v1/songs/generate", "POST", { prompt });
+async function requestForm<T>(url: string, form: FormData): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) {
+    return handleError(response);
+  }
+  return (await response.json()) as T;
+}
+
+export function generateMusicSpec(
+  prompt: string,
+  styleTemplateId?: string | null,
+  styleStrength = 0.7,
+): Promise<GenerateSongResponse> {
+  return requestJson("/api/v1/songs/generate", "POST", {
+    prompt,
+    ...(styleTemplateId ? { style_template_id: styleTemplateId, style_strength: styleStrength } : {}),
+  });
+}
+
+export function getSong(songId: string): Promise<{ song_id: string; music_spec: MusicSpec }> {
+  return requestJson(`/api/v1/songs/${songId}`, "GET");
 }
 
 export function generateMidi(songId: string): Promise<GenerateMidiResponse> {
@@ -349,6 +476,60 @@ export function optimizeArrangement(songId: string, autoRender = true): Promise<
 
 export function exportStems(songId: string): Promise<StemExportResponse> {
   return requestJson(`/api/v1/songs/${songId}/stems/export`, "POST");
+}
+
+// ---------- 第六阶段 API ----------
+
+export function listStyles(): Promise<StyleTemplateSpec[]> {
+  return requestJson("/api/v1/styles", "GET");
+}
+
+export function getStyle(id: string): Promise<StyleTemplateSpec> {
+  return requestJson(`/api/v1/styles/${id}`, "GET");
+}
+
+export function analyzeReferenceMidi(file: File): Promise<ReferenceMidiAnalysis> {
+  const form = new FormData();
+  form.append("file", file);
+  return requestForm("/api/v1/reference/analyze", form);
+}
+
+export function generateFromReference(
+  file: File,
+  prompt: string,
+  styleTemplateId?: string | null,
+  styleStrength = 0.7,
+): Promise<GenerateFromReferenceResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("prompt", prompt);
+  if (styleTemplateId) {
+    form.append("style_template_id", styleTemplateId);
+    form.append("style_strength", String(styleStrength));
+  }
+  return requestForm("/api/v1/songs/generate-from-reference", form);
+}
+
+export function regenerateSong(songId: string, request: RegenerationRequest): Promise<RegenerationResult> {
+  return requestJson(`/api/v1/songs/${songId}/regenerate`, "POST", request);
+}
+
+export function exportProjectUrl(songId: string): string {
+  return `${API_BASE_URL}/api/v1/songs/${songId}/project/export`;
+}
+
+export function importProject(file: File): Promise<ProjectImportResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  return requestForm("/api/v1/projects/import", form);
+}
+
+export function listEvalCases(): Promise<EvalCase[]> {
+  return requestJson("/api/v1/evaluation/cases", "GET");
+}
+
+export function runEvaluation(caseIds: string[], renderAudio = false): Promise<EvalReport> {
+  return requestJson("/api/v1/evaluation/run", "POST", { case_ids: caseIds, render_audio: renderAudio });
 }
 
 export function resolveUrl(path: string): string {
