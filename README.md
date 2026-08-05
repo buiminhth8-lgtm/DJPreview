@@ -403,6 +403,17 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
   arrangement_density_curve / chorus_layer_lift_detected / pad_register_validity /
   strings_register_validity / section_entry_exit_score）。
 
+## 前端 API 层拆分（T23）
+
+- `apps/web/src/api/` 按领域拆分：`client.ts`（统一 base URL / T08 错误解析 / apiFetch / apiDownloadBlob /
+  ApiRequestError / resolveUrl）、`types.ts`（全部共享请求/响应类型）、`songApi.ts`、`versionApi.ts`、
+  `audioApi.ts`、`mixApi.ts`、`analysisApi.ts`、`referenceApi.ts`、`evaluationApi.ts`、`projectApi.ts`、
+  `styleApi.ts`、`index.ts`（统一导出）。
+- `musicApi.ts` 保留为兼容 re-export 层，现有组件 `import { ... } from "./api/musicApi"` 不受影响；
+  本阶段不改 UI 调用点，不拆 hooks（T24）不做布局重构（T25）。
+- `VITE_API_BASE_URL` 可配置、默认相对路径 `/api/v1`；FormData 请求不设 JSON Content-Type；
+  文件下载走 `apiDownloadBlob`，不被 JSON 解析。
+
 ## 当前项目状态
 
 ```text

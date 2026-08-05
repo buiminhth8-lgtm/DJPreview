@@ -181,12 +181,16 @@
   新增 `composer/voicing.py`、`composer/voice_leading.py`、`arrangement/strings_engine.py`、
   `arrangement/pad_engine.py`、`analysis/arrangement_analysis.py`；composer 接入 pad/strings 专用引擎
 
-## T23-T25 前端工作台重构 ⬜
+## T23-T25 前端工作台重构（T23 API 层拆分 ✅，T24-T25 进行中）
 
 - 目标：按“生成 / 播放 / 编辑 / 混音 / 可视化 / 质量 / 导出”分区域重构，状态管理统一
 - 优先级：P2
 - 依赖：T08-T09
 - 验收标准：tsc / build 通过；无功能回归
+- T23 已完成：前端 API 层按领域拆分（client / types / song / version / audio / mix / analysis /
+  reference / evaluation / project / style / index）；`client.ts` 统一 base URL、T08 错误解析、
+  `apiFetch` / `apiDownloadBlob` / `ApiRequestError`；`musicApi.ts` 保留兼容 re-export，旧 import 不失效；
+  UI 调用点未改；`npm run build` 通过
 
 ## T26-T27 Docker / GitHub Actions / GHCR 部署 ⬜
 

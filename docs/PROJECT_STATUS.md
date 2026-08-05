@@ -15,6 +15,7 @@
 - T20 完成：鼓组 groove 增强（风格 groove / 段落强度 / fill / crash / swing / velocity accent / ghost note）
 - T21 完成：贝斯 groove 增强（风格 bassline / 段落强度 / root-fifth-octave / passing-approach / kick 对齐）
 - T22 完成：弦乐/Pad 编曲增强（chord voicing / 平滑 voice leading / 段落层次 / build-up / layer lift / thinning）
+- T23 完成：前端 API 层按领域拆分（client / types / 10 个领域模块 / index / musicApi 兼容层）
 - 当前分支：`master`
 
 ## 已完成功能
