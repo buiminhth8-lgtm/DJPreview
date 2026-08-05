@@ -541,6 +541,23 @@ export interface ProjectSoundfontResponse {
   warning: string | null;
 }
 
+// ---------- T30：异步渲染任务 ----------
+
+export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+
+export interface RenderTask {
+  task_id: string;
+  song_id: string;
+  task_type: string;
+  status: TaskStatus;
+  progress: number;
+  message?: string | null;
+  error?: string | null;
+  result?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 // ---------- 命名别名（保持与后端领域命名一致） ----------
 
 export type VersionListResponse = VersionsResponse;

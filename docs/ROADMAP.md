@@ -221,6 +221,15 @@
   style template 增加 soundfont_hint / preferred_soundfont_tags；前端 soundfontApi / useSoundfonts / SoundfontPanel；
   文档 docs/SOUNDFONTS.md；不提交真实音源（.gitignore + .gitkeep）
 
+## T30 渲染任务异步化与进度反馈 ✅
+
+- 目标：MIDI / WAV / stems 渲染改为异步任务，前端轮询进度，旧同步接口兼容
+- 实现：`packages/music_core/tasks/`（task_models / task_store：线程安全内存存储）、
+  `services/api/tasks/render_task_service.py`（ThreadPoolExecutor 执行器 + midi/audio/stems job，同 song+类型去重）、
+  `services/api/routes/render_tasks.py`（render-midi / render-audio / export-stems / tasks 查询与列表）、
+  前端 `taskApi.ts` / `useRenderTasks` / `RenderTasksPanel`（进度条 + 轮询 + 成功刷新资产）；
+  文档 docs/RENDER_TASKS.md（含进程内队列 / 重启丢失 / 无取消等限制说明）
+
 ## T26-T27 Docker / GitHub Actions / GHCR 部署 ⬜
 
 - 目标：镜像构建稳定、发布流程可用、本地部署文档准确

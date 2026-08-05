@@ -285,6 +285,14 @@ class ProjectSoundfontResponse(BaseModel):
     warning: str | None = None
 
 
+# ---------- T30：异步渲染任务 ----------
+
+class RenderAudioTaskRequest(BaseModel):
+    """异步音频渲染任务可选参数。"""
+
+    soundfont_id: str | None = None
+
+
 # ---------- 第五阶段：混音 / 质量 / stems ----------
 
 class TrackMixPatch(BaseModel):

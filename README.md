@@ -458,6 +458,23 @@ python scripts/demo_t28_smoke.py --all
 - 前端音源面板：列表 / 重新扫描 / 项目选择 / missing 提示（放入 `data/soundfonts/` 后重扫）。
 - 详见 [docs/SOUNDFONTS.md](docs/SOUNDFONTS.md)（含版权说明与常见问题）。
 
+## 异步渲染任务（T30）
+
+- MIDI / WAV / stems 可提交异步任务并轮询进度（`task_id` + queued/running/succeeded/failed + 0-100 progress）。
+- 新接口（推荐）：
+
+```text
+POST /api/v1/songs/{song_id}/tasks/render-midi
+POST /api/v1/songs/{song_id}/tasks/render-audio
+POST /api/v1/songs/{song_id}/tasks/export-stems
+GET  /api/v1/tasks/{task_id}
+GET  /api/v1/songs/{song_id}/tasks
+```
+
+- 旧同步接口（midi/generate、audio/render、stems/export）保持不变。
+- 前端 `RenderTasksPanel`：异步按钮 + 进度条 + 成功自动刷新资产；`useRenderTasks` 每 1s 轮询。
+- 详见 [docs/RENDER_TASKS.md](docs/RENDER_TASKS.md)（含进程内队列、重启丢失、无取消等限制）。
+
 ## 当前项目状态
 
 ```text

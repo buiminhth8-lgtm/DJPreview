@@ -9,3 +9,4 @@ export * from "./useEvaluation";
 export * from "./useReferenceMidi";
 export * from "./useStyles";
 export * from "./useSoundfonts";
+export * from "./useRenderTasks";

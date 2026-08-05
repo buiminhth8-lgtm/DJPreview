@@ -125,6 +125,7 @@ export default function WorkspaceLayout({
                 loadingAudio={audioAssets.loadingAudio}
                 onGenerateMidi={onGenerateMidi}
                 onRenderAudio={onRenderAudio}
+                onAssetsChanged={() => void audioAssets.refreshAssets()}
                 onError={songProject.setError}
               />
               <VersionPanel

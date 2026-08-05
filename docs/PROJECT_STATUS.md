@@ -20,6 +20,7 @@
 - T25 完成：前端工作台布局拆分（components/workspace/ 12 个组件 + 布局样式，App.tsx 变组合层）
 - T26/T27（Docker / GHCR）按用户指示跳过；T28 完成：示例工程与演示脚本（8 个 demo prompt + 演示文档/讲稿 + smoke 脚本）
 - T29 完成：SoundFont / 音源管理（扫描 / 稳定 id / 默认策略 / 项目级选择 / renderer 接入 / API / 前端面板 / 文档）
+- T30 完成：渲染任务异步化与进度反馈（进程内任务执行器 + 异步 API + 前端轮询/进度条，旧同步接口兼容）
 - 当前分支：`master`
 
 ## 已完成功能

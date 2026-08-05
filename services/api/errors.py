@@ -14,6 +14,7 @@ class ApiErrorCode:
     INVALID_REQUEST = "INVALID_REQUEST"
     INVALID_PROJECT_BUNDLE = "INVALID_PROJECT_BUNDLE"
     MUSIC_SPEC_VALIDATION_FAILED = "MUSIC_SPEC_VALIDATION_FAILED"
+    TASK_NOT_FOUND = "TASK_NOT_FOUND"
     LLM_PROVIDER_ERROR = "LLM_PROVIDER_ERROR"
     RENDER_FAILED = "RENDER_FAILED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
@@ -51,6 +52,15 @@ def version_not_found(song_id: str | None = None, version_id: str | None = None)
         ApiErrorCode.VERSION_NOT_FOUND,
         "版本不存在",
         {"song_id": song_id, "version_id": version_id},
+    )
+
+
+def task_not_found(task_id: str | None = None) -> HTTPException:
+    return api_error(
+        404,
+        ApiErrorCode.TASK_NOT_FOUND,
+        "任务不存在",
+        {"task_id": task_id} if task_id else {},
     )
 
 

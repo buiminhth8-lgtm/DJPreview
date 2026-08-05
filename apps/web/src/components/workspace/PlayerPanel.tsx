@@ -3,6 +3,7 @@
 import type { AudioMetadata, GenerateMidiResponse, RenderAudioResponse } from "../../api/types";
 import AudioPlayer from "../AudioPlayer";
 import StemExportPanel from "../StemExportPanel";
+import RenderTasksPanel from "./RenderTasksPanel";
 import SoundfontPanel from "./SoundfontPanel";
 
 export interface PlayerPanelProps {
@@ -16,6 +17,7 @@ export interface PlayerPanelProps {
   loadingAudio: boolean;
   onGenerateMidi: () => void;
   onRenderAudio: () => void;
+  onAssetsChanged?: () => void | Promise<void>;
   onError: (message: string) => void;
 }
 
@@ -30,6 +32,7 @@ export default function PlayerPanel({
   loadingAudio,
   onGenerateMidi,
   onRenderAudio,
+  onAssetsChanged,
   onError,
 }: PlayerPanelProps) {
   return (
@@ -86,6 +89,12 @@ export default function PlayerPanel({
           <h2>音源（SoundFont）</h2>
         </summary>
         <SoundfontPanel songId={songId} onError={onError} />
+      </details>
+      <details className="panel result">
+        <summary>
+          <h2>异步渲染任务</h2>
+        </summary>
+        <RenderTasksPanel songId={songId} onAssetsChanged={onAssetsChanged} onError={onError} />
       </details>
     </section>
   );
