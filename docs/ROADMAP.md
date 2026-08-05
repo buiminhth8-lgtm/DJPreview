@@ -281,6 +281,21 @@
   全量 pytest 501 passed（fast 350 / slow 151）
 - 说明：WAV 渲染不会自动重新作曲；需先生成/重新生成 MIDI。MockProvider 下即可体现风格差异。
 
+## 鼓组乐器归一化与终止式告警修复 ✅
+
+- 目标：消除 `UNKNOWN_INSTRUMENT_ALIAS（low_tom_percussion）` 与 `WEAK_SECTION_CADENCE（chorus）` 两个生成 warning
+- 实现：
+  - `instruments/registry.py`：新增 percussion / drum_percussion / toms / tom / low|mid|high_tom /
+    low_tom_percussion / taiko / taiko_drums / cinematic_drums / battle_drums 别名 → `standard_drum_kit`
+  - `spec_validator`：`role=drums` 的乐器自动归一化（保留 pattern），不再报未知乐器；
+    WEAK_SECTION_CADENCE 接受 V/V7→I 与 IV/iv→I，末和弦非主和弦才告警
+  - `cadence_engine`：chorus / final_chorus / outro 自动补终止式（长度 1 扩展为 2 和弦；
+    ≥2 替换末两个）；minor 使用 harmonic minor 属和弦（A minor → E7→Am）
+  - `harmony_progressions.dominant_symbols`：minor 改用 harmonic_minor（V 为大三/属七）；
+    新增 `subdominant_symbols`（IV/iv）
+- 测试：instrument registry（+1）、semantic validator（+5）、cadence engine（+3）；
+  全量 pytest 510 passed；MockProvider 生成 API 各模板 0 warning
+
 ## 下一轮建议
 
 1. 文档 / 测试分层：拆分慢速集成测试（如音频渲染 / 全链路 API），缩短全量回归时间。

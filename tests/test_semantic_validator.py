@@ -8,6 +8,7 @@ from packages.music_core.validation.spec_validator import (
     validate_music_spec_semantics,
 )
 from services.api.main import app
+from services.api.schemas.music_spec import HarmonySectionSpec
 from services.api.storage.project_store import create_project
 from tests.test_harmony_engine import build_spec
 
@@ -27,6 +28,98 @@ def test_mock_provider_spec_is_valid():
     result = validate_music_spec_semantics(_mock_spec())
     assert result.valid
     assert result.errors == []
+
+
+def test_drums_low_tom_percussion_no_unknown_warning():
+    spec = build_spec()
+    spec.tracks = [
+        *[t for t in spec.tracks if t.role != "drums"],
+        type(spec.tracks[0])(
+            id="toms",
+            role="drums",
+            instrument="low_tom_percussion",
+            pattern="cinematic_toms",
+            register=None,
+            velocity=90,
+        ),
+    ]
+    result = validate_music_spec_semantics(spec)
+    assert "UNKNOWN_INSTRUMENT_ALIAS" not in _codes(result, "warnings")
+    drums = next(t for t in spec.tracks if t.role == "drums")
+    assert drums.instrument == "standard_drum_kit"
+    assert drums.pattern == "cinematic_toms"
+
+
+def _cadence_warnings(harmony):
+    spec = build_spec()
+    spec.harmony = [HarmonySectionSpec(**h) for h in harmony]
+    return _codes(validate_music_spec_semantics(spec), "warnings")
+
+
+def _cadence_warnings_c_major(harmony):
+    spec = build_spec()
+    spec.tonality = type(spec.tonality)(key="C", mode="major", scale=None)
+    spec.harmony = [HarmonySectionSpec(**h) for h in harmony]
+    return _codes(validate_music_spec_semantics(spec), "warnings")
+
+
+def test_authentic_cadence_no_warning():
+    # C major：G7 → C
+    assert "WEAK_SECTION_CADENCE" not in _cadence_warnings_c_major(
+        [
+            {"section": "intro", "progression": ["C"]},
+            {"section": "verse", "progression": ["C", "G", "Am", "F"]},
+            {"section": "chorus", "progression": ["C", "G", "G7", "C"]},
+            {"section": "outro", "progression": ["F", "C"]},
+        ]
+    )
+    # D minor：A7 → Dm
+    assert "WEAK_SECTION_CADENCE" not in _cadence_warnings(
+        [
+            {"section": "intro", "progression": ["Dm"]},
+            {"section": "verse", "progression": ["Dm", "Bb", "F", "C"]},
+            {"section": "chorus", "progression": ["Dm", "Bb", "A7", "Dm"]},
+            {"section": "outro", "progression": ["A7", "Dm"]},
+        ]
+    )
+
+
+def test_plagal_cadence_no_warning():
+    # C major：F → C
+    assert "WEAK_SECTION_CADENCE" not in _cadence_warnings_c_major(
+        [
+            {"section": "intro", "progression": ["C"]},
+            {"section": "verse", "progression": ["C", "G", "Am", "F"]},
+            {"section": "chorus", "progression": ["C", "G", "Am", "F", "C"]},
+            {"section": "outro", "progression": ["F", "C"]},
+        ]
+    )
+
+
+def test_minor_authentic_cadence_no_warning():
+    spec = build_spec()
+    spec.tonality = type(spec.tonality)(key="A", mode="minor", scale=None)
+    spec.harmony = [
+        HarmonySectionSpec(**{"section": "intro", "progression": ["Am"]}),
+        HarmonySectionSpec(**{"section": "verse", "progression": ["Am", "F", "G", "E7"]}),
+        HarmonySectionSpec(**{"section": "chorus", "progression": ["Am", "F", "E7", "Am"]}),
+        HarmonySectionSpec(**{"section": "outro", "progression": ["E7", "Am"]}),
+    ]
+    result = validate_music_spec_semantics(spec)
+    assert "WEAK_SECTION_CADENCE" not in _codes(result, "warnings")
+
+
+def test_weak_cadence_still_warns():
+    warnings = _cadence_warnings_c_major(
+        [
+            {"section": "intro", "progression": ["C"]},
+            {"section": "verse", "progression": ["C", "G", "Am", "F"]},
+            {"section": "chorus", "progression": ["C", "G", "Am", "F"]},
+            {"section": "outro", "progression": ["Am", "F"]},
+        ]
+    )
+    # 末和弦非主和弦（F）：weak cadence 仍告警
+    assert "WEAK_SECTION_CADENCE" in warnings
 
 
 def test_duplicate_track_id():

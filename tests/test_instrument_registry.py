@@ -20,6 +20,14 @@ def test_alias_normalize():
     assert normalize_instrument_name("string_ensemble") == "string_ensemble_1"
 
 
+def test_drum_percussion_aliases_normalize_to_standard_drum_kit():
+    for name in ("low_tom_percussion", "toms", "tom", "low_tom", "mid_tom", "high_tom",
+                 "taiko", "taiko_drums", "cinematic_drums", "battle_drums", "percussion"):
+        assert normalize_instrument_name(name) == "standard_drum_kit"
+        assert is_known_instrument(name) is True
+        assert is_drum_instrument(name) is True
+
+
 def test_case_space_hyphen_compatibility():
     assert normalize_instrument_name("Grand Piano") == "acoustic_grand_piano"
     assert normalize_instrument_name("electric-guitar") == "electric_guitar_clean"

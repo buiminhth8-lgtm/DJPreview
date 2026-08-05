@@ -48,6 +48,10 @@
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
   laidback_groove / driving_octaves 等）；MockProvider 下不同模板生成明显不同的 MusicSpec 与 MIDI
+- 修复：鼓组 / tom / percussion / taiko 类乐器别名统一归一化为 `standard_drum_kit`（MIDI 仍走 channel 9，
+  不写 melodic program，pattern 保留）；chorus / outro / final_chorus 自动补明确终止式（V7/IV → 主和弦），
+  minor 使用 harmonic minor V（如 A minor → E7 → Am）；validator 接受 authentic（V/V7→I）与
+  plagal（IV/iv→I）终止式，真正 weak cadence 仍告警
 
 ## Partially Completed / Needs Verification（部分完成或需验证）
 
@@ -87,9 +91,9 @@
 ## 当前测试与构建结果（2026-08-05 实测）
 
 ```text
-后端：pytest -q → 501 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 350 passed（约 11s）
-慢速集成：pytest -m slow → 151 passed
+后端：pytest -q → 510 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 354 passed（约 11s）
+慢速集成：pytest -m slow → 156 passed
 前端：npm ci → passed（vite 7.3.6）
 前端：npm run build → passed（tsc 无错误）
 前端：npm audit → 0 vulnerabilities

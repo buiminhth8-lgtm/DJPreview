@@ -55,6 +55,18 @@ INSTRUMENT_ALIASES: dict[str, str] = {
     "drum": "standard_drum_kit",
     "drum_kit": "standard_drum_kit",
     "standard_drums": "standard_drum_kit",
+    "percussion": "standard_drum_kit",
+    "drum_percussion": "standard_drum_kit",
+    "toms": "standard_drum_kit",
+    "tom": "standard_drum_kit",
+    "low_tom": "standard_drum_kit",
+    "mid_tom": "standard_drum_kit",
+    "high_tom": "standard_drum_kit",
+    "low_tom_percussion": "standard_drum_kit",
+    "taiko": "standard_drum_kit",
+    "taiko_drums": "standard_drum_kit",
+    "cinematic_drums": "standard_drum_kit",
+    "battle_drums": "standard_drum_kit",
 }
 
 

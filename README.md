@@ -26,6 +26,8 @@
   同 prompt 切换 lo-fi / game battle / rock / ambient / cinematic 会生成明显不同的 MusicSpec 与 MIDI，
   MockProvider 下即可验证（无需 DeepSeek）。
 - **注意：WAV 渲染不会自动重新作曲**。切换模板后请先“生成”（创建新 song）→ 生成 MIDI → 渲染 WAV。
+- 鼓组 / tom / percussion / taiko 类乐器名自动归一化为 `standard_drum_kit`（MIDI 走 GM drum channel 9，
+  pattern 保留）；chorus / outro 自动补明确终止式（V7/IV → 主和弦），生成时不再出现这两类 warning。
 - 参考 MIDI 分析（高层特征，不复制旋律）
 - 基于参考 MIDI 高层特征生成新项目
 - `.aimusic.zip` 工程导入导出（防 zip slip）

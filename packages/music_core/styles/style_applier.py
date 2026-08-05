@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import zlib
 
+from packages.music_core.generation.cadence_engine import enhance_harmony_with_cadences
 from packages.music_core.styles.style_models import StyleTemplateSpec
 from packages.music_core.styles.style_tags import normalize_style_tags
 from packages.music_core.validation.spec_validator import validate_music_spec
@@ -172,6 +173,8 @@ def apply_style_template_to_music_spec(
 
     spec = _apply_default_tracks(spec, template, strength)
     spec = _apply_harmony_presets(spec, template, strength)
+    # chorus / outro 自动补明确终止式（V7/IV → 主和弦），消除 WEAK_SECTION_CADENCE
+    spec = enhance_harmony_with_cadences(spec, strength=strength)
 
     # style / mood 标签合并
     normalized = normalize_style_tags([*spec.style, template.id, *template.tags])

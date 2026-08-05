@@ -6,8 +6,12 @@ from dataclasses import dataclass, field
 
 from pydantic import BaseModel, Field, ValidationError
 
-from packages.music_core.composer.harmony_progressions import dominant_symbols, tonic_symbol
-from packages.music_core.instruments.registry import is_known_instrument
+from packages.music_core.composer.harmony_progressions import (
+    dominant_symbols,
+    subdominant_symbols,
+    tonic_symbol,
+)
+from packages.music_core.instruments.registry import is_known_instrument, normalize_instrument_name
 from packages.music_core.theory.chords import is_valid_chord_symbol
 from packages.music_core.theory.pitch import is_valid_note_name
 from packages.music_core.theory.scales import is_supported_mode
@@ -260,6 +264,12 @@ def validate_music_spec_semantics(music_spec: MusicSpec | dict) -> ValidationRes
                         details={"missing": missing},
                     )
                 )
+        instrument = t.instrument
+        if t.role == "drums" and instrument:
+            # 鼓组 / tom / percussion 类名称自动归一化为 standard_drum_kit（保留 pattern）
+            normalized = normalize_instrument_name(instrument)
+            if normalized != instrument:
+                t.instrument = normalized
         if t.instrument and not is_known_instrument(t.instrument):
             warnings.append(
                 ValidationIssue(
@@ -295,9 +305,11 @@ def validate_music_spec_semantics(music_spec: MusicSpec | dict) -> ValidationRes
     try:
         tonic = tonic_symbol(music_spec.tonality.key, music_spec.tonality.mode)
         dominants = dominant_symbols(music_spec.tonality.key, music_spec.tonality.mode)
+        subdominants = subdominant_symbols(music_spec.tonality.key, music_spec.tonality.mode)
     except ValueError:
         tonic = None
         dominants = set()
+        subdominants = set()
     for h in music_spec.harmony:
         progression = h.progression
         if len(progression) >= 2:
@@ -305,14 +317,21 @@ def validate_music_spec_semantics(music_spec: MusicSpec | dict) -> ValidationRes
             prev = progression[-2]
             if (
                 tonic is not None
-                and h.section in ("chorus", "outro", "副歌", "尾奏")
+                and h.section in ("chorus", "outro", "final_chorus", "副歌", "尾奏")
+                and last == tonic
+                and (prev in dominants or prev in subdominants)
+            ):
+                # 明确的 authentic（V/V7→I）或 plagal（IV/iv→I）终止式，不告警
+                continue
+            if (
+                tonic is not None
+                and h.section in ("chorus", "outro", "final_chorus", "副歌", "尾奏")
                 and last != tonic
-                and prev not in dominants
             ):
                 warnings.append(
                     ValidationIssue(
                         code="WEAK_SECTION_CADENCE",
-                        message=f"段落 {h.section} 结尾缺少明确终止式（建议 V/IV → 主和弦）",
+                        message=f"段落 {h.section} 结尾缺少明确终止式（建议 V7/IV → 主和弦）",
                         path=f"harmony.{h.section}",
                         details={"section": h.section, "ending": [prev, last]},
                     )

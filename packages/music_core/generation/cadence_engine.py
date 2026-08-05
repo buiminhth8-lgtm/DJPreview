@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from packages.music_core.theory.chords import chord_symbol_to_pitches, parse_chord_symbol
+from packages.music_core.composer.harmony_progressions import cadence_chords
+from packages.music_core.theory.chords import parse_chord_symbol
 from packages.music_core.theory.pitch import midi_to_note_name
 from packages.music_core.theory.scales import get_scale_pitches
 from services.api.schemas.music_spec import MusicSpec
@@ -40,41 +41,58 @@ def suggest_section_cadence(
         return [_note_name(scale[0]), f"{_note_name(scale[5])}m", _note_name(scale[3]), _note_name(scale[0])]
 
     if _is_minor_family(mode):
-        scale = get_scale_pitches(key, "minor", octave=4)
-        i, iv, v, vi, vii = scale[0], scale[3], scale[4], scale[5], scale[6]
         if "cinematic" in style_text or energy >= 0.8:
-            return [_note_name(vi), _note_name(vii), f"{_note_name(i)}m"]
-        return [f"{_note_name(iv)}m", _note_name(v), f"{_note_name(i)}m"]
+            # 电影感：iv → V7 → i（属七强调）
+            return [*cadence_chords("half_minor", key, mode), *cadence_chords("authentic", key, mode)[-2:]]
+        # 常规 minor：iv → V7 → i
+        return [*cadence_chords("half_minor", key, mode), *cadence_chords("authentic", key, mode)[-2:]]
 
-    scale = get_scale_pitches(key, "major", octave=4)
-    i, ii, iv, v, vi = scale[0], scale[1], scale[3], scale[4], scale[5]
     if "pop" in style_text or "ballad" in style_text:
-        return [_note_name(iv), _note_name(v), _note_name(i)]
-    return [f"{_note_name(ii)}m", _note_name(v), _note_name(i)]
+        return [*cadence_chords("plagal", key, mode), *cadence_chords("authentic", key, mode)[-2:]]
+    return [*cadence_chords("half", key, mode), *cadence_chords("authentic", key, mode)[-2:]]
 
 
 def _cadence_like(progression: list[str], key: str, mode: str, style: list[str], energy: float) -> bool:
     """粗略判断末尾是否已有终止感（末和弦为主和弦且倒数第二为属/下属方向）。"""
     if len(progression) < 2:
         return False
-    cadence = suggest_section_cadence("x", key, mode, style, energy)
-    if not cadence:
+    last = progression[-1]
+    prev = progression[-2]
+    tonic = cadence_chords("authentic", key, mode)[-1]
+    if last != tonic:
         return False
-    return progression[-1] == cadence[-1] and progression[-2] in (cadence[-3:-1] or [cadence[-2]])
+    dominants = set(cadence_chords("authentic", key, mode))
+    plagal = cadence_chords("plagal", key, mode)
+    return prev in dominants or prev in plagal
+
+
+_CADENCE_SECTIONS = {"chorus", "final_chorus", "outro", "副歌", "尾奏"}
 
 
 def enhance_harmony_with_cadences(music_spec: MusicSpec, strength: float = 0.6) -> MusicSpec:
-    """为每个段落末尾 2-4 小节补强终止式（不强制覆盖复杂进行）。"""
+    """为 chorus / outro 等段落自动补明确终止式；其余段落仅补强（不强改）。"""
     spec = music_spec.model_copy(deep=True)
     key, mode = spec.tonality.key, spec.tonality.mode
     style = list(spec.style)
     for harmony in spec.harmony:
         progression = list(harmony.progression)
         energy = next((s.energy for s in spec.form if s.id == harmony.section), 0.6)
-        if len(progression) >= 4 and not _cadence_like(progression, key, mode, style, energy):
-            cadence = suggest_section_cadence(harmony.section, key, mode, style, energy)
-            # 替换最后 2 个和弦为终止式（保持长度兼容）
-            replacement = progression[:-2] + cadence[-2:]
-            if replacement and all(parse_chord_symbol(c) for c in replacement):
-                harmony.progression = replacement
+        cadence = suggest_section_cadence(harmony.section, key, mode, style, energy)
+        section = (harmony.section or "").strip().lower()
+        if section in _CADENCE_SECTIONS:
+            # chorus / outro：结尾必须落回主和弦
+            ending = cadence[-2:]
+            if len(progression) == 1:
+                replacement = list(ending)
+            elif len(progression) >= 2:
+                replacement = progression[:-2] + list(ending)
+            else:
+                continue
+        elif len(progression) >= 4 and not _cadence_like(progression, key, mode, style, energy):
+            # 其他段落：保持原样或仅补强，不强行 authentic
+            replacement = progression[:-2] + list(cadence[-2:])
+        else:
+            continue
+        if replacement and all(parse_chord_symbol(c) for c in replacement):
+            harmony.progression = replacement
     return spec

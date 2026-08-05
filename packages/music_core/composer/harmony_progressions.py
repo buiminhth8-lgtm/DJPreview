@@ -118,9 +118,18 @@ def tonic_symbol(key: str, mode: str) -> str:
 
 def dominant_symbols(key: str, mode: str) -> set[str]:
     """返回属和弦候选（V / V7）。"""
-    scale = get_scale_pitches(key, "minor" if _is_minor_family(mode) else "major", 4)
+    # minor 使用 harmonic minor：V 为大三和弦/属七（升高导音）
+    scale_mode = "harmonic_minor" if _is_minor_family(mode) else "major"
+    scale = get_scale_pitches(key, scale_mode, 4)
     fifth = _note_name(scale[4])
     return {fifth, fifth + "7"}
+
+
+def subdominant_symbols(key: str, mode: str) -> set[str]:
+    """返回下属和弦候选（IV / iv）。"""
+    scale = get_scale_pitches(key, "minor" if _is_minor_family(mode) else "major", 4)
+    fourth = _note_name(scale[3])
+    return {fourth, fourth + "m" if _is_minor_family(mode) else fourth}
 
 
 def build_section_progression(
