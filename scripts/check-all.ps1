@@ -4,7 +4,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $root
 
 Write-Host "=== check-all: backend ==="
-& (Join-Path $PSScriptRoot "check-backend.ps1")
+& (Join-Path $PSScriptRoot "check-backend.ps1") -Full
 if ($LASTEXITCODE -ne 0) {
     Write-Error "backend check failed with exit code $LASTEXITCODE"
     exit $LASTEXITCODE

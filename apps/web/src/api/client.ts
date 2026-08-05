@@ -1,7 +1,7 @@
 // 统一 fetch client：API base URL、错误解析（兼容 T08 统一错误结构）、下载辅助。
 
 // 后端 API 地址可通过 VITE_API_BASE_URL 配置；默认空字符串表示相对路径 /api/v1
-// （开发环境由 Vite proxy 转发，Docker 部署由 nginx 转发到 api:8000）
+// （开发环境由 Vite proxy 转发；生产环境可配置 VITE_API_BASE_URL 指向后端）
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export interface ApiErrorResponse {

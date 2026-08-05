@@ -205,7 +205,8 @@
 
 ## T26-T27（已跳过）
 
-- T26（Docker 本地部署稳定化）与 T27（GitHub Actions + GHCR 发布）按用户指示明确跳过。
+- T26（Docker 本地部署稳定化）与 T27（GitHub Actions + GHCR 发布）按用户指示明确跳过，
+  相关文件（`.github/`、`docker/`、`docker-compose.*.yml`、`DEPLOYMENT.md` 等）已彻底删除。
 
 ## T28 示例工程与演示脚本 ✅
 
@@ -251,10 +252,22 @@
 - 遗留提示：npm 11 allow-scripts 对 esbuild postinstall 的提示为安装策略警告，非安全漏洞；
   构建已验证 esbuild 二进制可用，`trustedDependencies` 机制继续兼容
 
+## T33 收尾：移除 CI/Docker + 测试分层 + E2E + 任务队列 + 音质 ✅
+
+- 彻底删除 Docker / GitHub Actions 相关文件（`.github/`、`docker/`、`docker-compose.*.yml`、
+  `DEPLOYMENT.md`、`.env.docker.example`、`.dockerignore`），文档同步移除引用。
+- 测试分层：`slow` marker（模块级 TestClient 自动标记，142 slow / 341 fast），
+  `check-backend` 默认快速回归（约 11s），`-Full` / `--full` 跑全量。
+- Playwright 前端 E2E：`apps/web/e2e/demo.spec.ts` + `playwright.config.ts` + `npm run e2e`
+  （浏览器需在联网环境安装；本环境网络受限未执行浏览器运行）。
+- 生产级任务队列：执行器抽象（`task_executor.py`：InProcess 默认 / Celery 可选），
+  `celery_app.py` worker + `requirements-celery.txt` + `TASK_BACKEND=celery` 配置。
+- 音质：MIDI Writer 输出 CC7 段落音量曲线 + CC11 表达；弦乐 divisi 双通道分部（基础 pan）。
+
 ## 下一轮建议
 
 1. 文档 / 测试分层：拆分慢速集成测试（如音频渲染 / 全链路 API），缩短全量回归时间。
-2. Playwright 前端演示测试：从 prompt 一路到播放 / 编辑 / 版本 / 混音 / 导出的端到端覆盖。
-3. 生产级任务队列：用 Redis / Celery 等替换进程内 `ThreadPoolExecutor`，支持多实例与任务恢复。
-4. 音乐质量与音色：真实 SoundFont 渲染体验优化、弦乐分部细化、CC11/CC7 expression 实验。
-5. Docker / GHCR 部署稳定化（如后续恢复 T26/T27）：当前相关文件为 experimental / optional，未纳入验收。
+2. 在联网环境安装 Playwright 浏览器并跑通 `npm run e2e`（用例已就绪）。
+3. 生产级任务队列：按需启用 `TASK_BACKEND=celery` 并验证多 worker / 重启恢复。
+4. 音质与音色：真实 SoundFont 渲染体验优化、弦乐声部/音色进一步细化。
+5. 如未来需要 CI/CD，可重新引入 GitHub Actions / Docker（当前已彻底移除）。

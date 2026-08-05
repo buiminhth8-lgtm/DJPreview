@@ -77,7 +77,33 @@ POST /api/v1/songs/{song_id}/stems/export
 
 - **进程内任务队列**：使用 `ThreadPoolExecutor(max_workers=2)`，同一进程内有效。
 - 任务已做轻量 JSON 持久化；但重启会中断正在执行的任务（标记为失败），不会恢复执行。
-- **暂未引入 Redis / Celery / MQ**：如需跨进程 / 多实例，后续可替换为持久化队列。
+- 默认后端为进程内队列；**生产可选 Celery / Redis 后端**（见下节），默认无需外部依赖。
 - 同 `song_id` + 同任务类型去重：已有一个 `queued / running` 任务时返回该任务，避免文件互相覆盖。
 - 取消说明：`queued` 任务 DELETE 后立即 `cancelled`；`running` 任务标记 `cancel_requested`，
   在执行进度检查点中止（阻塞在子进程内的渲染可能等待其自然结束，但结果不会被写回成功状态）。
+
+## 10. 生产级任务后端（Celery / Redis，可选）
+
+执行器已抽象为可插拔后端（`services/api/tasks/task_executor.py`）：
+
+```text
+TASK_BACKEND 未设置 / inprocess → 进程内 ThreadPoolExecutor（默认，离线可用）
+TASK_BACKEND=celery        → Celery + Redis（需单独部署 worker）
+```
+
+启用 Celery 后端：
+
+```bash
+pip install -r requirements-celery.txt
+export TASK_BACKEND=celery
+export CELERY_BROKER_URL=redis://localhost:6379/0
+celery -A services.api.tasks.celery_app worker --loglevel=info
+uvicorn services.api.main:app --port 8000
+```
+
+说明：
+
+- worker 与 API 共享同一份 `data/tasks/render_tasks.json` 持久化与任务状态机
+  （queued → running → succeeded/failed/cancelled），前端 API 不变。
+- 需要多实例部署时，把任务存储迁移到共享存储（如 Redis），并把 API 与 worker 指向同一 broker。
+- 默认不安装 celery/redis 依赖；未配置 `TASK_BACKEND=celery` 时完全不影响现有功能。

@@ -19,8 +19,8 @@ ai-music-mvp 是一个功能覆盖完整的 AI 音乐生成 MVP：从一句话�
 - MIDI 文件末尾未关闭的 `note_on` 按丢弃处理（不崩溃，但音符可能截断）。
 - 轻量音乐分析指标未并入 QualityReport 评分模型。
 - Evaluation Runner 的 trait 打分语义有重复与粗糙点（如 `has_track_role2` 与 `has_track_role`）。
-- Docker / GHCR（T26/T27）按用户指示跳过：仓库保留相关文件但未完成端到端验证，
-  属于 experimental / optional，不纳入当前验收。
+- Docker / GHCR（T26/T27）按用户指示跳过：`.github/`、`docker/`、`docker-compose.*.yml`、
+  `DEPLOYMENT.md` 等文件已彻底删除，不纳入当前验收。
 
 ## P0 问题
 
@@ -32,7 +32,7 @@ ai-music-mvp 是一个功能覆盖完整的 AI 音乐生成 MVP：从一句话�
 - 未关闭 note_on 的收尾策略（按轨道末 tick 闭合）
 - 轻量分析指标并入 QualityReport 评分
 - Evaluation trait 打分语义细化
-- Docker / GHCR 部署稳定化（T26-T27，如后续恢复）
+- 如未来需要 CI/CD，重新引入 GitHub Actions / Docker（当前已彻底移除）
 
 ## 不建议马上做的方向
 

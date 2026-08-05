@@ -9,5 +9,11 @@ export AUDIO_RENDERER=fallback
 export PYTHONPATH="$(pwd)"
 
 echo "[check-backend] Running pytest ..."
-python -m pytest -q
+if [[ "${1:-}" == "--full" ]]; then
+  echo "[check-backend] Running full pytest ..."
+  python -m pytest -q
+else
+  echo "[check-backend] Running fast pytest (skip slow integration tests) ..."
+  python -m pytest -q -m "not slow"
+fi
 echo "[check-backend] OK"

@@ -7,7 +7,6 @@ venv/
 .env
 .pytest_cache/
 .pytest-tmp/
-.env.docker
 runtime-data/
 .mypy_cache/
 .ruff_cache/

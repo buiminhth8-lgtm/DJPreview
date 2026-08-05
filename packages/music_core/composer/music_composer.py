@@ -9,6 +9,7 @@ from packages.music_core.arrangement.pad_engine import PadEngine
 from packages.music_core.arrangement.strings_engine import StringsEngine
 from packages.music_core.bass.bass_engine import BassEngine
 from packages.music_core.composer.events import CompositionResult, NoteEvent, TrackEvents, beats_per_bar
+from packages.music_core.composer.expression import build_volume_curve, expression_cc11
 from packages.music_core.drums.drum_engine import DrumEngine
 from packages.music_core.harmony.harmony_engine import build_bar_harmony
 from packages.music_core.humanize.humanizer import Humanizer
@@ -20,6 +21,64 @@ from services.api.schemas.music_spec import MusicSpec
 def _humanize_seed(seed: int, track_id: str) -> int:
     """轨道级人性化种子：基于 seed + 轨道 id 的确定性哈希。"""
     return seed + zlib.crc32(track_id.encode("utf-8"))
+
+
+def _split_strings_divisi(
+    music_spec: MusicSpec,
+    track: TrackSpec,
+    notes: list[NoteEvent],
+    channel_a: int,
+    channel_b: int,
+) -> list[TrackEvents]:
+    """把弦乐声部按音高排序拆成两个分部（divisi），分置两个通道并加基础 pan。
+
+    排序后交替分配（低音倾向低分部），两个分部各占 4 小节滑窗内的近似一半声部，
+    保持确定性，不改变音符内容。
+    """
+    if not notes:
+        return []
+    ordered = sorted(notes, key=lambda n: (n.start_beat, n.pitch))
+    group_a: list[NoteEvent] = []
+    group_b: list[NoteEvent] = []
+    for i, note in enumerate(ordered):
+        (group_a if i % 2 == 0 else group_b).append(
+            NoteEvent(
+                pitch=note.pitch,
+                start_beat=note.start_beat,
+                duration_beats=note.duration_beats,
+                velocity=note.velocity,
+                channel=channel_a if i % 2 == 0 else channel_b,
+                is_drum=False,
+            )
+        )
+    curve = build_volume_curve(music_spec)
+    tracks = [
+        TrackEvents(
+            track_id=f"{track.id}_divisi_a",
+            name=f"{track.id}_strings_a",
+            role=track.role or "strings",
+            instrument=track.instrument or "string_ensemble_1",
+            channel=channel_a,
+            program=GM_PROGRAMS.get((track.instrument or "").strip().lower(), 0),
+            notes=group_a,
+            pan=52,
+            cc_curve=curve,
+            cc11=expression_cc11(),
+        ),
+        TrackEvents(
+            track_id=f"{track.id}_divisi_b",
+            name=f"{track.id}_strings_b",
+            role=track.role or "strings",
+            instrument=track.instrument or "string_ensemble_1",
+            channel=channel_b,
+            program=GM_PROGRAMS.get((track.instrument or "").strip().lower(), 0),
+            notes=group_b,
+            pan=76,
+            cc_curve=curve,
+            cc11=expression_cc11(),
+        ),
+    ]
+    return tracks
 
 
 def compose_music(music_spec: MusicSpec) -> CompositionResult:
@@ -71,7 +130,26 @@ def compose_music(music_spec: MusicSpec) -> CompositionResult:
         elif role == "pad":
             track_events.notes = pad_engine.generate(music_spec, bar_harmony, track, channel=channel)
         elif role == "strings":
-            track_events.notes = strings_engine.generate(music_spec, bar_harmony, track, channel=channel)
+            strings_notes = strings_engine.generate(music_spec, bar_harmony, track, channel=channel)
+            # 弦乐 divisi：拆成两个分部通道，并附加 CC7/CC11 表达自动化
+            second_channel = next_channel
+            next_channel += 1
+            if second_channel in (DRUM_CHANNEL, channel):
+                second_channel = next_channel
+                next_channel += 1
+            second_channel = min(second_channel, 15)
+            divisi = _split_strings_divisi(
+                music_spec,
+                track,
+                strings_notes,
+                channel_a=channel,
+                channel_b=second_channel,
+            )
+            if divisi:
+                tracks.extend(divisi)
+                continue
+            track_events.notes = strings_notes
+            track_events.cc_curve = build_volume_curve(music_spec)
         else:
             # harmony / pad / strings / 未知角色：一律按伴奏处理
             track_events.notes = arrangement_engine.generate(music_spec, bar_harmony, track, channel=channel)

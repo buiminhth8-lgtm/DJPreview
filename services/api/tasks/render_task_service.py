@@ -1,61 +1,53 @@
-"""异步渲染任务执行器（进程内 ThreadPoolExecutor，无 Celery/Redis）。"""
+"""异步渲染任务服务：提交 / 执行 / 查询 / 取消（执行后端可插拔）。"""
 
 from __future__ import annotations
 
 import logging
-import threading
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Callable
 
 from packages.music_core.tasks.task_models import RenderTask
 from packages.music_core.tasks.task_store import TaskStore
+from services.api.tasks.task_executor import (
+    InProcessExecutor,
+    ProgressReporter,
+    TaskCancelled,
+    TaskExecutor,
+    create_task_executor,
+    song_render_lock,
+)
 
 logger = logging.getLogger(__name__)
 
-ProgressReporter = Callable[[int, str | None], None]
-RenderJob = Callable[[str, ProgressReporter], dict]
-
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
-
-# 每首歌一把可重入锁：同 song 的同步 / 异步渲染串行执行，避免文件互相覆盖
-_SONG_LOCKS: dict[str, threading.RLock] = {}
-_SONG_LOCKS_GUARD = threading.Lock()
-
-
-def song_render_lock(song_id: str) -> threading.RLock:
-    """返回该歌曲的渲染锁（可重入）。"""
-    with _SONG_LOCKS_GUARD:
-        return _SONG_LOCKS.setdefault(song_id, threading.RLock())
-
-
-class TaskCancelled(RuntimeError):
-    """任务被取消。"""
 
 
 class RenderTaskService:
-    """提交 / 执行渲染任务；同 song + 同类型去重，避免文件互相覆盖。"""
+    """提交 / 执行渲染任务；同 song + 同类型去重，避免文件互相覆盖。
+
+    执行后端由 TASK_BACKEND 决定（默认进程内；celery 需 Redis + worker）。
+    """
 
     def __init__(
         self,
         max_workers: int = 2,
         persist_path: Path | str | None = None,
+        executor: TaskExecutor | None = None,
     ) -> None:
         if persist_path is None:
             persist_path = _PROJECT_ROOT / "data" / "tasks" / "render_tasks.json"
         self._store = TaskStore(persist_path=persist_path)
-        self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="render-task")
+        self._executor = executor or create_task_executor(max_workers=max_workers)
 
     @property
     def store(self) -> TaskStore:
         return self._store
 
-    def submit(self, song_id: str, task_type: str, job: RenderJob) -> RenderTask:
+    def submit(self, song_id: str, task_type: str, job) -> RenderTask:
         existing = self._store.find_active(song_id, task_type)
         if existing is not None:
             return existing
         task = self._store.create(song_id, task_type)
-        self._executor.submit(self._run, task.task_id, task.song_id, job)
+        self._executor.submit(self._store, task, job)
         return task
 
     def get(self, task_id: str) -> RenderTask | None:
@@ -73,42 +65,6 @@ class RenderTaskService:
         if task.status == "queued":
             self._store.update(task_id, status="cancelled", message="任务已取消")
         return self._store.get(task_id)
-
-    def _run(self, task_id: str, song_id: str, job: RenderJob) -> None:
-        current = self._store.get(task_id)
-        if current is not None and current.status == "cancelled":
-            return
-        self._store.update(task_id, status="running", progress=10, message="启动任务")
-
-        def report(progress: int, message: str | None = None) -> None:
-            task = self._store.get(task_id)
-            if task is not None and task.cancel_requested:
-                raise TaskCancelled("任务已取消")
-            self._store.update(
-                task_id,
-                progress=max(0, min(100, int(progress))),
-                message=message,
-            )
-
-        try:
-            with song_render_lock(song_id):
-                result = job(task_id, report)
-            task = self._store.get(task_id)
-            if task is not None and task.cancel_requested:
-                self._store.update(task_id, status="cancelled", message="任务已取消")
-            else:
-                self._store.update(
-                    task_id,
-                    status="succeeded",
-                    progress=100,
-                    message="任务完成",
-                    result=result or {},
-                )
-        except TaskCancelled:
-            self._store.update(task_id, status="cancelled", progress=0, message="任务已取消")
-        except Exception as exc:  # noqa: BLE001 - 单个任务失败不影响服务进程
-            logger.warning("渲染任务 %s 失败：%s", task_id, exc)
-            self._store.update(task_id, status="failed", error=str(exc), message="任务失败")
 
 
 # ---------- 渲染任务实现（复用现有 composer / renderer / version store） ----------

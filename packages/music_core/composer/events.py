@@ -31,6 +31,10 @@ class TrackEvents:
     program: int | None
     notes: list[NoteEvent] = field(default_factory=list)
     pan: int | None = field(default=None)
+    cc_curve: list[tuple[float, int]] = field(default_factory=list)
+    """(beat, cc7_value) 音量自动曲线；由 MIDI Writer 转为 CC7 事件（可配 CC11 基础表达）。"""
+    cc11: int | None = field(default=None)
+    """基础 expression（CC11），1-127；None 表示不写该轨道。"""
 
 
 @dataclass

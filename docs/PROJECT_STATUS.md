@@ -42,6 +42,8 @@
 - T30：渲染任务异步化与进度反馈（进程内任务执行器、任务持久化、同曲串行锁、取消接口、旧同步接口兼容）
 - T31：前端链路冒烟脚本
 - T32：前端依赖安全收尾（vite 7.3.6、esbuild 0.28.1，`npm audit` 0 漏洞）
+- T33：彻底移除 Docker / GitHub Actions 相关文件；测试分层（slow marker + 快速回归脚本）；
+  Playwright 前端 E2E；生产可选 Celery/Redis 任务后端；表达自动化（CC7/CC11）与弦乐 divisi 分部
 
 ## Partially Completed / Needs Verification（部分完成或需验证）
 
@@ -52,10 +54,9 @@
 
 ## Skipped / Optional（跳过或可选，未纳入验收）
 
-- **T26（Docker 本地部署稳定化）与 T27（GitHub Actions + GHCR 发布）按用户指示明确跳过。**
-- 仓库保留 `docker/`、`docker-compose.*.yml`、`.github/workflows/ci.yml` 与 `docker-publish.yml`、
-  `DEPLOYMENT.md` 等文件，属于 **experimental / optional**，未在当前环境完成端到端验证
-  （此前 Docker Hub 基础镜像拉取受网络限制）。本地验收以 `pytest -q` / `npm ci` / `npm run build` / `npm audit` 为准。
+- **T26（Docker 本地部署稳定化）与 T27（GitHub Actions + GHCR 发布）按用户指示跳过，
+  相关文件（`.github/`、`docker/`、`docker-compose.*.yml`、`DEPLOYMENT.md` 等）已彻底删除。**
+- 本地验收以 `pytest -q` / `npm ci` / `npm run build` / `npm audit` 为准；质量门禁使用 `scripts/check-all.*`。
 
 ## Known Issues（已知问题）
 
@@ -67,6 +68,7 @@
 
 - 异步渲染任务为**进程内队列**（`ThreadPoolExecutor`）：服务重启会中断 `queued / running` 任务
   （重启后标记 failed），暂未引入 Redis / Celery / MQ，跨进程 / 多实例不支持。
+  （已提供可插拔 Celery 后端，默认不启用，需要 Redis + worker。）
 - 未关闭的 `note_on` 在 MIDI 文件末尾仍按丢弃处理（不崩溃，但音符可能截断）。
 - 轻量分析指标未并入 QualityReport 评分。
 
@@ -80,9 +82,12 @@
 
 ```text
 后端：pytest -q → 483 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 341 passed（约 11s）
+慢速集成：pytest -m slow → 142 passed
 前端：npm ci → passed（vite 7.3.6）
 前端：npm run build → passed（tsc 无错误）
 前端：npm audit → 0 vulnerabilities
+前端 E2E：Playwright 用例已就绪（浏览器需在联网环境 `npx playwright install chromium` 后运行）
 ```
 
 > 说明：allow-scripts 对 esbuild postinstall 的提示为 npm 安装策略警告，非安全漏洞；
@@ -94,7 +99,8 @@
 2. Playwright 前端演示测试：从 prompt 到播放 / 编辑 / 版本 / 混音 / 导出的端到端覆盖。
 3. 生产级任务队列：Redis / Celery 替换进程内队列，支持多实例与任务恢复。
 4. 音乐质量与音色：真实 SoundFont 渲染体验优化、弦乐分部细化。
-5. Docker / GHCR 部署稳定化（如后续恢复 T26/T27）。
+5. 如未来需要 CI/CD，可重新引入 GitHub Actions / Docker（当前已彻底移除，避免死文档）；
+   在联网环境安装 Playwright 浏览器并跑通 `npm run e2e`。
 
 ## 最近一次状态更新时间
 

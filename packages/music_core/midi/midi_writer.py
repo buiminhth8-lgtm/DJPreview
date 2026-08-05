@@ -13,6 +13,8 @@ from packages.music_core.midi.midi_constants import DRUM_CHANNEL
 
 DEFAULT_TICKS_PER_BEAT = 480
 PAN_CC = 10
+EXPRESSION_CC = 11
+VOLUME_CC = 7
 
 
 def _resolve_program(instrument: str | None, channel: int) -> int | None:
@@ -61,6 +63,16 @@ def write_midi(
             track.append(Message("program_change", program=program, time=0, channel=track_events.channel))
         if track_events.pan is not None:
             track.append(Message("control_change", control=PAN_CC, value=track_events.pan, time=0, channel=track_events.channel))
+        if track_events.cc11 is not None:
+            track.append(
+                Message(
+                    "control_change",
+                    control=EXPRESSION_CC,
+                    value=max(1, min(127, int(track_events.cc11))),
+                    time=0,
+                    channel=track_events.channel,
+                )
+            )
 
         # 事件列表：(tick, kind) kind: 0=note_off, 1=note_on
         events: list[tuple[int, int, int, int]] = []
@@ -70,12 +82,27 @@ def write_midi(
             events.append((start_tick, 1, note.pitch, note.velocity))
             events.append((end_tick, 0, note.pitch, 0))
 
+        # CC7 音量曲线：转换为 (tick, kind=2, cc_value)
+        for beat, value in track_events.cc_curve or []:
+            tick = int(round(float(beat) * tpb))
+            events.append((max(0, tick), 2, max(1, min(127, int(value))), 0))
+
         events.sort(key=lambda e: (e[0], e[1]))
         last_tick = 0
         for tick, kind, pitch, velocity in events:
             delta = max(0, tick - last_tick)
             last_tick = tick
-            if kind == 1:
+            if kind == 2:
+                track.append(
+                    Message(
+                        "control_change",
+                        control=VOLUME_CC,
+                        value=pitch,
+                        time=delta,
+                        channel=track_events.channel,
+                    )
+                )
+            elif kind == 1:
                 track.append(Message("note_on", note=pitch, velocity=velocity, time=delta, channel=track_events.channel))
             else:
                 track.append(Message("note_off", note=pitch, velocity=velocity, time=delta, channel=track_events.channel))

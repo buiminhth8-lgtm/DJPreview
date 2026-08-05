@@ -83,7 +83,7 @@ npm ci
 npm run dev
 ```
 
-默认访问 http://localhost:5173。前端 API 默认使用相对路径 `/api/v1`（开发环境由 Vite 代理到后端，Docker 部署由 nginx 转发）；如需指定后端地址：
+默认访问 http://localhost:5173。前端 API 默认使用相对路径 `/api/v1`（开发环境由 Vite 代理到后端）；如需指定后端地址：
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000
@@ -146,13 +146,32 @@ Linux / macOS：
 手动执行：
 
 ```bash
-pytest -q
+python -m pytest -q -m "not slow"   # 快速回归（跳过慢速集成测试）
+python -m pytest -q -m slow          # 仅慢速集成测试（API / 渲染 / 全链路）
+python -m pytest -q                  # 全量（默认全部运行）
 cd apps/web
 npm ci
 npm run build
 ```
 
-说明：后端测试默认 `LLM_PROVIDER=mock`、`AUDIO_RENDERER=fallback`；前端构建不调用真实后端；CI（`.github/workflows/ci.yml`）会在 push（main / master）与 pull request 时自动运行。
+说明：后端测试默认 `LLM_PROVIDER=mock`、`AUDIO_RENDERER=fallback`；前端构建不调用真实后端；
+质量门禁以本地脚本 `scripts/check-all.ps1` / `check-all.sh` 为准（仓库未配置 CI）。
+
+测试分层：模块级使用 FastAPI TestClient 的集成测试会自动标记为 `slow`；
+`check-backend.ps1` / `check-backend.sh` 默认只跑快速回归（`-Full` / `--full` 跑全量）。
+
+## 前端 E2E（Playwright）
+
+- 测试文件：`apps/web/e2e/demo.spec.ts`（完整演示链路：生成 → MIDI → WAV 播放 → 编辑 → 版本 → 混音 → 工程导出）。
+- 配置：`apps/web/playwright.config.ts`（自动启动 Vite dev server，需本机 8000 端口运行后端）。
+
+```bash
+cd apps/web
+npx playwright install chromium   # 首次需要下载浏览器
+npm run e2e
+```
+
+前置：后端 `LLM_PROVIDER=mock AUDIO_RENDERER=fallback uvicorn services.api.main:app --port 8000`。
 
 ## 主要 API 示例
 
@@ -483,6 +502,18 @@ GET  /api/v1/songs/{song_id}/tasks
 - 前端 `RenderTasksPanel`：异步按钮 + 进度条 + 成功自动刷新资产；`useRenderTasks` 每 1s 轮询。
 - 详见 [docs/RENDER_TASKS.md](docs/RENDER_TASKS.md)（含进程内队列、重启中断、取消语义与限制）。
 
+### 生产级任务后端（可选）
+
+- 任务执行器已抽象为可插拔后端：默认进程内（`TASK_BACKEND=inprocess`），
+  生产可切换 `TASK_BACKEND=celery`（需 Redis + worker，见 [docs/RENDER_TASKS.md](docs/RENDER_TASKS.md)）。
+- 可选依赖：`pip install -r requirements-celery.txt`。
+
+## 表达自动化与弦乐分部（T33）
+
+- MIDI Writer 输出 CC7（volume）段落音量曲线与 CC11（expression）基础表达，
+  曲线由段落 energy 确定性生成（intro/outro 偏低、chorus 抬升）。
+- 弦乐轨道自动 divisi 为两个分部通道（不同 channel + 基础 pan），形成更宽的弦乐声场。
+
 ## 前端链路冒烟（T31）
 
 - `scripts/demo_t30_frontend_smoke.py`：后端全链路（health → 生成 → 同步 MIDI → 同步 WAV → 版本列表 →
@@ -506,19 +537,9 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 
 详细状态见 [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md)，路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)，Review 归纳见 [docs/REVIEW_SUMMARY.md](docs/REVIEW_SUMMARY.md)。
 
-## Docker / GitHub Actions（可选，未纳入当前验收）
-
-仓库保留了 Docker（`docker/`、`docker-compose.*.yml`）与 GitHub Actions（`.github/workflows/`）
-相关文件，说明见 [DEPLOYMENT.md](DEPLOYMENT.md)。
-
-> 状态说明：T26（Docker 本地部署稳定化）与 T27（GitHub Actions + GHCR 发布）按用户指示**明确跳过**，
-> 相关文件属于 experimental / optional，**未纳入当前验收标准**；本地全量验证以
-> `pytest -q`、`npm ci`、`npm run build` 与 `npm audit` 为准。
-
 ## 下一阶段计划
 
 1. 文档 / 测试分层：把慢速集成测试与单元测试分离，缩短全量回归时间
 2. 前端 E2E：Playwright 演示测试（生成 → MIDI → WAV → 编辑 → 版本 → 混音 → 导出）
 3. 生产级任务队列：用 Redis / Celery 等替换进程内 `ThreadPoolExecutor`，支持多实例与任务恢复
 4. 音乐质量细化：弦乐真实分部、CC11/CC7 expression 自动化、混音母带实验
-5. Docker / GHCR 部署稳定化（如后续恢复 T26/T27 再做，当前网络受限未验证）
