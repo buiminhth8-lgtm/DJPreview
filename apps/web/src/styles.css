@@ -46,6 +46,78 @@ header h1 {
   margin-bottom: 20px;
 }
 
+/* ---------- T25：工作台布局 ---------- */
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.workspace-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.status-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.status-chip {
+  background: #0d1119;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.status-chip.ok {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.success {
+  background: rgba(47, 158, 110, 0.12);
+  border: 1px solid var(--ok);
+  color: var(--ok);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
+.warning {
+  background: rgba(255, 178, 64, 0.1);
+  border: 1px solid #e0a24a;
+  color: #e0a24a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
+.validation-box {
+  margin-top: 12px;
+}
+
+.validation-box .warning,
+.validation-box .error {
+  margin: 4px 0;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+@media (max-width: 860px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 details.panel > summary {
   cursor: pointer;
   list-style: none;

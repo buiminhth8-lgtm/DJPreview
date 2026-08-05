@@ -181,7 +181,7 @@
   新增 `composer/voicing.py`、`composer/voice_leading.py`、`arrangement/strings_engine.py`、
   `arrangement/pad_engine.py`、`analysis/arrangement_analysis.py`；composer 接入 pad/strings 专用引擎
 
-## T23-T25 前端工作台重构（T23 API 层拆分 ✅，T24 hooks 拆分 ✅，T25 进行中）
+## T23-T25 前端工作台重构（T23 ✅，T24 ✅，T25 工作台布局 ✅）
 
 - 目标：按“生成 / 播放 / 编辑 / 混音 / 可视化 / 质量 / 导出”分区域重构，状态管理统一
 - 优先级：P2
@@ -194,6 +194,10 @@
 - T24 已完成：App 状态拆分到 hooks（useSongProject / useAudioAssets / useVersions / useMixer / useQuality /
   useEvaluation / useReferenceMidi / useStyles + hooks/index.ts）；App.tsx 保留 UI 结构，直接 API 调用移除；
   生成/编辑/MIDI/音频/版本/恢复等联动通过 hooks 编排；`npm run build` 通过
+- T25 已完成：工作台布局拆分（`components/workspace/`：WorkspaceLayout / WorkspaceHeader / GeneratePanel /
+  PlayerPanel / EditPanel / VersionPanel / MixerPanel / AnalysisPanel / ReferencePanel / EvaluationPanel /
+  ProjectPanel / StatusMessage / index）；App.tsx 收敛为 hooks + 跨模块回调的组合层；
+  styles.css 增加工作台栅格与状态样式；T26 将进入 Docker 本地部署稳定化
 
 ## T26-T27 Docker / GitHub Actions / GHCR 部署 ⬜
 

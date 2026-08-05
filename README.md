@@ -423,7 +423,15 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
 - `App.tsx` 保留现有 UI 结构与交互流程，直接 API 调用移除，通过 hooks 编排联动
   （生成→加载、编辑→刷新版本/资产、MIDI/WAV→刷新资产、恢复→刷新歌曲/资产/版本）。
 - 各 hook 有独立 loading / error 状态，复用 T23 API 模块与统一错误解析（`getErrorMessage`）。
-- T25 将继续做工作台布局重构。
+
+## 前端工作台布局（T25）
+
+- `apps/web/src/components/workspace/`：WorkspaceLayout（两栏栅格：左生成/编辑/导入导出，右播放/版本/混音/分析，
+  底部参考/评估/重生成）、WorkspaceHeader（song_id / 版本 / MIDI / WAV 状态）、GeneratePanel、PlayerPanel、
+  EditPanel、VersionPanel、MixerPanel、AnalysisPanel、ReferencePanel、EvaluationPanel、ProjectPanel、
+  StatusMessage（error / success / warning）。
+- `App.tsx` 收敛为组合层：仅保留 hooks 调用、状态组合与跨模块回调（恢复→刷新歌曲/资产/版本等）。
+- 未改后端接口、未重写 hooks / 业务逻辑；styles.css 增加工作台栅格、状态芯片与移动端单列。
 
 ## 当前项目状态
 

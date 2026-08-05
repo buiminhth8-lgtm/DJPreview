@@ -17,6 +17,7 @@
 - T22 完成：弦乐/Pad 编曲增强（chord voicing / 平滑 voice leading / 段落层次 / build-up / layer lift / thinning）
 - T23 完成：前端 API 层按领域拆分（client / types / 10 个领域模块 / index / musicApi 兼容层）
 - T24 完成：前端 App 状态拆分到 hooks（8 个领域 hook + hooks/index.ts，App.tsx 业务逻辑收敛）
+- T25 完成：前端工作台布局拆分（components/workspace/ 12 个组件 + 布局样式，App.tsx 变组合层）
 - 当前分支：`master`
 
 ## 已完成功能
