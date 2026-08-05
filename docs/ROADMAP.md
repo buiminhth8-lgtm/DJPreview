@@ -201,7 +201,7 @@
 - T25 已完成：工作台布局拆分（`components/workspace/`：WorkspaceLayout / WorkspaceHeader / GeneratePanel /
   PlayerPanel / EditPanel / VersionPanel / MixerPanel / AnalysisPanel / ReferencePanel / EvaluationPanel /
   ProjectPanel / StatusMessage / index）；App.tsx 收敛为 hooks + 跨模块回调的组合层；
-  styles.css 增加工作台栅格与状态样式；T26 将进入 Docker 本地部署稳定化
+  styles.css 增加工作台栅格与状态样式；T26/T27 按用户指示跳过，后续进入 T28 演示
 
 ## T26-T27（已跳过）
 
@@ -236,28 +236,6 @@
 - 遗留问题修复：任务轻量 JSON 持久化（data/tasks/，重启后中断任务标记失败）、同曲渲染串行锁
   （同步/异步共用 per-song 可重入锁）、`DELETE /tasks/{task_id}` 取消接口（queued 立即取消 / running 检查点中止）
 
-## T26-T27 Docker / GitHub Actions / GHCR 部署（已跳过）
-
-- 按用户指示明确跳过：T26（Docker 本地部署稳定化）与 T27（GitHub Actions + GHCR 发布）未实现。
-
-## T28 示例工程与演示脚本 ✅
-
-- 目标：稳定、可复现、可离线演示的产品 Demo 流程（MockProvider，不依赖真实 DeepSeek）
-- 实现：`examples/demo_prompts.json`（8 个案例）、`docs/DEMO_T28.md`、`docs/DEMO_SCRIPT.md`、
-  `scripts/demo_t28_smoke.py`、`scripts/demo_t28_walkthrough.sh`（详见上方 T28 已完成小节）
-
-## T29 SoundFont / 音源管理增强 ✅
-
-- 目标：SoundFont 选择、自动发现、回退策略完善
-- 实现：`packages/music_core/audio/`、SoundFont API、项目级 `soundfont.json`、前端 `SoundfontPanel`、
-  `docs/SOUNDFONTS.md`（详见上方 T29 已完成小节）
-
-## T30 渲染任务异步化与进度反馈 ✅
-
-- 目标：WAV/stems 渲染异步执行并提供进度
-- 实现：`packages/music_core/tasks/` + `services/api/tasks/` + 异步 API + 前端 `RenderTasksPanel`，
-  并完成持久化 / 同曲串行锁 / 取消接口修复（详见上方 T30 已完成小节）
-
 ## T31 前端链路冒烟 ✅
 
 - 目标：生成 → MIDI → WAV → 版本 → 异步任务进度 → assets 的端到端验证脚本
@@ -272,3 +250,11 @@
 - 说明：vite 7 最低要求 Node ≥20.19 或 ≥22.12；vite 8 为后续独立任务（当前 npm 10.9.2 环境不兼容其 engine 要求）
 - 遗留提示：npm 11 allow-scripts 对 esbuild postinstall 的提示为安装策略警告，非安全漏洞；
   构建已验证 esbuild 二进制可用，`trustedDependencies` 机制继续兼容
+
+## 下一轮建议
+
+1. 文档 / 测试分层：拆分慢速集成测试（如音频渲染 / 全链路 API），缩短全量回归时间。
+2. Playwright 前端演示测试：从 prompt 一路到播放 / 编辑 / 版本 / 混音 / 导出的端到端覆盖。
+3. 生产级任务队列：用 Redis / Celery 等替换进程内 `ThreadPoolExecutor`，支持多实例与任务恢复。
+4. 音乐质量与音色：真实 SoundFont 渲染体验优化、弦乐分部细化、CC11/CC7 expression 实验。
+5. Docker / GHCR 部署稳定化（如后续恢复 T26/T27）：当前相关文件为 experimental / optional，未纳入验收。

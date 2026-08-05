@@ -15,13 +15,12 @@ ai-music-mvp 是一个功能覆盖完整的 AI 音乐生成 MVP：从一句话�
 
 ## 当前主要问题
 
-- 错误响应格式与部分响应模型尚未完全统一。
-- `EditSongRequest` 缺 `auto_render`，修改后渲染链路不完整。
-- 语义校验库已实现但未接入 API 对外报告。
-- 版本资产仍是“根目录文件 + 快照”并存，缺少统一目录结构。
-- MIDI Parser / Fallback 在重叠音符场景有边界问题；乐器名与 GM program 映射有别名不一致。
-- Evaluation Runner 的 trait 语义有重复与粗糙点。
-- Docker 镜像构建因当前网络无法拉取 Docker Hub 基础镜像，尚未完成端到端验证。
+- 异步渲染任务为进程内队列：服务重启会中断 `queued / running` 任务，暂未引入 Redis / Celery。
+- MIDI 文件末尾未关闭的 `note_on` 按丢弃处理（不崩溃，但音符可能截断）。
+- 轻量音乐分析指标未并入 QualityReport 评分模型。
+- Evaluation Runner 的 trait 打分语义有重复与粗糙点（如 `has_track_role2` 与 `has_track_role`）。
+- Docker / GHCR（T26/T27）按用户指示跳过：仓库保留相关文件但未完成端到端验证，
+  属于 experimental / optional，不纳入当前验收。
 
 ## P0 问题
 
@@ -29,12 +28,11 @@ ai-music-mvp 是一个功能覆盖完整的 AI 音乐生成 MVP：从一句话�
 
 ## P1 问题
 
-- API 错误响应 / 响应模型统一（T08 / T09）
-- `EditSongRequest.auto_render`（T07）
-- MusicSpec 语义校验 API 化（T10）
-- 版本资产目录式重构（T12-T14）
-- DeepSeek / LLM 产品化（T11）
-- Docker / GHCR 部署稳定化（T26-T27）
+- 生产级任务队列（替换进程内队列，支持多实例与任务恢复）
+- 未关闭 note_on 的收尾策略（按轨道末 tick 闭合）
+- 轻量分析指标并入 QualityReport 评分
+- Evaluation trait 打分语义细化
+- Docker / GHCR 部署稳定化（T26-T27，如后续恢复）
 
 ## 不建议马上做的方向
 
@@ -46,5 +44,5 @@ ai-music-mvp 是一个功能覆盖完整的 AI 音乐生成 MVP：从一句话�
 ## 当前推荐开发原则
 
 ```text
-先修稳定性，再补 API，一致化版本资产，最后提升音乐质量。
+先修稳定性与队列生产化，再补 E2E 测试，最后提升音乐质量与音色体验。
 ```

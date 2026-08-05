@@ -1,105 +1,101 @@
 # 项目状态（Project Status）
 
-## 当前版本状态
+> 最近一次实测：2026-08-05（分支 `master`）。以下状态均以代码与测试实际结果为准，
+> 不保留已完成的“待办”描述。
 
-- 阶段 1-6 已完成：MusicSpec / MIDI / WAV / 修改与版本 / 混音与导出 / 风格、参考、工程 IO、评估
-- 修复任务：T01-T11 已完成（工程导入 / 前端依赖 / 质量门禁 / 文档 / 版本详情与 diff / auto_render /
-  统一错误响应 / API Response Model / MusicSpec 语义校验 / LLM Provider 产品化）
-- T12 第一步完成：目录式版本资产结构（versions/vN/）+ 旧结构懒迁移 + 根目录兼容镜像
-- T13 完成：恢复版本时复制完整版本资产并清理缺失资产，不重新生成 MIDI / WAV
-- T15 完成：Evaluation Runner `render_audio` 语义修复（false 不渲染 / true 渲染 WAV + 逐 case 音频状态）
-- T16 完成：MIDI Parser 与 Fallback Renderer 支持同音高重叠音符（list + FIFO，velocity=0 按 note_off）
-- T17 完成：统一乐器注册表（canonical id / alias / 0-based GM program），MIDI Writer / Mix / Mock / Style 统一接入
-- T18 完成：旋律质量增强（motif / question-answer / 段落变奏 / chorus lift / outro recall）
-- T19 完成：和声质量增强（功能和声 / 终止式 / 扩展和弦 / 段落感知 progression）
-- T20 完成：鼓组 groove 增强（风格 groove / 段落强度 / fill / crash / swing / velocity accent / ghost note）
-- T21 完成：贝斯 groove 增强（风格 bassline / 段落强度 / root-fifth-octave / passing-approach / kick 对齐）
-- T22 完成：弦乐/Pad 编曲增强（chord voicing / 平滑 voice leading / 段落层次 / build-up / layer lift / thinning）
-- T23 完成：前端 API 层按领域拆分（client / types / 10 个领域模块 / index / musicApi 兼容层）
-- T24 完成：前端 App 状态拆分到 hooks（8 个领域 hook + hooks/index.ts，App.tsx 业务逻辑收敛）
-- T25 完成：前端工作台布局拆分（components/workspace/ 12 个组件 + 布局样式，App.tsx 变组合层）
-- T26/T27（Docker / GHCR）按用户指示跳过；T28 完成：示例工程与演示脚本（8 个 demo prompt + 演示文档/讲稿 + smoke 脚本）
-- T29 完成：SoundFont / 音源管理（扫描 / 稳定 id / 默认策略 / 项目级选择 / renderer 接入 / API / 前端面板 / 文档）
-- T30 完成：渲染任务异步化与进度反馈（进程内任务执行器 + 异步 API + 前端轮询/进度条，旧同步接口兼容）
-- T30 遗留问题修复：任务 JSON 持久化、同曲渲染串行锁、任务取消 DELETE 接口
-- T31 完成：前端链路冒烟脚本（生成→MIDI→WAV→版本→异步任务→assets，可选前端探活）
-- T32 完成：前端依赖安全收尾（vite 5.4.21 → 7.3.6、esbuild 0.21.5 → 0.28.1，`npm audit` 0 漏洞；
-  未使用 `audit fix --force`，未升级 vite 8；仅剩 esbuild postinstall allow-scripts 提示，非漏洞）
-- T14 完成：`.aimusic.zip` 升级为 bundle_version=2（完整导出/导入 `versions/vN/` 目录式版本资产，
-  以当前版本修复根目录镜像，兼容旧版 bundle，保留 zip slip 防护，不覆盖已有项目）
-- 当前分支：`master`
+## Completed（已完成）
 
-## 已完成功能
+### 核心产品能力（阶段 1-6）
 
-1. 自然语言生成 MusicSpec（MockProvider / DeepSeekProvider）
-2. MusicSpec → 多轨 MIDI
-3. MIDI → WAV（FluidSynth / fallback）
-4. 前端试听与下载
-5. 自然语言修改（MusicEditSpec 执行）
-6. 版本管理（初始化 / 建版本 / 恢复 / 详情 / diff）
-7. MixSpec 轨道混音（volume / pan / mute / solo / velocity_scale）
-8. Piano Roll 数据与可视化
-9. 分轨 MIDI / WAV / stems.zip 导出
-10. Quality Report 与保守自动优化
-11. 风格模板库（8 个模板）
-12. 参考 MIDI 分析（高层特征）与基于参考生成
-13. `.aimusic.zip` 工程导入导出（跨平台防 zip slip）
-14. Evaluation Runner（8 个内置用例）
-15. 基础质量门禁（CI + 本地脚本）
+- MusicSpec / MusicEditSpec（Pydantic v2），MockProvider 无 API Key 可跑通全流程
+- DeepSeekProvider（OpenAI-compatible Chat Completions）+ Prompt Registry + 结构化调用 + JSON 修复 + 调用日志（自动剔除 API Key）
+- MusicSpec → 多轨标准 MIDI（旋律 / 和弦 / 贝斯 / 鼓 / Pad / 弦乐，GM 注册表统一）
+- MIDI → WAV（FluidSynth / FallbackRenderer；无 FluidSynth 时 fallback 可用）
+- 自然语言修改（MusicEditSpec 执行，`auto_render` 可选）
+- 版本管理：v1 初始化、目录式 `versions/vN/`、列表 / 详情 / diff / restore（完整资产复制、不重新渲染）
+- `.aimusic.zip` 工程导入导出：bundle_version=2、目录式版本资产、旧版兼容、跨平台 zip slip 防护、导入生成新 song_id
+- MixSpec 混音（volume / pan / mute / solo / velocity_scale）、MIDI CC10 pan
+- Piano Roll 数据 API、分轨 MIDI / WAV / stems.zip 导出
+- Quality Report（结构 / 轨道 / 音域 / 密度 / 和声 / 混音）+ 保守自动优化（创建新版本）
+- 风格模板库（8 个）、Reference MIDI 高层特征分析、Evaluation Runner（8 个内置用例，`render_audio` 语义明确）
+- MusicSpec 语义校验（errors / warnings，接入生成与 MIDI 生成接口）
+- 统一 T08 错误响应结构 + API Response Model 明确化
 
-## 当前测试结果
+### 修复与工程任务
 
-```text
-pytest -q：432 passed（2026-08-04 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-```
+- T01：`.aimusic.zip` 导入 zip slip 跨平台修复
+- T02：前端依赖可安装（engines 兼容、锁文件匹配）
+- T03：基础质量门禁（CI + 本地脚本）
+- T05 / T06：版本详情 API / 版本 diff API
+- T07：`EditSongRequest.auto_render`
+- T10：MusicSpec 语义校验增强
+- T11：DeepSeek / LLM Provider 产品化
+- T12 / T13：版本资产目录式结构 + 完整资产恢复
+- T14：`.aimusic.zip` 适配目录式版本（bundle_version=2）
+- T15：Evaluation Runner `render_audio` 语义修复
+- T16：MIDI Parser / Fallback Renderer 重叠音符修复
+- T17：乐器命名与 GM Program 映射统一
+- T18-T22：旋律 / 和声 / 鼓组 / 贝斯 / 弦乐-Pad 音乐质量增强
+- T23 / T24 / T25：前端 API 层拆分、hooks 状态拆分、Workspace 组件化
+- T28：示例工程与演示脚本（8 个 demo prompt、演示指南、现场讲稿、smoke 脚本、走查脚本）
+- T29：SoundFont / 音源管理（扫描、项目级选择、renderer 接入、API、前端面板、文档）
+- T30：渲染任务异步化与进度反馈（进程内任务执行器、任务持久化、同曲串行锁、取消接口、旧同步接口兼容）
+- T31：前端链路冒烟脚本
+- T32：前端依赖安全收尾（vite 7.3.6、esbuild 0.28.1，`npm audit` 0 漏洞）
 
-## 当前前端构建结果
+## Partially Completed / Needs Verification（部分完成或需验证）
 
-```text
-npm ci：passed
-npm run build：passed（Vite 5.4.21，tsc 无错误）
-```
+- 音频渲染质量：fallback 渲染器为开发兜底（正弦/三角波），音色保真有限；真实音源依赖用户自备 SoundFont + FluidSynth。
+- 音乐分析指标（旋律 / 和声 / 节奏 / 编曲）为轻量辅助，未并入 QualityReport 评分模型。
+- Evaluation trait 打分语义仍较粗（如 `has_track_role2` 与 `has_track_role` 有重复），后续可细化。
+- MIDI Parser 对文件末尾仍未关闭的 `note_on` 按“丢弃”处理，未做按轨道末 tick 收尾。
 
-## 已知问题
+## Skipped / Optional（跳过或可选，未纳入验收）
+
+- **T26（Docker 本地部署稳定化）与 T27（GitHub Actions + GHCR 发布）按用户指示明确跳过。**
+- 仓库保留 `docker/`、`docker-compose.*.yml`、`.github/workflows/ci.yml` 与 `docker-publish.yml`、
+  `DEPLOYMENT.md` 等文件，属于 **experimental / optional**，未在当前环境完成端到端验证
+  （此前 Docker Hub 基础镜像拉取受网络限制）。本地验收以 `pytest -q` / `npm ci` / `npm run build` / `npm audit` 为准。
+
+## Known Issues（已知问题）
 
 ### P0（阻断）
 
 - 无。
 
-### P1（高优先级）
+### P1（高优先级，当前已知）
 
-- `EditSongRequest` 尚不支持 `auto_render`（修改后需手动渲染音频）。
-- API 错误响应格式不统一（部分 400 返回 `detail` 字符串，部分结构不同）。
-- API 响应模型未完全明确化（部分接口返回裸 dict）。
-- MusicSpec 语义校验库已实现（`check_music_spec` 返回 errors/warnings），但尚未接入生成/编辑 API 的对外报告。
-- 版本资产目录式结构第一步已完成（新项目 v1/vN 目录 + 旧结构懒迁移）。
-- `.aimusic.zip` 已适配目录式版本结构（T14，bundle_version=2）。
-- Evaluation trait 打分语义仍较粗（如 `has_track_role2` 与 `has_track_role` 重复），后续可细化。
-- MIDI Parser / Fallback Renderer 重叠音符问题已修复；未关闭 note_on 仍按“丢弃”处理（后续可按轨道末 tick 收尾）。
-- 乐器命名与 GM Program 映射已统一（T17）；后续新增音色时需先注册到 `packages/music_core/instruments/registry.py`。
-- 旋律/和声/节奏分析指标为轻量辅助，未并入 QualityReport。
-- 后续可做：更细的弦乐真实分部、CC11/CC7 expression 自动化、混音母带等。
-- Evaluation Runner 的 trait 打分语义较粗（如 `has_track_role2` 与 `has_track_role` 重复）。
+- 异步渲染任务为**进程内队列**（`ThreadPoolExecutor`）：服务重启会中断 `queued / running` 任务
+  （重启后标记 failed），暂未引入 Redis / Celery / MQ，跨进程 / 多实例不支持。
+- 未关闭的 `note_on` 在 MIDI 文件末尾仍按丢弃处理（不崩溃，但音符可能截断）。
+- 轻量分析指标未并入 QualityReport 评分。
 
 ### P2（后续）
 
-- 音乐生成质量增强（旋律动机、和声进行、能量曲线精细调参）
-- 前端工作台重构（更清晰的区域划分、状态管理）
-- Docker / GHCR 部署稳定性验证（当前环境网络无法拉取 Docker Hub 基础镜像，未完成镜像构建验证）
-- SoundFont / 音源管理与选择
-- 渲染任务异步化与进度反馈
+- 音乐生成质量精细调参（旋律动机、和声进行、能量曲线的更多参数暴露）。
+- 更细的弦乐真实分部、CC11/CC7 expression 自动化、混音母带实验。
+- 前端 Playwright 演示测试（当前只有后端 pytest 与前端 build 门禁）。
 
-## 推荐下一步任务
+## 当前测试与构建结果（2026-08-05 实测）
 
-1. T07：`EditSongRequest` 增加 `auto_render`
-2. T08：统一 API 错误响应格式
-3. T09：API Response Model 明确化
-4. T10：MusicSpec 语义校验接入 API 报告
-5. T11：DeepSeek / LLM Provider 产品化
-6. T12：版本资产目录式重构
-7. T15-T17：Evaluation / MIDI Parser / 乐器映射修复
-8. T18-T22：音乐质量增强
+```text
+后端：pytest -q → 483 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+前端：npm ci → passed（vite 7.3.6）
+前端：npm run build → passed（tsc 无错误）
+前端：npm audit → 0 vulnerabilities
+```
+
+> 说明：allow-scripts 对 esbuild postinstall 的提示为 npm 安装策略警告，非安全漏洞；
+> 构建已验证 esbuild 二进制可用（`trustedDependencies` 机制兼容）。
+
+## Next Recommended Tasks（推荐下一步）
+
+1. 文档 / 测试分层：拆分慢速集成测试，缩短全量回归时间。
+2. Playwright 前端演示测试：从 prompt 到播放 / 编辑 / 版本 / 混音 / 导出的端到端覆盖。
+3. 生产级任务队列：Redis / Celery 替换进程内队列，支持多实例与任务恢复。
+4. 音乐质量与音色：真实 SoundFont 渲染体验优化、弦乐分部细化。
+5. Docker / GHCR 部署稳定化（如后续恢复 T26/T27）。
 
 ## 最近一次状态更新时间
 
-2026-08-04
+2026-08-05

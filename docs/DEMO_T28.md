@@ -21,7 +21,7 @@ export LLM_PROVIDER=mock
 Windows PowerShell：
 
 ```powershell
-$env:LLM_PROVIDER="mock"
+$env:LLM_PROVIDER = "mock"
 ```
 
 > 默认值就是 mock（`conftest.py` 与 `.env.example` 均以 mock 为默认），

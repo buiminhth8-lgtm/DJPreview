@@ -498,26 +498,27 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（432 passed，2026-08-04 实测）
-前端依赖：npm ci passed
+后端测试：pytest -q passed（483 passed，2026-08-05 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+前端依赖：npm ci passed（vite 7.3.6）
 前端构建：npm run build passed
+前端安全：npm audit 0 vulnerabilities
 ```
 
 详细状态见 [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md)，路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)，Review 归纳见 [docs/REVIEW_SUMMARY.md](docs/REVIEW_SUMMARY.md)。
 
-## 云端构建 / Docker 部署
+## Docker / GitHub Actions（可选，未纳入当前验收）
 
-GitHub Actions 云端构建、GHCR 镜像发布与 Windows 本地 Docker 部署说明见 [DEPLOYMENT.md](DEPLOYMENT.md)。
+仓库保留了 Docker（`docker/`、`docker-compose.*.yml`）与 GitHub Actions（`.github/workflows/`）
+相关文件，说明见 [DEPLOYMENT.md](DEPLOYMENT.md)。
+
+> 状态说明：T26（Docker 本地部署稳定化）与 T27（GitHub Actions + GHCR 发布）按用户指示**明确跳过**，
+> 相关文件属于 experimental / optional，**未纳入当前验收标准**；本地全量验证以
+> `pytest -q`、`npm ci`、`npm run build` 与 `npm audit` 为准。
 
 ## 下一阶段计划
 
-1. `EditSongRequest` 增加 `auto_render`
-2. 统一 API 错误响应格式
-3. API Response Model 明确化
-4. MusicSpec 语义校验接入 API / 生成链路
-5. DeepSeek / LLM Provider 产品化
-6. 版本资产目录式重构
-7. 音乐生成质量增强（重叠音符、乐器映射等）
-8. 前端工作台重构
-9. Docker / GHCR 部署稳定化
-10. SoundFont / 音源管理与渲染异步化
+1. 文档 / 测试分层：把慢速集成测试与单元测试分离，缩短全量回归时间
+2. 前端 E2E：Playwright 演示测试（生成 → MIDI → WAV → 编辑 → 版本 → 混音 → 导出）
+3. 生产级任务队列：用 Redis / Celery 等替换进程内 `ThreadPoolExecutor`，支持多实例与任务恢复
+4. 音乐质量细化：弦乐真实分部、CC11/CC7 expression 自动化、混音母带实验
+5. Docker / GHCR 部署稳定化（如后续恢复 T26/T27 再做，当前网络受限未验证）
