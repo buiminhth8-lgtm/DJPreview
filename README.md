@@ -473,7 +473,7 @@ GET  /api/v1/songs/{song_id}/tasks
 
 - 旧同步接口（midi/generate、audio/render、stems/export）保持不变。
 - 前端 `RenderTasksPanel`：异步按钮 + 进度条 + 成功自动刷新资产；`useRenderTasks` 每 1s 轮询。
-- 详见 [docs/RENDER_TASKS.md](docs/RENDER_TASKS.md)（含进程内队列、重启丢失、无取消等限制）。
+- 详见 [docs/RENDER_TASKS.md](docs/RENDER_TASKS.md)（含进程内队列、重启中断、取消语义与限制）。
 
 ## 当前项目状态
 

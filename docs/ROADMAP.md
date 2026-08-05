@@ -232,30 +232,24 @@
 - 遗留问题修复：任务轻量 JSON 持久化（data/tasks/，重启后中断任务标记失败）、同曲渲染串行锁
   （同步/异步共用 per-song 可重入锁）、`DELETE /tasks/{task_id}` 取消接口（queued 立即取消 / running 检查点中止）
 
-## T26-T27 Docker / GitHub Actions / GHCR 部署 ⬜
+## T26-T27 Docker / GitHub Actions / GHCR 部署（已跳过）
 
-- 目标：镜像构建稳定、发布流程可用、本地部署文档准确
-- 优先级：P1
-- 依赖：T03
-- 验收标准：镜像构建成功；compose 启动后 health 返回 ok
+- 按用户指示明确跳过：T26（Docker 本地部署稳定化）与 T27（GitHub Actions + GHCR 发布）未实现。
 
-## T28 示例工程与演示脚本 ⬜
+## T28 示例工程与演示脚本 ✅
 
-- 目标：提供可直接导入的示例 `.aimusic.zip` 与一键演示脚本
-- 优先级：P2
-- 依赖：T14
-- 验收标准：示例导入成功并可试听
+- 目标：稳定、可复现、可离线演示的产品 Demo 流程（MockProvider，不依赖真实 DeepSeek）
+- 实现：`examples/demo_prompts.json`（8 个案例）、`docs/DEMO_T28.md`、`docs/DEMO_SCRIPT.md`、
+  `scripts/demo_t28_smoke.py`、`scripts/demo_t28_walkthrough.sh`（详见上方 T28 已完成小节）
 
-## T29 SoundFont / 音源管理增强 ⬜
+## T29 SoundFont / 音源管理增强 ✅
 
 - 目标：SoundFont 选择、自动发现、回退策略完善
-- 优先级：P2
-- 依赖：T03
-- 验收标准：多 SoundFont 可配置；fallback 兜底正常
+- 实现：`packages/music_core/audio/`、SoundFont API、项目级 `soundfont.json`、前端 `SoundfontPanel`、
+  `docs/SOUNDFONTS.md`（详见上方 T29 已完成小节）
 
-## T30 渲染任务异步化与进度反馈 ⬜
+## T30 渲染任务异步化与进度反馈 ✅
 
 - 目标：WAV/stems 渲染异步执行并提供进度
-- 优先级：P2
-- 依赖：T03
-- 验收标准：长任务不阻塞请求；前端展示进度
+- 实现：`packages/music_core/tasks/` + `services/api/tasks/` + 异步 API + 前端 `RenderTasksPanel`，
+  并完成持久化 / 同曲串行锁 / 取消接口修复（详见上方 T30 已完成小节）

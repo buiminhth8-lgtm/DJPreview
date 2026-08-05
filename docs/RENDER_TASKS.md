@@ -30,7 +30,7 @@ queued    -> 已创建，等待执行
 running   -> 执行中
 succeeded -> 成功（progress=100，result 含 assets / metadata）
 failed    -> 失败（error 记录原因）
-cancelled -> 预留状态（当前未提供取消接口）
+cancelled -> 已取消（DELETE /tasks/{task_id}；queued 立即取消，running 在进度检查点中止）
 ```
 
 ## 4. progress 约定
