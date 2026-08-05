@@ -1,0 +1,50 @@
+[
+  {
+    "id": "rainy_night_piano",
+    "title": "雨夜电影钢琴",
+    "prompt": "生成一首雨夜电影感钢琴曲，情绪忧郁、节奏舒缓、适合片尾独白。",
+    "expected_style": "cinematic_piano"
+  },
+  {
+    "id": "chinese_cinematic",
+    "title": "中国风配乐",
+    "prompt": "生成一首中国风影视配乐，包含古风旋律、弦乐铺底和具有东方意境的氛围。",
+    "expected_style": "chinese_cinematic"
+  },
+  {
+    "id": "lofi_hiphop",
+    "title": "Lo-fi hiphop",
+    "prompt": "生成一首 Lo-fi hiphop，鼓组松弛、有 swing，适合夜晚学习。",
+    "expected_style": "lo_fi_hiphop"
+  },
+  {
+    "id": "game_battle",
+    "title": "游戏战斗",
+    "prompt": "生成一首游戏战斗音乐，节奏紧张、鼓点强烈、适合 Boss 战。",
+    "expected_style": "game_battle"
+  },
+  {
+    "id": "meditation_ambient",
+    "title": "冥想氛围",
+    "prompt": "生成一首冥想氛围音乐，Pad 柔和、节奏极简、适合放松呼吸。",
+    "expected_style": "ambient_meditation"
+  },
+  {
+    "id": "pop_ballad",
+    "title": "流行情歌",
+    "prompt": "生成一首流行情歌，主旋律清晰，副歌更有记忆点，适合人声演唱前的伴奏。",
+    "expected_style": "pop_ballad"
+  },
+  {
+    "id": "electronic_groove",
+    "title": "电子律动",
+    "prompt": "生成一首电子律动音乐，节奏稳定、低频明显、适合科技产品展示。",
+    "expected_style": "electronic_pulse"
+  },
+  {
+    "id": "rock_theme",
+    "title": "摇滚主题",
+    "prompt": "生成一首摇滚主题音乐，包含电吉他、贝斯和强劲鼓组，适合热血开场。",
+    "expected_style": "rock_theme"
+  }
+]

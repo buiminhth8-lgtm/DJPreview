@@ -433,6 +433,21 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
 - `App.tsx` 收敛为组合层：仅保留 hooks 调用、状态组合与跨模块回调（恢复→刷新歌曲/资产/版本等）。
 - 未改后端接口、未重写 hooks / 业务逻辑；styles.css 增加工作台栅格、状态芯片与移动端单列。
 
+## T28 Demo（离线可复现演示）
+
+- 全程使用 **MockProvider**（默认），无需 DeepSeek API Key：`export LLM_PROVIDER=mock`（PowerShell：`$env:LLM_PROVIDER="mock"`）。
+- 8 个示例 prompt：`examples/demo_prompts.json`（雨夜电影钢琴 / 中国风 / Lo-fi / 游戏战斗 / 冥想 / 流行情歌 / 电子 / 摇滚）。
+- 演示指南：`docs/DEMO_T28.md`；现场讲稿：`docs/DEMO_SCRIPT.md`。
+- 自动化 smoke（默认 2 案例，`--all` 全跑）：
+
+```bash
+python scripts/demo_t28_smoke.py --base-url http://127.0.0.1:8000
+python scripts/demo_t28_smoke.py --all
+```
+
+- 手工走查（bash）：`scripts/demo_t28_walkthrough.sh`。
+- 启动：后端 `uvicorn services.api.main:app --port 8000`，前端 `cd apps/web && npm run dev`。
+
 ## 当前项目状态
 
 ```text

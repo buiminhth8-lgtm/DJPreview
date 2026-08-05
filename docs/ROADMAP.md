@@ -199,6 +199,17 @@
   ProjectPanel / StatusMessage / index）；App.tsx 收敛为 hooks + 跨模块回调的组合层；
   styles.css 增加工作台栅格与状态样式；T26 将进入 Docker 本地部署稳定化
 
+## T26-T27（已跳过）
+
+- T26（Docker 本地部署稳定化）与 T27（GitHub Actions + GHCR 发布）按用户指示明确跳过。
+
+## T28 示例工程与演示脚本 ✅
+
+- 目标：稳定、可复现、可离线演示的产品 Demo 流程（MockProvider，不依赖真实 DeepSeek）
+- 实现：`examples/demo_prompts.json`（8 个案例）、`docs/DEMO_T28.md`（演示指南）、
+  `docs/DEMO_SCRIPT.md`（现场讲稿）、`scripts/demo_t28_smoke.py`（自动化 smoke，默认 2 案例 / --all 全跑）、
+  `scripts/demo_t28_walkthrough.sh`（手工走查）、`tests/test_demo_prompts.py`、`tests/test_demo_smoke.py`
+
 ## T26-T27 Docker / GitHub Actions / GHCR 部署 ⬜
 
 - 目标：镜像构建稳定、发布流程可用、本地部署文档准确

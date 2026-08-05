@@ -27,51 +27,27 @@ _FILES = [
 
 
 def export_project_bundle(song_id: str, project_dir: Path, output_path: Path) -> Path:
-    """导出 .aimusic.zip；zip 内路径稳定、不含绝对路径与敏感文件。"""
+    """导出 .aimusic.zip；zip 内路径稳定、不含绝对路径与敏感文件。
+
+    单遍写入：先收集 manifest 的 contains 信息，再一次性写 zip，
+    避免“写 zip → 重写 manifest → replace”两步法在 Windows 上因文件占用导致 PermissionError。
+    """
     project_dir = Path(project_dir)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # 先收集 contains 信息
     contains: dict[str, bool] = {}
-    with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        manifest = {
-            "format": "ai-music-project",
-            "format_version": "0.1",
-            "song_id": song_id,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
-            "app_version": _APP_VERSION,
-            "contains": contains,
-        }
-        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+    for rel in _FILES:
+        contains[rel] = (project_dir / rel).exists()
+    versions_dir = project_dir / "versions"
+    contains["versions"] = (versions_dir / "index.json").exists()
+    contains["music_spec"] = (project_dir / "music_spec.json").exists()
+    contains["midi"] = (project_dir / "output.mid").exists()
+    contains["audio"] = (project_dir / "output.wav").exists()
+    contains["mix"] = (project_dir / "mix_spec.json").exists()
+    contains["quality_report"] = (project_dir / "quality_report.json").exists()
 
-        for rel in _FILES:
-            src = project_dir / rel
-            if src.exists():
-                zf.write(src, rel)
-                contains[rel] = True
-
-        # versions 快照
-        versions_dir = project_dir / "versions"
-        if versions_dir.exists():
-            for snapshot in sorted(versions_dir.glob("v*.json")):
-                zf.write(snapshot, f"versions/{snapshot.name}")
-        contains["versions"] = (versions_dir / "index.json").exists()
-        contains["music_spec"] = (project_dir / "music_spec.json").exists()
-        contains["midi"] = (project_dir / "output.mid").exists()
-        contains["audio"] = (project_dir / "output.wav").exists()
-        contains["mix"] = (project_dir / "mix_spec.json").exists()
-        contains["quality_report"] = (project_dir / "quality_report.json").exists()
-
-        # 重写 manifest（contains 已填全）
-        manifest["contains"] = contains
-        # zipfile 不支持覆盖，删除后重写
-        # 用新 zip 重写：简单方案是收集所有条目
-    return _rewrite_manifest(output_path, contains, song_id)
-
-
-def _rewrite_manifest(output_path: Path, contains: dict, song_id: str) -> Path:
-    """重建 zip 以写入完整 manifest（contains 填充后）。"""
-    tmp = output_path.with_suffix(".tmp.zip")
     manifest = {
         "format": "ai-music-project",
         "format_version": "0.1",
@@ -80,11 +56,15 @@ def _rewrite_manifest(output_path: Path, contains: dict, song_id: str) -> Path:
         "app_version": _APP_VERSION,
         "contains": contains,
     }
-    with zipfile.ZipFile(output_path, "r") as zin, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
-        for item in zin.infolist():
-            data = zin.read(item.filename)
-            if item.filename == "manifest.json":
-                data = json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8")
-            zout.writestr(item.filename, data)
-    tmp.replace(output_path)
+
+    with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+        for rel in _FILES:
+            src = project_dir / rel
+            if src.exists():
+                zf.write(src, rel)
+        # versions 快照
+        if versions_dir.exists():
+            for snapshot in sorted(versions_dir.glob("v*.json")):
+                zf.write(snapshot, f"versions/{snapshot.name}")
     return output_path
