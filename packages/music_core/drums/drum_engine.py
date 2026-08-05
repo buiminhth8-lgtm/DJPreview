@@ -19,6 +19,7 @@ from packages.music_core.composer.groove_library import (
 )
 from packages.music_core.harmony.harmony_engine import BarHarmony
 from packages.music_core.midi.midi_constants import DRUM_CHANNEL
+from packages.music_core.styles.style_tags import normalize_style_tags
 from packages.music_core.theory.rhythm import apply_swing
 from services.api.schemas.music_spec import MusicSpec
 
@@ -33,21 +34,44 @@ def _clamp(value: int, low: int = 1, high: int = 127) -> int:
 class DrumEngine:
     """生成 GM 鼓组 NoteEvent 列表（MIDI channel 9，不写 melodic program）。"""
 
+    _PATTERN_MAP = {
+        "four_on_floor": "four_on_floor",
+        "lofi_swing": "lo-fi",
+        "rock_backbeat": "rock_backbeat",
+        "battle_drive": "battle_drive",
+        "ambient_minimal": "ambient_minimal",
+        "cinematic_taiko": "cinematic",
+        "funk_groove": "funk_groove",
+    }
+
     def _pick_template(self, music_spec: MusicSpec) -> str:
-        style = " ".join(music_spec.style).lower()
+        """优先消费 drums track.pattern，其次按风格标签归一化推导。"""
+        drums_pattern = next(
+            (t.pattern for t in music_spec.tracks if t.role == "drums"),
+            None,
+        )
+        if drums_pattern:
+            mapped = self._PATTERN_MAP.get(drums_pattern.strip().lower())
+            if mapped:
+                return mapped
+        tags = normalize_style_tags(music_spec.style)
         mood = " ".join(music_spec.mood).lower()
-        if "chinese" in style:
+        if "chinese" in tags:
             return "chinese"
-        if any(k in style for k in ("cinematic", "ambient")) or any(
+        if "game" in tags:
+            return "battle_drive"
+        if "ambient" in tags:
+            return "ambient_minimal"
+        if "cinematic" in tags or any(
             k in mood for k in ("忧郁", "空灵", "悲伤", "雨夜")
         ):
             return "cinematic"
-        if "lo-fi" in style or "lofi" in style or "hiphop" in style:
+        if "lofi" in tags or "hiphop" in tags:
             return "lo-fi"
-        if "rock" in style:
-            return "rock"
-        if "electronic" in style or "edm" in style:
-            return "electronic"
+        if "rock" in tags:
+            return "rock_backbeat"
+        if "electronic" in tags:
+            return "four_on_floor"
         return "pop"
 
     def generate(

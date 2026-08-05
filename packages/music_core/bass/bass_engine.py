@@ -17,6 +17,7 @@ from packages.music_core.composer.bass_patterns import (
 )
 from packages.music_core.composer.events import NoteEvent, beats_per_bar, section_energy
 from packages.music_core.harmony.harmony_engine import BarHarmony
+from packages.music_core.styles.style_tags import normalize_style_tags
 from packages.music_core.theory.rhythm import apply_swing
 from packages.music_core.theory.scales import get_scale_pitches
 from services.api.schemas.music_spec import MusicSpec
@@ -43,17 +44,39 @@ def extract_kick_positions(
 class BassEngine:
     """生成贝斯轨道：强拍根音、风格化 groove、可选 kick 对齐。"""
 
+    _PATTERN_MAP = {
+        "laidback_groove": "laidback_groove",
+        "root_fifth_drive": "root_fifth_drive",
+        "driving_octaves": "driving_octaves",
+        "funk_groove": "funk_groove",
+        "lofi_swing": "laidback_groove",
+        "battle_drive": "driving_octaves",
+    }
+
     def _pick_style(self, music_spec: MusicSpec) -> str:
-        style = " ".join(music_spec.style).lower()
-        if "chinese" in style:
+        """优先消费 bass track.pattern，其次按风格标签归一化推导。"""
+        bass_pattern = next(
+            (t.pattern for t in music_spec.tracks if t.role == "bass"),
+            None,
+        )
+        if bass_pattern:
+            mapped = self._PATTERN_MAP.get(bass_pattern.strip().lower())
+            if mapped:
+                return mapped
+        tags = normalize_style_tags(music_spec.style)
+        if "chinese" in tags:
             return "chinese"
-        if any(k in style for k in ("cinematic", "ambient")):
+        if "ambient" in tags:
             return "cinematic"
-        if "lo-fi" in style or "lofi" in style or "hiphop" in style:
+        if "cinematic" in tags:
+            return "cinematic"
+        if "lofi" in tags or "hiphop" in tags:
             return "lo-fi"
-        if "rock" in style:
+        if "rock" in tags:
             return "rock"
-        if "electronic" in style or "edm" in style:
+        if "game" in tags:
+            return "driving_octaves"
+        if "electronic" in tags:
             return "electronic"
         return "pop"
 

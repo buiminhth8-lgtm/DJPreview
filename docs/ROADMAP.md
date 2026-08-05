@@ -264,6 +264,23 @@
   `celery_app.py` worker + `requirements-celery.txt` + `TASK_BACKEND=celery` 配置。
 - 音质：MIDI Writer 输出 CC7 段落音量曲线 + CC11 表达；弦乐 divisi 双通道分部（基础 pan）。
 
+## T31 风格模板驱动真实作曲差异 ✅
+
+- 目标：同 prompt 切换 style template 后，MusicSpec / MIDI 旋律、节奏、鼓组、贝斯、和声明显不同
+- 实现：
+  - `style_applier`：strength≥0.5 覆盖已有同 role 轨道（instrument/pattern/register/velocity，保留 track id）；
+    harmony_presets 按段落长度写入 `spec.harmony`（lo-fi / battle / rock / ambient / cinematic 各不相同）；
+    `seed = stable_hash(seed + template_id + strength)`，可复现且跨模板不同
+  - `melody_engine`：消费 melody track.pattern + 风格标签（lofi 稀疏 / game 高密度短音 / rock riff /
+    ambient 长音 / chinese 级进），motif density/energy/pitch_shift 不再硬编码
+  - `drum_engine`：消费 drums track.pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
+    cinematic_taiko / four_on_floor / funk_groove）
+  - `bass_engine`：消费 bass track.pattern（laidback_groove / root_fifth_drive / driving_octaves / funk_groove）
+  - `style_tags.normalize_style_tags`：统一识别 lofi/hiphop/rock/game/cinematic/chinese/ambient/electronic
+- 测试：`tests/test_style_template_composition.py`（9）+ `tests/test_engine_patterns.py`（3）；
+  全量 pytest 501 passed（fast 350 / slow 151）
+- 说明：WAV 渲染不会自动重新作曲；需先生成/重新生成 MIDI。MockProvider 下即可体现风格差异。
+
 ## 下一轮建议
 
 1. 文档 / 测试分层：拆分慢速集成测试（如音频渲染 / 全链路 API），缩短全量回归时间。

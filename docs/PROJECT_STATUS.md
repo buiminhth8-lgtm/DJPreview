@@ -44,6 +44,10 @@
 - T32：前端依赖安全收尾（vite 7.3.6、esbuild 0.28.1，`npm audit` 0 漏洞）
 - T33：彻底移除 Docker / GitHub Actions 相关文件；测试分层（slow marker + 快速回归脚本）；
   Playwright 前端 E2E；生产可选 Celery/Redis 任务后端；表达自动化（CC7/CC11）与弦乐 divisi 分部
+- T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
+  harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
+  DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
+  laidback_groove / driving_octaves 等）；MockProvider 下不同模板生成明显不同的 MusicSpec 与 MIDI
 
 ## Partially Completed / Needs Verification（部分完成或需验证）
 
@@ -51,6 +55,8 @@
 - 音乐分析指标（旋律 / 和声 / 节奏 / 编曲）为轻量辅助，未并入 QualityReport 评分模型。
 - Evaluation trait 打分语义仍较粗（如 `has_track_role2` 与 `has_track_role` 有重复），后续可细化。
 - MIDI Parser 对文件末尾仍未关闭的 `note_on` 按“丢弃”处理，未做按轨道末 tick 收尾。
+- **WAV 渲染不会自动重新作曲**：切换风格模板后需先重新生成（新 song_id / 新 MusicSpec）再生成 MIDI，
+  最后渲染 WAV；直接对旧歌曲渲染 WAV 不会应用新模板。
 
 ## Skipped / Optional（跳过或可选，未纳入验收）
 
@@ -81,9 +87,9 @@
 ## 当前测试与构建结果（2026-08-05 实测）
 
 ```text
-后端：pytest -q → 483 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 341 passed（约 11s）
-慢速集成：pytest -m slow → 142 passed
+后端：pytest -q → 501 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 350 passed（约 11s）
+慢速集成：pytest -m slow → 151 passed
 前端：npm ci → passed（vite 7.3.6）
 前端：npm run build → passed（tsc 无错误）
 前端：npm audit → 0 vulnerabilities

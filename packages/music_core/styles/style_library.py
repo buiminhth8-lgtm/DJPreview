@@ -28,6 +28,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         default_tracks=[
             {"id": "melody", "role": "melody", "instrument": "acoustic_grand_piano", "pattern": "legato"},
             {"id": "piano", "role": "harmony", "instrument": "acoustic_grand_piano", "pattern": "arpeggio"},
+            {"id": "bass", "role": "bass", "instrument": "acoustic_bass", "pattern": "root_fifth_drive"},
+            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "cinematic_taiko"},
             {"id": "strings", "role": "pad", "instrument": "string_ensemble_1", "pattern": "sustained_pad"},
         ],
         harmony_presets=[["Dm", "Bb", "F", "C"], ["Dm", "Bb", "C", "Dm"]],
@@ -52,8 +54,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         default_tracks=[
             {"id": "melody", "role": "melody", "instrument": "electric_piano_1", "pattern": "legato"},
             {"id": "piano", "role": "harmony", "instrument": "electric_piano_1", "pattern": "broken_chords"},
-            {"id": "bass", "role": "bass", "instrument": "electric_bass_finger", "pattern": "roots"},
-            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "lo-fi"},
+            {"id": "bass", "role": "bass", "instrument": "electric_bass_finger", "pattern": "laidback_groove"},
+            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "lofi_swing"},
             {"id": "pad", "role": "pad", "instrument": "string_ensemble_1", "pattern": "sustained_pad"},
         ],
         harmony_presets=[["C", "G", "Am", "F"], ["Am7", "Dm7", "G7", "Cmaj7"]],
@@ -77,8 +79,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         default_tracks=[
             {"id": "melody", "role": "melody", "instrument": "lead_1_square", "pattern": "legato"},
             {"id": "piano", "role": "harmony", "instrument": "acoustic_grand_piano", "pattern": "block_chords"},
-            {"id": "bass", "role": "bass", "instrument": "electric_bass_finger", "pattern": "roots"},
-            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "pop"},
+            {"id": "bass", "role": "bass", "instrument": "electric_bass_finger", "pattern": "root_fifth_drive"},
+            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "four_on_floor"},
             {"id": "strings", "role": "pad", "instrument": "string_ensemble_1", "pattern": "sustained_pad"},
         ],
         harmony_presets=[["C", "G", "Am", "F"], ["F", "G", "C", "C"]],
@@ -126,8 +128,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         default_tracks=[
             {"id": "melody", "role": "melody", "instrument": "lead_1_square", "pattern": "staccato"},
             {"id": "piano", "role": "harmony", "instrument": "electric_guitar_clean", "pattern": "block_chords"},
-            {"id": "bass", "role": "bass", "instrument": "synth_bass_1", "pattern": "roots"},
-            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "rock"},
+            {"id": "bass", "role": "bass", "instrument": "synth_bass_1", "pattern": "driving_octaves"},
+            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "battle_drive"},
             {"id": "strings", "role": "pad", "instrument": "string_ensemble_1", "pattern": "sustained_pad"},
         ],
         harmony_presets=[["Dm", "Bb", "C", "Dm"], ["Am", "F", "G", "Am"]],
@@ -149,6 +151,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         default_form=_default_form(),
         default_tracks=[
             {"id": "melody", "role": "melody", "instrument": "pad_2_warm", "pattern": "sustained_pad"},
+            {"id": "bass", "role": "bass", "instrument": "synth_bass_1", "pattern": "root_fifth_drive"},
+            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "ambient_minimal"},
             {"id": "pad", "role": "pad", "instrument": "pad_2_warm", "pattern": "sustained_pad"},
             {"id": "strings", "role": "pad", "instrument": "synth_strings_1", "pattern": "sustained_pad"},
         ],
@@ -173,8 +177,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         default_tracks=[
             {"id": "melody", "role": "melody", "instrument": "lead_1_square", "pattern": "legato"},
             {"id": "piano", "role": "harmony", "instrument": "pad_2_warm", "pattern": "arpeggio"},
-            {"id": "bass", "role": "bass", "instrument": "synth_bass_1", "pattern": "roots"},
-            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "electronic"},
+            {"id": "bass", "role": "bass", "instrument": "synth_bass_1", "pattern": "driving_octaves"},
+            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "four_on_floor"},
         ],
         harmony_presets=[["Am", "F", "C", "G"], ["Dm", "Bb", "F", "C"]],
         rhythm_presets=["electronic", "arpeggio"],
@@ -196,8 +200,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         default_tracks=[
             {"id": "melody", "role": "melody", "instrument": "electric_guitar_clean", "pattern": "riff"},
             {"id": "piano", "role": "harmony", "instrument": "electric_guitar_clean", "pattern": "block_chords"},
-            {"id": "bass", "role": "bass", "instrument": "electric_bass_finger", "pattern": "roots"},
-            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "rock"},
+            {"id": "bass", "role": "bass", "instrument": "electric_bass_finger", "pattern": "root_fifth_drive"},
+            {"id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "rock_backbeat"},
         ],
         harmony_presets=[["C", "G", "Am", "F"], ["E", "C", "G", "D"]],
         rhythm_presets=["rock"],

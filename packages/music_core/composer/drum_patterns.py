@@ -147,6 +147,105 @@ def electronic_groove(intensity: float = 0.6) -> list[DrumHit]:
     return hits
 
 
+def four_on_floor_groove(intensity: float = 0.6) -> list[DrumHit]:
+    """四踩鼓：kick 每拍、snare/clap 2/4、八分踩镲。"""
+    hits: list[DrumHit] = [
+        DrumHit(beat, 0.25, _KICK, 102 if beat in (0.0, 2.0) else 90, "kick")
+        for beat in (0.0, 1.0, 2.0, 3.0)
+    ]
+    hits.extend([DrumHit(1.0, 0.4, _SNARE, 100, "snare"), DrumHit(3.0, 0.4, _SNARE, 96, "snare")])
+    hits.extend(_hat_8ths(80, 66))
+    if intensity >= 0.7:
+        hits.append(DrumHit(2.5, 0.2, _OPEN_HAT, 84, "open_hat"))
+    hits.extend(_hat_16ths(intensity))
+    return hits
+
+
+def rock_backbeat_groove(intensity: float = 0.6) -> list[DrumHit]:
+    """摇滚 backbeat：强 snare 2/4、kick 1/3/3&、八分踩镲密集。"""
+    hits: list[DrumHit] = [
+        DrumHit(0.0, 0.4, _KICK, 108, "kick"),
+        DrumHit(1.0, 0.2, _KICK, 88, "kick"),
+        DrumHit(2.0, 0.4, _KICK, 102, "kick"),
+        DrumHit(2.5, 0.2, _KICK, 90, "kick3and"),
+        DrumHit(1.0, 0.4, _SNARE, 110, "snare"),
+        DrumHit(3.0, 0.4, _SNARE, 108, "snare"),
+        *_hat_8ths(90, 76),
+    ]
+    if intensity >= 0.8:
+        hits.append(DrumHit(0.0, 0.3, _CRASH, 96, "crash"))
+    hits.extend(_hat_16ths(intensity))
+    return hits
+
+
+def battle_drive_groove(intensity: float = 0.6) -> list[DrumHit]:
+    """战斗推进鼓：高密度 kick + snare 与 tom，适合高速游戏战斗。"""
+    hits: list[DrumHit] = [
+        DrumHit(0.0, 0.2, _KICK, 112, "kick"),
+        DrumHit(0.75, 0.2, _KICK, 92, "kick"),
+        DrumHit(1.5, 0.2, _KICK, 96, "kick"),
+        DrumHit(2.0, 0.2, _KICK, 108, "kick"),
+        DrumHit(2.75, 0.2, _KICK, 92, "kick"),
+        DrumHit(3.5, 0.2, _KICK, 96, "kick"),
+        DrumHit(1.0, 0.2, _SNARE, 106, "snare"),
+        DrumHit(3.0, 0.2, _SNARE, 104, "snare"),
+        DrumHit(0.0, 0.2, _CRASH, 98, "crash"),
+    ]
+    if intensity >= 0.7:
+        hits.extend(
+            [
+                DrumHit(0.5, 0.2, _MID_TOM, 84, "tom"),
+                DrumHit(1.5, 0.2, _LOW_TOM, 82, "tom"),
+                DrumHit(2.5, 0.2, _MID_TOM, 84, "tom"),
+            ]
+        )
+    hits.extend(_hat_16ths(intensity))
+    return hits
+
+
+def ambient_minimal_groove(intensity: float = 0.6) -> list[DrumHit]:
+    """氛围极简鼓：几乎无强鼓点，仅轻 kick / hat。"""
+    hits: list[DrumHit] = [
+        DrumHit(0.0, 0.5, _KICK, 72, "kick"),
+        DrumHit(0.0, 0.2, _CLOSED_HAT, 58, "hat"),
+        DrumHit(2.0, 0.3, _CLOSED_HAT, 54, "hat"),
+    ]
+    if intensity >= 0.6:
+        hits.append(DrumHit(2.0, 0.5, _KICK, 66, "kick"))
+    return hits
+
+
+def cinematic_taiko_groove(intensity: float = 0.6) -> list[DrumHit]:
+    """影视/民族 taiko：低频撞击 + tom，稀疏但有重量。"""
+    hits: list[DrumHit] = [
+        DrumHit(0.0, 0.6, _KICK, 104, "kick"),
+        DrumHit(2.5, 0.4, _KICK, 90, "kick"),
+        DrumHit(0.0, 0.4, _LOW_TOM, 88, "tom"),
+        DrumHit(1.5, 0.3, _MID_TOM, 82, "tom"),
+        DrumHit(2.5, 0.3, _MID_TOM, 82, "tom"),
+    ]
+    if intensity >= 0.75:
+        hits.append(DrumHit(3.5, 0.4, _LOW_TOM, 86, "tom"))
+    return hits
+
+
+def funk_groove(intensity: float = 0.6) -> list[DrumHit]:
+    """Funk：syncopated kick、ghost snare、强 offbeat。"""
+    hits: list[DrumHit] = [
+        DrumHit(0.0, 0.4, _KICK, 98, "kick"),
+        DrumHit(2.25, 0.3, _KICK, 88, "kick"),
+        DrumHit(3.5, 0.3, _KICK, 84, "kick"),
+        DrumHit(1.0, 0.3, _SNARE, 100, "snare"),
+        DrumHit(3.0, 0.3, _SNARE, 96, "snare"),
+        DrumHit(0.75, 0.2, _SNARE, 34, "ghost"),
+        DrumHit(2.75, 0.2, _SNARE, 32, "ghost"),
+        *_hat_8ths(86, 70),
+    ]
+    if intensity >= 0.7:
+        hits.append(DrumHit(1.75, 0.2, _OPEN_HAT, 88, "open_hat"))
+    return hits
+
+
 GROOVE_BUILDERS = {
     "pop": pop_groove,
     "rock": rock_groove,
@@ -154,6 +253,13 @@ GROOVE_BUILDERS = {
     "cinematic": cinematic_groove,
     "chinese": chinese_groove,
     "electronic": electronic_groove,
+    "four_on_floor": four_on_floor_groove,
+    "lofi_swing": lo_fi_groove,
+    "rock_backbeat": rock_backbeat_groove,
+    "battle_drive": battle_drive_groove,
+    "ambient_minimal": ambient_minimal_groove,
+    "cinematic_taiko": cinematic_taiko_groove,
+    "funk_groove": funk_groove,
 }
 
 

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import logging
+import zlib
 
 from packages.music_core.styles.style_models import StyleTemplateSpec
+from packages.music_core.styles.style_tags import normalize_style_tags
 from packages.music_core.validation.spec_validator import validate_music_spec
 from services.api.schemas.music_spec import (
+    HarmonySectionSpec,
     MusicSpec,
     TempoSpec,
     TonalitySpec,
@@ -18,6 +21,42 @@ logger = logging.getLogger(__name__)
 # tempo / mode 只在 strength 接近 1 时覆盖用户指定值
 _STRONG_STRENGTH = 0.8
 
+# template pattern → 轨道可识别 pattern 的归一化映射
+_PATTERN_ALIASES = {
+    "lofi": "lofi_swing",
+    "lo-fi": "lofi_swing",
+    "lo_fi": "lofi_swing",
+    "four_on_floor": "four_on_floor",
+    "electronic": "four_on_floor",
+    "rock": "rock_backbeat",
+    "game": "battle_drive",
+    "battle": "battle_drive",
+    "cinematic": "cinematic_taiko",
+    "chinese": "cinematic_taiko",
+    "ambient": "ambient_minimal",
+    "meditation": "ambient_minimal",
+    "funk": "funk_groove",
+    "roots": "root_fifth_drive",
+    "root_fifth": "root_fifth_drive",
+    "laidback": "laidback_groove",
+    "octaves": "driving_octaves",
+    "driving": "driving_octaves",
+}
+
+
+def _canonical_pattern(pattern: str | None) -> str | None:
+    if not pattern:
+        return None
+    return _PATTERN_ALIASES.get(pattern.strip().lower(), pattern.strip().lower())
+
+
+def _derived_seed(original_seed: int, template_id: str | None, strength: float) -> int:
+    """派生可复现 seed：同 template + strength 稳定，不同 template 不同。"""
+    if not template_id:
+        return original_seed
+    digest = zlib.crc32(f"{original_seed}:{template_id}:{round(strength, 3)}".encode("utf-8"))
+    return original_seed + digest
+
 
 def _blend_tempo(current: int, target: int | None, strength: float) -> int:
     if target is None:
@@ -26,11 +65,26 @@ def _blend_tempo(current: int, target: int | None, strength: float) -> int:
 
 
 def _apply_default_tracks(spec: MusicSpec, template: StyleTemplateSpec, strength: float) -> MusicSpec:
+    """应用模板轨道：strength≥0.5 时覆盖同 role 轨道的核心字段，否则仅补充缺失轨道。"""
     existing_roles = {t.role for t in spec.tracks}
     for tpl in template.default_tracks:
         role = tpl.get("role", "harmony")
         instrument = tpl.get("instrument", "piano")
+        pattern = _canonical_pattern(tpl.get("pattern"))
         if role in existing_roles:
+            # 已有轨道：strength≥0.5 时覆盖核心字段（保留 track id / enabled_sections 语义）
+            if strength < 0.5:
+                continue
+            for track in spec.tracks:
+                if track.role != role:
+                    continue
+                track.instrument = instrument
+                if pattern:
+                    track.pattern = pattern
+                if tpl.get("register"):
+                    track.register = tpl["register"]
+                if tpl.get("velocity"):
+                    track.velocity = int(tpl["velocity"])
             continue
         if strength < 0.5 and role not in ("melody", "harmony"):
             continue
@@ -42,11 +96,36 @@ def _apply_default_tracks(spec: MusicSpec, template: StyleTemplateSpec, strength
                 id=track_id,
                 role=role,
                 instrument=instrument,
-                pattern=tpl.get("pattern"),
+                pattern=pattern,
                 register=tpl.get("register"),
                 velocity=int(tpl.get("velocity") or 78),
             )
         )
+    return spec
+
+
+def _apply_harmony_presets(spec: MusicSpec, template: StyleTemplateSpec, strength: float) -> MusicSpec:
+    """把模板 harmony_presets 写入 MusicSpec.harmony（section-aware，保持 key/mode）。"""
+    if not template.harmony_presets or strength < 0.5:
+        return spec
+    preset = template.harmony_presets[0]
+    preset_by_section = {
+        h.section: list(h.progression) for h in spec.harmony
+    }
+    new_harmony: list[HarmonySectionSpec] = []
+    for section in spec.form:
+        bars = max(1, section.bars)
+        base = preset_by_section.get(section.id)
+        if base and len(base) >= 2 and strength < 0.6:
+            # 弱强度保守：保留已有进行
+            progression = list(base)
+        else:
+            # 模板进行按段落长度循环铺满，保证和弦多样且可被 parser 解析
+            progression = [preset[i % len(preset)] for i in range(bars)]
+        new_harmony.append(
+            HarmonySectionSpec(section=section.id, progression=progression)
+        )
+    spec.harmony = new_harmony
     return spec
 
 
@@ -92,18 +171,23 @@ def apply_style_template_to_music_spec(
     _ensure_pentatonic(spec, template)
 
     spec = _apply_default_tracks(spec, template, strength)
-    for tpl in template.default_tracks:
-        for track in spec.tracks:
-            if track.role == tpl.get("role") and tpl.get("pattern") and strength >= 0.5:
-                if not track.pattern:
-                    track.pattern = tpl["pattern"]
+    spec = _apply_harmony_presets(spec, template, strength)
 
-    for tag in template.tags:
-        if tag not in spec.style:
-            spec.style = [*spec.style, tag]
-    for mood_tag in ("cinematic", "calm", "epic"):
-        if mood_tag in " ".join(template.tags).lower() and mood_tag not in spec.mood:
-            spec.mood = [*spec.mood, mood_tag]
+    # style / mood 标签合并
+    normalized = normalize_style_tags([*spec.style, template.id, *template.tags])
+    for canonical in sorted(normalized):
+        if canonical not in spec.style:
+            spec.style = [*spec.style, canonical]
+
+    mood_map = {"game": "epic", "cinematic": "cinematic", "ambient": "calm", "meditation": "calm"}
+    for canonical in normalized:
+        if canonical in mood_map:
+            mood = mood_map[canonical]
+            if mood not in spec.mood:
+                spec.mood = [*spec.mood, mood]
+
+    # 模板参与 seed 派生：同 prompt + 不同 template 生成不同旋律，仍可复现
+    spec.seed = _derived_seed(spec.seed, template.id, strength)
 
     if template.arrangement_curve and strength >= 0.5:
         curve = template.arrangement_curve

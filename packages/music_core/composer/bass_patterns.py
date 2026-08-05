@@ -132,6 +132,61 @@ def electronic_bass(root: int, fifth: int, octave: int, intensity: float, rng: r
     return hits
 
 
+def laidback_groove_bass(root: int, fifth: int, octave: int, intensity: float, rng: random.Random) -> list[BassNote]:
+    """松弛律动贝斯：低密度、长根音 + 少量 syncopation，适合 lo-fi。"""
+    hits: list[BassNote] = [
+        BassNote(0.0, 1.6, root, 84, "root"),
+        BassNote(2.5, 1.0, root, 78, "root"),
+        BassNote(3.75, 0.5, fifth if rng.random() < 0.5 else root, 66, "ghost"),
+    ]
+    if intensity >= 0.75:
+        hits.append(BassNote(1.5, 0.5, fifth, 72, "fifth"))
+    return hits
+
+
+def root_fifth_drive_bass(root: int, fifth: int, octave: int, intensity: float, rng: random.Random) -> list[BassNote]:
+    """根音/五度推进：强拍 root、次强拍 fifth，八分运动，适合 pop/rock。"""
+    hits: list[BassNote] = [
+        BassNote(beat, 0.7 if i % 2 == 0 else 0.4, root if i % 2 == 0 else fifth, 88 if i % 2 == 0 else 76, "drive")
+        for i, beat in enumerate((0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5))
+    ]
+    if intensity >= 0.8:
+        hits.append(BassNote(1.75, 0.3, octave, 82, "octave"))
+    return hits
+
+
+def driving_octaves_bass(root: int, fifth: int, octave: int, intensity: float, rng: random.Random) -> list[BassNote]:
+    """八度推进贝斯：root/octave 交替，16 分能量感，适合 game/electronic。"""
+    hits: list[BassNote] = [
+        BassNote(beat, 0.35, root if i % 2 == 0 else octave, 96 if i % 2 == 0 else 86, "octave_drive")
+        for i, beat in enumerate((0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5))
+    ]
+    if intensity >= 0.8:
+        hits.extend(
+            [
+                BassNote(0.25, 0.25, root, 82, "ghost"),
+                BassNote(1.25, 0.25, fifth, 78, "ghost"),
+                BassNote(2.25, 0.25, root, 82, "ghost"),
+                BassNote(3.25, 0.25, octave, 80, "ghost"),
+            ]
+        )
+    return hits
+
+
+def funk_bass(root: int, fifth: int, octave: int, intensity: float, rng: random.Random) -> list[BassNote]:
+    """Funk 贝斯：syncopated 短句 + octave 弹跳。"""
+    hits: list[BassNote] = [
+        BassNote(0.0, 0.6, root, 90, "root"),
+        BassNote(1.5, 0.5, fifth, 78, "fifth"),
+        BassNote(2.25, 0.5, root, 86, "root"),
+        BassNote(3.5, 0.5, octave, 84, "octave"),
+    ]
+    if intensity >= 0.7:
+        hits.append(BassNote(0.75, 0.3, root, 74, "ghost"))
+        hits.append(BassNote(2.75, 0.3, fifth, 72, "ghost"))
+    return hits
+
+
 BASS_GROOVES = {
     "pop": pop_bass,
     "rock": rock_bass,
@@ -139,12 +194,16 @@ BASS_GROOVES = {
     "cinematic": cinematic_bass,
     "chinese": chinese_bass,
     "electronic": electronic_bass,
+    "laidback_groove": laidback_groove_bass,
+    "root_fifth_drive": root_fifth_drive_bass,
+    "driving_octaves": driving_octaves_bass,
+    "funk_groove": funk_bass,
 }
 
 
 def bass_style_swing(style: str) -> float:
     """贝斯风格 swing（lo-fi 明显）。"""
-    return 0.62 if style in ("lo-fi", "hiphop") else 0.5
+    return 0.62 if style in ("lo-fi", "hiphop", "laidback_groove", "funk_groove") else 0.5
 
 
 def implied_kick_positions(style: str) -> list[float]:

@@ -10,7 +10,7 @@ from packages.music_core.composer.drum_patterns import GROOVE_BUILDERS, build_fi
 
 def style_swing(style: str) -> float:
     """风格默认 swing（0.5=straight；lo-fi/hiphop 更明显）。"""
-    if style in ("lo-fi", "hiphop"):
+    if style in ("lo-fi", "hiphop", "lofi_swing", "funk_groove"):
         return 0.62
     return 0.5
 

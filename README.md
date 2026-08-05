@@ -22,6 +22,10 @@
 - Quality Report（结构 / 轨道 / 音域 / 密度 / 和声 / 混音诊断，评分 0-100）
 - 自动优化编曲（保守规则优化，创建新版本）
 - 风格模板库（8 个内置模板）
+- 模板真实影响作曲：instrument / pattern / harmony / seed / melody density / drums / bass groove 均随模板变化；
+  同 prompt 切换 lo-fi / game battle / rock / ambient / cinematic 会生成明显不同的 MusicSpec 与 MIDI，
+  MockProvider 下即可验证（无需 DeepSeek）。
+- **注意：WAV 渲染不会自动重新作曲**。切换模板后请先“生成”（创建新 song）→ 生成 MIDI → 渲染 WAV。
 - 参考 MIDI 分析（高层特征，不复制旋律）
 - 基于参考 MIDI 高层特征生成新项目
 - `.aimusic.zip` 工程导入导出（防 zip slip）
