@@ -277,8 +277,16 @@ SECTION_COVERAGE_GAP          存在未被任何段落覆盖的小节
   `edit_spec.json`、`diff.json`，并同步 MIDI / WAV / Mix / Quality / Stems 资产。
 - 旧项目（`versions/vN.json` 快照）在首次访问版本接口时自动懒迁移为目录式，旧文件保留为兼容备份。
 - 根目录继续保留当前版本兼容镜像（music_spec.json / output.mid / output.wav / mix_spec.json 等），现有 API 不受影响。
-- 完整的历史资产恢复（restore 时复制 MIDI / WAV / Mix / Stems）将在 T13 完成；
-  `.aimusic.zip` 工程导入导出完整适配新结构将在 T14 完成。
+- 完整的历史资产恢复（restore 时复制 MIDI / WAV / Mix / Stems）在 T13 完成。
+
+## 工程导入导出（T14，bundle_version=2）
+
+- `.aimusic.zip` 导出包含 `manifest.json`（bundle_format=aimusic / bundle_version=2 / current_version_id /
+  versions[] / assets[]）与完整 `versions/vN/` 目录式版本资产（metadata / music_spec / edit_spec / diff /
+  MIDI / WAV / audio_metadata / mix / quality / stems / soundfont 配置）。
+- 导入生成新的 `song_id`（不覆盖已有项目），自动迁移旧版 bundle（format_version=0.1），
+  以当前版本目录修复根目录镜像（不重新生成 MIDI/WAV），保留跨平台 zip slip 防护；
+  真实 SoundFont 文件不打包，soundfont.json 仅保存配置，本地缺失时只记录 warning。
 
 ## 版本恢复完整资产（T13）
 

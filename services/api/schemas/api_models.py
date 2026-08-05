@@ -378,6 +378,11 @@ class ProjectImportResponse(BaseModel):
     song_id: str
     imported: bool
     summary: dict
+    source_song_id: str | None = None
+    current_version_id: str | None = None
+    version_count: int = 0
+    assets: dict = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
 
 
 # 复用外部模型

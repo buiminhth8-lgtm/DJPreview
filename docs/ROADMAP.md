@@ -111,12 +111,16 @@
   `project_store.restore_version` 返回 (music_spec, summary) 并更新版本指针；
   restore 路由移除 `_regenerate_audio_for`，返回 `restore_summary`；`AssetsResponse` 增加 has_mix / has_quality_report / has_stems
 
-## T14 工程导入导出适配新版本结构 ⬜
+## T14 工程导入导出适配新版本结构 ✅
 
-- 目标：`.aimusic.zip` 导入导出适配 T12 目录结构
-- 优先级：P1
-- 依赖：T12
-- 验收标准：roundtrip 通过；zip slip 防护保留
+- 目标：`.aimusic.zip` 导入导出适配 T12 目录式版本结构（bundle_version=2）
+- 实现：`project_bundle.export_project_bundle` 导出 manifest.json（bundle_format=aimusic / bundle_version=2 /
+  current_version_id / versions[] / assets[]）与完整 `versions/vN/` 版本资产（version_metadata / music_spec /
+  edit_spec / diff / MIDI / WAV / audio_metadata / mix / quality / stems / soundfont 配置）；
+  `project_importer.import_project_bundle` 生成新 song_id、跨平台 zip slip 防护、自动迁移旧版
+  （format_version=0.1 / versions/vN.json）、以当前版本目录修复根目录镜像（不重新生成 MIDI/WAV）、
+  失败清理半成品目录
+- 验收：roundtrip / 版本数量与 current_version_id 一致 / 根目录镜像一致 / 旧版兼容 / zip slip 拒绝 / 不覆盖已有项目
 
 ## T15 Evaluation Runner 语义修复 ✅
 

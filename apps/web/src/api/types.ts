@@ -506,6 +506,11 @@ export interface ProjectImportResponse {
   song_id: string;
   imported: boolean;
   summary: Record<string, unknown>;
+  source_song_id?: string | null;
+  current_version_id?: string | null;
+  version_count?: number;
+  assets?: Record<string, unknown>;
+  warnings?: string[];
 }
 
 // ---------- T29：SoundFont / 音源管理 ----------

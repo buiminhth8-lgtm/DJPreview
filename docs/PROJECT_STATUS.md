@@ -25,6 +25,8 @@
 - T31 完成：前端链路冒烟脚本（生成→MIDI→WAV→版本→异步任务→assets，可选前端探活）
 - T32 完成：前端依赖安全收尾（vite 5.4.21 → 7.3.6、esbuild 0.21.5 → 0.28.1，`npm audit` 0 漏洞；
   未使用 `audit fix --force`，未升级 vite 8；仅剩 esbuild postinstall allow-scripts 提示，非漏洞）
+- T14 完成：`.aimusic.zip` 升级为 bundle_version=2（完整导出/导入 `versions/vN/` 目录式版本资产，
+  以当前版本修复根目录镜像，兼容旧版 bundle，保留 zip slip 防护，不覆盖已有项目）
 - 当前分支：`master`
 
 ## 已完成功能
@@ -71,7 +73,7 @@ npm run build：passed（Vite 5.4.21，tsc 无错误）
 - API 响应模型未完全明确化（部分接口返回裸 dict）。
 - MusicSpec 语义校验库已实现（`check_music_spec` 返回 errors/warnings），但尚未接入生成/编辑 API 的对外报告。
 - 版本资产目录式结构第一步已完成（新项目 v1/vN 目录 + 旧结构懒迁移）。
-- `.aimusic.zip` 适配新版本结构待 T14。
+- `.aimusic.zip` 已适配目录式版本结构（T14，bundle_version=2）。
 - Evaluation trait 打分语义仍较粗（如 `has_track_role2` 与 `has_track_role` 重复），后续可细化。
 - MIDI Parser / Fallback Renderer 重叠音符问题已修复；未关闭 note_on 仍按“丢弃”处理（后续可按轨道末 tick 收尾）。
 - 乐器命名与 GM Program 映射已统一（T17）；后续新增音色时需先注册到 `packages/music_core/instruments/registry.py`。

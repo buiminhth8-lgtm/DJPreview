@@ -25,6 +25,31 @@ def test_export_and_import_project():
     assert data["imported"] is True
     assert data["song_id"] != song_id
     assert data["summary"]["has_midi"] is True
+    assert data["source_song_id"] == song_id
+    assert data["current_version_id"] == "v1"
+    assert data["version_count"] == 1
+    assert data["assets"]["has_midi"] is True
+    assert data["assets"]["has_audio"] is False
+    assert isinstance(data["warnings"], list)
+
+    # 导入后的版本 API 可用
+    imported_song_id = data["song_id"]
+    versions = client.get(f"/api/v1/songs/{imported_song_id}/versions")
+    assert versions.status_code == 200
+    assert len(versions.json()["versions"]) == 1
+    assert versions.json()["current_version_id"] == "v1"
+
+    detail = client.get(f"/api/v1/songs/{imported_song_id}/versions/v1")
+    assert detail.status_code == 200
+    assert detail.json()["music_spec"]["tempo"]["bpm"] == 72
+
+    diff = client.get(f"/api/v1/songs/{imported_song_id}/versions/v1/diff")
+    assert diff.status_code == 200
+    assert diff.json()["diff"] is None
+
+    restore = client.post(f"/api/v1/songs/{imported_song_id}/versions/v1/restore")
+    assert restore.status_code == 200
+    assert restore.json()["version_id"] == "v1"
 
 
 def test_import_invalid_zip_400():

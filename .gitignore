@@ -24,6 +24,11 @@ data/soundfonts/*
 assets/soundfonts/*.sf2
 assets/soundfonts/*.sf3
 assets/soundfonts/*.sfz
+*.mid
+*.midi
+*.wav
+*.zip
+*.aimusic.zip
 *.sf2
 *.sf3
 *.sfz

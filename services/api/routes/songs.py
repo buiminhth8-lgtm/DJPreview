@@ -965,7 +965,16 @@ async def import_project(file: UploadFile = File(...)) -> ProjectImportResponse:
     temp_path = _save_upload(file, (".zip",))
     try:
         result = import_project_bundle(Path(temp_path), get_settings().projects_dir)
-        return ProjectImportResponse(song_id=result["song_id"], imported=True, summary=result["summary"])
+        return ProjectImportResponse(
+            song_id=result["song_id"],
+            imported=result["imported"],
+            summary=result["summary"],
+            source_song_id=result.get("source_song_id"),
+            current_version_id=result.get("current_version_id"),
+            version_count=result.get("version_count", 0),
+            assets=result.get("assets", {}),
+            warnings=result.get("warnings", []),
+        )
     except ValueError as exc:
         raise invalid_bundle(str(exc)) from None
     finally:
