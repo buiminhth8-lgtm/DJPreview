@@ -259,3 +259,12 @@
 - 目标：生成 → MIDI → WAV → 版本 → 异步任务进度 → assets 的端到端验证脚本
 - 实现：`scripts/demo_t30_frontend_smoke.py`（后端全链路 + 可选前端 dev server 探活，纯标准库）、
   `tests/test_frontend_smoke.py`（脚本存在 / --help / 可导入）
+
+## T32 前端依赖安全收尾 ✅
+
+- 目标：消除 `npm audit` 中 esbuild / vite 漏洞（GHSA-67mh-4wv8-2f99），不做 `audit fix --force`
+- 实现：vite `^5.4.21` → `^7.3.6`（esbuild `0.21.5` → `0.28.1`），`@vitejs/plugin-react` 保持 `^4.3.4`
+  （peer 范围已支持 vite 7），`npm audit` 0 漏洞，`npm ci` / `npm run build` / `pytest -q` 全部通过
+- 说明：vite 7 最低要求 Node ≥20.19 或 ≥22.12；vite 8 为后续独立任务（当前 npm 10.9.2 环境不兼容其 engine 要求）
+- 遗留提示：npm 11 allow-scripts 对 esbuild postinstall 的提示为安装策略警告，非安全漏洞；
+  构建已验证 esbuild 二进制可用，`trustedDependencies` 机制继续兼容

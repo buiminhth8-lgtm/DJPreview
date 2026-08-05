@@ -23,6 +23,8 @@
 - T30 完成：渲染任务异步化与进度反馈（进程内任务执行器 + 异步 API + 前端轮询/进度条，旧同步接口兼容）
 - T30 遗留问题修复：任务 JSON 持久化、同曲渲染串行锁、任务取消 DELETE 接口
 - T31 完成：前端链路冒烟脚本（生成→MIDI→WAV→版本→异步任务→assets，可选前端探活）
+- T32 完成：前端依赖安全收尾（vite 5.4.21 → 7.3.6、esbuild 0.21.5 → 0.28.1，`npm audit` 0 漏洞；
+  未使用 `audit fix --force`，未升级 vite 8；仅剩 esbuild postinstall allow-scripts 提示，非漏洞）
 - 当前分支：`master`
 
 ## 已完成功能
