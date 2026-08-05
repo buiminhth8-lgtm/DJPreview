@@ -554,6 +554,7 @@ export interface RenderTask {
   message?: string | null;
   error?: string | null;
   result?: Record<string, unknown>;
+  cancel_requested?: boolean;
   created_at: string;
   updated_at: string;
 }

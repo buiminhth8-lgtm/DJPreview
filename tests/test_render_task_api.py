@@ -81,6 +81,24 @@ def test_list_song_tasks():
     assert any(t["task_type"] == "midi" for t in tasks)
 
 
+def test_delete_task_cancels():
+    song_id = _create_song()
+    created = client.post(f"/api/v1/songs/{song_id}/tasks/render-midi").json()
+    resp = client.delete(f"/api/v1/tasks/{created['task_id']}")
+    assert resp.status_code == 200
+    task = resp.json()
+    assert task["task_id"] == created["task_id"]
+    assert task["cancel_requested"] is True
+    final = _wait_terminal(created["task_id"])
+    assert final["status"] == "cancelled"
+
+
+def test_delete_missing_task_404():
+    resp = client.delete("/api/v1/tasks/not-exist")
+    assert resp.status_code == 404
+    assert resp.json()["error_code"] == "TASK_NOT_FOUND"
+
+
 def test_old_sync_endpoints_still_work():
     song_id = _create_song()
     assert client.post(f"/api/v1/songs/{song_id}/midi/generate").status_code == 200

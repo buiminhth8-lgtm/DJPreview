@@ -36,6 +36,11 @@ export default function RenderTasksPanel({ songId, onAssetsChanged, onError }: R
         <button onClick={() => void tasks.startStems()} disabled={busy}>
           {status === "running" && tasks.task?.task_type === "stems" ? "stems 导出中…" : "异步导出 stems"}
         </button>
+        {busy && (
+          <button onClick={() => void tasks.cancel()} className="danger-btn">
+            取消任务
+          </button>
+        )}
       </div>
       {tasks.task && (
         <div className="task-status">

@@ -60,6 +60,14 @@ def get_render_task(task_id: str) -> RenderTask:
     return task
 
 
+@router.delete("/tasks/{task_id}", response_model=RenderTask, summary="取消任务")
+def cancel_render_task(task_id: str) -> RenderTask:
+    task = _service.cancel(task_id)
+    if task is None:
+        raise task_not_found(task_id)
+    return task
+
+
 @router.get("/songs/{song_id}/tasks", response_model=list[RenderTask], summary="歌曲任务列表")
 def list_render_tasks(song_id: str) -> list[RenderTask]:
     _require_project(song_id)

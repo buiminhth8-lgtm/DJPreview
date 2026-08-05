@@ -18,6 +18,7 @@ data/projects/*
 data/test_projects/
 data/llm_calls/
 data/evaluations/
+data/tasks/
 data/soundfonts/*
 !data/soundfonts/.gitkeep
 assets/soundfonts/*.sf2

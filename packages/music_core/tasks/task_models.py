@@ -20,5 +20,6 @@ class RenderTask(BaseModel):
     message: str | None = None
     error: str | None = None
     result: dict = Field(default_factory=dict)
+    cancel_requested: bool = False
     created_at: str
     updated_at: str

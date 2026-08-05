@@ -13,6 +13,7 @@ POST /api/v1/songs/{song_id}/tasks/render-audio      # 异步渲染 WAV（可选
 POST /api/v1/songs/{song_id}/tasks/export-stems      # 异步导出 stems
 GET  /api/v1/tasks/{task_id}                          # 查询任务
 GET  /api/v1/songs/{song_id}/tasks                    # 歌曲任务列表
+DELETE /api/v1/tasks/{task_id}                        # 取消任务（queued 立即取消；running 标记取消并在检查点中止）
 ```
 
 创建任务返回 `202` 与任务对象；随后轮询 `GET /tasks/{task_id}` 直到终态。
@@ -65,10 +66,18 @@ POST /api/v1/songs/{song_id}/stems/export
 
 新异步任务接口为推荐方式（尤其耗时操作）。
 
-## 8. 当前限制
+## 8. 持久化与并发
+
+- 任务持久化到 `data/tasks/render_tasks.json`（轻量 JSON）；服务重启后重新加载，
+  重启前 `queued / running` 的任务会被标记为 `failed`（“服务重启导致任务中断”），不会残留假 running。
+- 同一歌曲的渲染在服务内**串行执行**（每首歌一把可重入锁，同步与异步渲染共用），
+  避免 MIDI / WAV / stems 文件互相覆盖。
+
+## 9. 当前限制
 
 - **进程内任务队列**：使用 `ThreadPoolExecutor(max_workers=2)`，同一进程内有效。
-- **服务重启后运行中任务可能丢失**：任务仅保存在内存（`TaskStore`），未做持久化。
+- 任务已做轻量 JSON 持久化；但重启会中断正在执行的任务（标记为失败），不会恢复执行。
 - **暂未引入 Redis / Celery / MQ**：如需跨进程 / 多实例，后续可替换为持久化队列。
 - 同 `song_id` + 同任务类型去重：已有一个 `queued / running` 任务时返回该任务，避免文件互相覆盖。
-- 暂未提供任务取消（`cancelled` 为预留状态）。
+- 取消说明：`queued` 任务 DELETE 后立即 `cancelled`；`running` 任务标记 `cancel_requested`，
+  在执行进度检查点中止（阻塞在子进程内的渲染可能等待其自然结束，但结果不会被写回成功状态）。

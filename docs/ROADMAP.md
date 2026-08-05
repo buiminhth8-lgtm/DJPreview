@@ -229,6 +229,8 @@
   `services/api/routes/render_tasks.py`（render-midi / render-audio / export-stems / tasks 查询与列表）、
   前端 `taskApi.ts` / `useRenderTasks` / `RenderTasksPanel`（进度条 + 轮询 + 成功刷新资产）；
   文档 docs/RENDER_TASKS.md（含进程内队列 / 重启丢失 / 无取消等限制说明）
+- 遗留问题修复：任务轻量 JSON 持久化（data/tasks/，重启后中断任务标记失败）、同曲渲染串行锁
+  （同步/异步共用 per-song 可重入锁）、`DELETE /tasks/{task_id}` 取消接口（queued 立即取消 / running 检查点中止）
 
 ## T26-T27 Docker / GitHub Actions / GHCR 部署 ⬜
 

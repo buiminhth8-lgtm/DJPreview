@@ -25,3 +25,7 @@ export function getTask(taskId: string): Promise<RenderTask> {
 export function listSongTasks(songId: string): Promise<RenderTask[]> {
   return requestJson(`/api/v1/songs/${songId}/tasks`, "GET");
 }
+
+export function cancelTask(taskId: string): Promise<RenderTask> {
+  return requestJson(`/api/v1/tasks/${taskId}`, "DELETE");
+}

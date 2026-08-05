@@ -50,6 +50,7 @@ from packages.music_core.versioning.version_assets import mirror_stems_to_root
 from packages.renderer.factory import get_audio_renderer
 from packages.renderer.stem_renderer import export_stems as export_stems_impl
 from services.api.dependencies.config import get_settings
+from services.api.tasks.render_task_service import song_render_lock
 from services.api.errors import (
     ApiErrorCode,
     api_error,
@@ -147,24 +148,25 @@ def _project_dir_for(song_id: str) -> Path:
 
 def _generate_midi_for(song_id: str) -> tuple[GenerateMidiResponse, Path]:
     """读取 MusicSpec → 编排 → 写 MIDI → 保存，返回响应与文件路径。"""
-    spec = get_project(song_id)
-    composition = compose_music(spec)
-    midi_path = _project_dir_for(song_id) / "output.mid"
-    write_midi(composition, midi_path)
-    save_midi_file(song_id, midi_path)
-    return (
-        GenerateMidiResponse(
-            song_id=song_id,
-            midi_file="output.mid",
-            download_url=f"/api/v1/songs/{song_id}/midi/download",
-            summary=MidiSummary(
-                tracks=len([t for t in composition.tracks if t.notes]),
-                bars=composition.total_bars,
-                bpm=composition.bpm,
+    with song_render_lock(song_id):
+        spec = get_project(song_id)
+        composition = compose_music(spec)
+        midi_path = _project_dir_for(song_id) / "output.mid"
+        write_midi(composition, midi_path)
+        save_midi_file(song_id, midi_path)
+        return (
+            GenerateMidiResponse(
+                song_id=song_id,
+                midi_file="output.mid",
+                download_url=f"/api/v1/songs/{song_id}/midi/download",
+                summary=MidiSummary(
+                    tracks=len([t for t in composition.tracks if t.notes]),
+                    bars=composition.total_bars,
+                    bpm=composition.bpm,
+                ),
             ),
-        ),
-        midi_path,
-    )
+            midi_path,
+        )
 
 
 def _ensure_midi_for(song_id: str) -> Path:
@@ -178,50 +180,51 @@ def _ensure_midi_for(song_id: str) -> Path:
 
 def _render_audio_for(song_id: str) -> RenderAudioResponse:
     """确保 output.mid 存在，调用 AudioRenderer 渲染 WAV 并保存 audio_metadata.json。"""
-    settings = get_settings()
-    midi_path = _ensure_midi_for(song_id)
-    renderer = get_audio_renderer()
-    wav_path = _project_dir_for(song_id) / AUDIO_FILENAME
+    with song_render_lock(song_id):
+        settings = get_settings()
+        midi_path = _ensure_midi_for(song_id)
+        renderer = get_audio_renderer()
+        wav_path = _project_dir_for(song_id) / AUDIO_FILENAME
 
-    # 音源解析：项目级设置 > 默认策略
-    soundfont = None
-    soundfont_warnings: list[str] = []
-    project_sf = get_project_soundfont(song_id)
-    if project_sf and project_sf.get("soundfont_id"):
-        soundfont = get_soundfont(project_sf["soundfont_id"])
+        # 音源解析：项目级设置 > 默认策略
+        soundfont = None
+        soundfont_warnings: list[str] = []
+        project_sf = get_project_soundfont(song_id)
+        if project_sf and project_sf.get("soundfont_id"):
+            soundfont = get_soundfont(project_sf["soundfont_id"])
+            if soundfont is None:
+                soundfont_warnings.append(f"项目指定的音源 {project_sf['soundfont_id']} 本地缺失，使用默认渲染策略")
         if soundfont is None:
-            soundfont_warnings.append(f"项目指定的音源 {project_sf['soundfont_id']} 本地缺失，使用默认渲染策略")
-    if soundfont is None:
-        soundfont = resolve_default_soundfont()
+            soundfont = resolve_default_soundfont()
 
-    result = renderer.render_wav(
-        midi_path,
-        wav_path,
-        sample_rate=settings.audio_sample_rate,
-        gain=settings.audio_gain,
-        soundfont_path=soundfont.path if soundfont else None,
-    )
-    metadata = {
-        "audio_file": AUDIO_FILENAME,
-        "renderer": result.renderer,
-        "sample_rate": result.sample_rate,
-        "duration_seconds": result.duration_seconds,
-        "file_size": result.file_size,
-        "soundfont_id": soundfont.id if soundfont else None,
-        "soundfont_name": soundfont.name if soundfont else None,
-        "soundfont_path": Path(soundfont.path).name if soundfont else None,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "generator_version": AUDIO_GENERATOR_VERSION,
-        "warnings": [*result.warnings, *soundfont_warnings],
-    }
-    save_audio_metadata(song_id, metadata)
-    return RenderAudioResponse(
-        song_id=song_id,
-        audio_file=AUDIO_FILENAME,
-        stream_url=f"/api/v1/songs/{song_id}/audio/stream",
-        download_url=f"/api/v1/songs/{song_id}/audio/download",
-        metadata=AudioMetadata.model_validate(metadata),
-    )
+        result = renderer.render_wav(
+            midi_path,
+            wav_path,
+            sample_rate=settings.audio_sample_rate,
+            gain=settings.audio_gain,
+            soundfont_path=soundfont.path if soundfont else None,
+        )
+        metadata = {
+            "audio_file": AUDIO_FILENAME,
+            "renderer": result.renderer,
+            "sample_rate": result.sample_rate,
+            "duration_seconds": result.duration_seconds,
+            "file_size": result.file_size,
+            "soundfont_id": soundfont.id if soundfont else None,
+            "soundfont_name": soundfont.name if soundfont else None,
+            "soundfont_path": Path(soundfont.path).name if soundfont else None,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generator_version": AUDIO_GENERATOR_VERSION,
+            "warnings": [*result.warnings, *soundfont_warnings],
+        }
+        save_audio_metadata(song_id, metadata)
+        return RenderAudioResponse(
+            song_id=song_id,
+            audio_file=AUDIO_FILENAME,
+            stream_url=f"/api/v1/songs/{song_id}/audio/stream",
+            download_url=f"/api/v1/songs/{song_id}/audio/download",
+            metadata=AudioMetadata.model_validate(metadata),
+        )
 
 
 def _regenerate_audio_for(song_id: str) -> None:

@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getTask, startAudioRenderTask, startMidiRenderTask, startStemsExportTask } from "../api/taskApi";
+import {
+  cancelTask,
+  getTask,
+  startAudioRenderTask,
+  startMidiRenderTask,
+  startStemsExportTask,
+} from "../api/taskApi";
 import type { RenderTask } from "../api/types";
 import { getErrorMessage } from "./error";
 
@@ -81,6 +87,21 @@ export function useRenderTasks(
   );
   const startStems = useCallback(() => startTask(startStemsExportTask), [startTask]);
 
+  const cancel = useCallback(async (): Promise<RenderTask | null> => {
+    if (!task) return null;
+    try {
+      const updated = await cancelTask(task.task_id);
+      setTask(updated);
+      if (updated.status !== "running") {
+        stopPolling();
+      }
+      return updated;
+    } catch (e) {
+      setError(getErrorMessage(e));
+      return null;
+    }
+  }, [task, stopPolling]);
+
   useEffect(() => () => stopPolling(), [stopPolling]);
 
   return {
@@ -90,6 +111,7 @@ export function useRenderTasks(
     startMidi,
     startAudio,
     startStems,
+    cancel,
     stopPolling,
   };
 }

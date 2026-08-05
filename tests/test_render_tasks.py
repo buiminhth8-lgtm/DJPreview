@@ -1,6 +1,7 @@
 """T30：任务存储与执行器单元测试。"""
 
 import time
+from pathlib import Path
 
 from packages.music_core.tasks.task_models import RenderTask
 from packages.music_core.tasks.task_store import TaskStore
@@ -89,3 +90,58 @@ def test_service_dedupes_active_task():
     first = service.submit("song-1", "stems", job)
     second = service.submit("song-1", "stems", job)
     assert first.task_id == second.task_id
+
+
+def test_task_store_persists_and_reloads(tmp_path):
+    persist = tmp_path / "tasks" / "render_tasks.json"
+    store = TaskStore(persist_path=persist)
+    task = store.create("song-1", "midi")
+    store.update(task.task_id, status="running", progress=40, message="工作中")
+
+    reloaded = TaskStore(persist_path=persist)
+    restored = reloaded.get(task.task_id)
+    assert restored is not None
+    assert restored.task_id == task.task_id
+    # 重启前 running 的任务标记为中断失败
+    assert restored.status == "failed"
+    assert "服务重启" in (restored.error or "")
+
+
+def test_cancel_queued_task():
+    service = RenderTaskService(max_workers=1)
+
+    def job(task_id, report):
+        time.sleep(1)
+        return {}
+
+    # 用独占 worker 占住线程池，使新任务停留在 queued
+    blocker = service.submit("blocker", "stems", job)
+    queued = service.submit("song-1", "midi", job)
+    cancelled = service.cancel(queued.task_id)
+    assert cancelled is not None
+    assert cancelled.status == "cancelled"
+    service.cancel(blocker.task_id)
+
+
+def test_cancel_running_task_stops_job():
+    service = RenderTaskService(max_workers=1)
+
+    def job(task_id, report):
+        report(20, "开始")
+        time.sleep(0.1)
+        report(50, "中途")
+        time.sleep(0.1)
+        return {"ok": True}
+
+    task = service.submit("song-1", "audio", job)
+    time.sleep(0.05)
+    service.cancel(task.task_id)
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        current = service.get(task.task_id)
+        if current is not None and current.status in ("cancelled", "succeeded", "failed"):
+            break
+        time.sleep(0.05)
+    final = service.get(task.task_id)
+    assert final is not None
+    assert final.status == "cancelled"
