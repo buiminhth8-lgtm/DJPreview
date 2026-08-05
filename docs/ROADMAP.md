@@ -253,3 +253,9 @@
 - 目标：WAV/stems 渲染异步执行并提供进度
 - 实现：`packages/music_core/tasks/` + `services/api/tasks/` + 异步 API + 前端 `RenderTasksPanel`，
   并完成持久化 / 同曲串行锁 / 取消接口修复（详见上方 T30 已完成小节）
+
+## T31 前端链路冒烟 ✅
+
+- 目标：生成 → MIDI → WAV → 版本 → 异步任务进度 → assets 的端到端验证脚本
+- 实现：`scripts/demo_t30_frontend_smoke.py`（后端全链路 + 可选前端 dev server 探活，纯标准库）、
+  `tests/test_frontend_smoke.py`（脚本存在 / --help / 可导入）

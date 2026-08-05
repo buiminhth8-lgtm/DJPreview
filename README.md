@@ -475,6 +475,18 @@ GET  /api/v1/songs/{song_id}/tasks
 - 前端 `RenderTasksPanel`：异步按钮 + 进度条 + 成功自动刷新资产；`useRenderTasks` 每 1s 轮询。
 - 详见 [docs/RENDER_TASKS.md](docs/RENDER_TASKS.md)（含进程内队列、重启中断、取消语义与限制）。
 
+## 前端链路冒烟（T31）
+
+- `scripts/demo_t30_frontend_smoke.py`：后端全链路（health → 生成 → 同步 MIDI → 同步 WAV → 版本列表 →
+  异步 render-audio 任务轮询 → assets），可选 `--check-frontend` 探活前端 dev server。
+
+```bash
+python scripts/demo_t30_frontend_smoke.py --backend-url http://127.0.0.1:8000
+python scripts/demo_t30_frontend_smoke.py --check-frontend
+```
+
+- 只做 HTTP 检查、不落盘生成资产；基础链路失败 exit 1。
+
 ## 当前项目状态
 
 ```text
