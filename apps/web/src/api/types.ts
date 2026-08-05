@@ -508,6 +508,39 @@ export interface ProjectImportResponse {
   summary: Record<string, unknown>;
 }
 
+// ---------- T29：SoundFont / 音源管理 ----------
+
+export interface SoundFontInfo {
+  id: string;
+  name: string;
+  path: string;
+  format: string;
+  size_bytes: number;
+  is_default: boolean;
+  tags: string[];
+}
+
+export interface SoundfontListResponse {
+  soundfonts: SoundFontInfo[];
+  default_soundfont_id: string | null;
+}
+
+export interface ProjectSoundfontRequest {
+  soundfont_id: string;
+  renderer?: string | null;
+}
+
+export interface ProjectSoundfontResponse {
+  song_id: string;
+  soundfont: {
+    soundfont_id: string;
+    soundfont_name: string | null;
+    renderer: string;
+  } | null;
+  available: boolean;
+  warning: string | null;
+}
+
 // ---------- 命名别名（保持与后端领域命名一致） ----------
 
 export type VersionListResponse = VersionsResponse;

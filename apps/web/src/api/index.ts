@@ -11,3 +11,4 @@ export * from "./referenceApi";
 export * from "./evaluationApi";
 export * from "./projectApi";
 export * from "./styleApi";
+export * from "./soundfontApi";

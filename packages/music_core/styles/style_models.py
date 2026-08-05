@@ -28,4 +28,6 @@ class StyleTemplateSpec(BaseModel):
     melody_profile: dict = Field(default_factory=dict)
     arrangement_curve: dict = Field(default_factory=dict)
     mix_hints: dict | None = None
+    soundfont_hint: str | None = None
+    preferred_soundfont_tags: list[str] = Field(default_factory=list)
     notes: str | None = None

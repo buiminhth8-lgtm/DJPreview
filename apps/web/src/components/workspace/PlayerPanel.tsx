@@ -3,6 +3,7 @@
 import type { AudioMetadata, GenerateMidiResponse, RenderAudioResponse } from "../../api/types";
 import AudioPlayer from "../AudioPlayer";
 import StemExportPanel from "../StemExportPanel";
+import SoundfontPanel from "./SoundfontPanel";
 
 export interface PlayerPanelProps {
   songId: string;
@@ -79,6 +80,12 @@ export default function PlayerPanel({
           <h2>分轨导出</h2>
         </summary>
         <StemExportPanel songId={songId} onError={onError} />
+      </details>
+      <details className="panel result">
+        <summary>
+          <h2>音源（SoundFont）</h2>
+        </summary>
+        <SoundfontPanel songId={songId} onError={onError} />
       </details>
     </section>
   );

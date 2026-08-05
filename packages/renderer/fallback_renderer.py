@@ -68,7 +68,9 @@ class FallbackRenderer:
         *,
         sample_rate: int = 44100,
         gain: float = 0.6,
+        soundfont_path: Path | str | None = None,
     ) -> AudioRenderResult:
+        """开发兜底渲染：忽略 soundfont（不依赖外部音源）。"""
         total_seconds, notes = _collect_notes(Path(midi_path))
         if not notes:
             total_seconds = 1.0

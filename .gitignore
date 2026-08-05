@@ -18,6 +18,14 @@ data/projects/*
 data/test_projects/
 data/llm_calls/
 data/evaluations/
+data/soundfonts/*
+!data/soundfonts/.gitkeep
+assets/soundfonts/*.sf2
+assets/soundfonts/*.sf3
+assets/soundfonts/*.sfz
+*.sf2
+*.sf3
+*.sfz
 
 # Node / 前端
 node_modules/

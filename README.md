@@ -448,6 +448,16 @@ python scripts/demo_t28_smoke.py --all
 - 手工走查（bash）：`scripts/demo_t28_walkthrough.sh`。
 - 启动：后端 `uvicorn services.api.main:app --port 8000`，前端 `cd apps/web && npm run dev`。
 
+## SoundFont / 音源管理（T29）
+
+- 支持 `.sf2` / `.sf3`（可选 `.sfz`）音源，自动扫描 `data/soundfonts/`、`assets/soundfonts/` 或 `SOUNDFONT_DIR`。
+- 无音源时系统不崩溃：fallback renderer 仍可用；有音源 + FluidSynth 可用时使用指定音源渲染。
+- 项目级音源选择：`GET/PUT /api/v1/songs/{song_id}/soundfont`，设置保存在 `soundfont.json`（不含真实音源文件，
+  恢复版本不覆盖；`.aimusic.zip` 只含引用 metadata）。
+- 风格模板提供 `soundfont_hint` / `preferred_soundfont_tags`（仅提示，不强制）。
+- 前端音源面板：列表 / 重新扫描 / 项目选择 / missing 提示（放入 `data/soundfonts/` 后重扫）。
+- 详见 [docs/SOUNDFONTS.md](docs/SOUNDFONTS.md)（含版权说明与常见问题）。
+
 ## 当前项目状态
 
 ```text

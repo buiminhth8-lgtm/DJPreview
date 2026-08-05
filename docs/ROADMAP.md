@@ -210,6 +210,17 @@
   `docs/DEMO_SCRIPT.md`（现场讲稿）、`scripts/demo_t28_smoke.py`（自动化 smoke，默认 2 案例 / --all 全跑）、
   `scripts/demo_t28_walkthrough.sh`（手工走查）、`tests/test_demo_prompts.py`、`tests/test_demo_smoke.py`
 
+## T29 SoundFont / 音源管理增强 ✅
+
+- 目标：支持选择不同 `.sf2` / `.sf3` 音源渲染 MIDI，项目级音源选择、风格默认音源 hint、前端列表展示
+- 实现：`packages/music_core/audio/`（soundfont_models / soundfont_manager：扫描 data/soundfonts、assets/soundfonts、
+  SOUNDFONT_DIR，稳定 id，默认策略 DEFAULT_SOUNDFONT_ID > SOUNDFONT_PATH > 首个扫描结果）；
+  renderer 接入（fallback 忽略、FluidSynth 按调用传入 soundfont_path，metadata 记录 soundfont_id/name/path）；
+  项目级 `soundfont.json`（restore 不覆盖，.aimusic.zip 只含 metadata 不含音源文件）；
+  API `GET /soundfonts`、`POST /soundfonts/scan`、`GET/PUT /songs/{id}/soundfont`；
+  style template 增加 soundfont_hint / preferred_soundfont_tags；前端 soundfontApi / useSoundfonts / SoundfontPanel；
+  文档 docs/SOUNDFONTS.md；不提交真实音源（.gitignore + .gitkeep）
+
 ## T26-T27 Docker / GitHub Actions / GHCR 部署 ⬜
 
 - 目标：镜像构建稳定、发布流程可用、本地部署文档准确

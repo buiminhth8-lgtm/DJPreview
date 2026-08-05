@@ -91,3 +91,18 @@ def test_fallback_renderer_handles_edge_midi(tmp_path):
     assert result.file_size > 0
     assert result.duration_seconds is not None
     assert result.duration_seconds > 0
+
+
+def test_fallback_renderer_accepts_soundfont_path(tmp_path):
+    """T29：fallback 渲染器接受 soundfont_path 参数并忽略它。"""
+    midi_path = _make_midi(tmp_path)
+    wav_path = tmp_path / "with_sf.wav"
+    result = FallbackRenderer().render_wav(
+        midi_path,
+        wav_path,
+        sample_rate=8000,
+        gain=0.6,
+        soundfont_path="data/soundfonts/whatever.sf2",
+    )
+    assert result.wav_path.exists()
+    assert result.file_size > 0

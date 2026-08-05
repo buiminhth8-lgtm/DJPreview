@@ -8,3 +8,4 @@ export * from "./useQuality";
 export * from "./useEvaluation";
 export * from "./useReferenceMidi";
 export * from "./useStyles";
+export * from "./useSoundfonts";

@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     audio_renderer: str = "auto"
     fluidsynth_bin: str = "fluidsynth"
     soundfont_path: str | None = None
+    soundfont_dir: str | None = None
+    default_soundfont_id: str | None = None
     audio_sample_rate: int = 44100
     audio_gain: float = 0.6
 

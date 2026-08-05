@@ -15,6 +15,7 @@ from packages.llm.structured_call import (
     LLMConfigurationError,
     LLMOutputError,
 )
+from packages.music_core.audio.soundfont_manager import get_soundfont, resolve_default_soundfont
 from packages.music_core.analysis.midi_parser import parse_midi_to_notes
 from packages.music_core.analysis.piano_roll import build_piano_roll_data
 from packages.music_core.analysis.quality_checker import QualityReport, check_arrangement_quality
@@ -110,6 +111,7 @@ from services.api.storage.project_store import (
     get_mix_spec,
     get_project,
     get_project_dir,
+    get_project_soundfont,
     get_quality_report as get_quality_report_store,
     get_stems_dir,
     get_stems_zip_path,
@@ -180,11 +182,24 @@ def _render_audio_for(song_id: str) -> RenderAudioResponse:
     midi_path = _ensure_midi_for(song_id)
     renderer = get_audio_renderer()
     wav_path = _project_dir_for(song_id) / AUDIO_FILENAME
+
+    # 音源解析：项目级设置 > 默认策略
+    soundfont = None
+    soundfont_warnings: list[str] = []
+    project_sf = get_project_soundfont(song_id)
+    if project_sf and project_sf.get("soundfont_id"):
+        soundfont = get_soundfont(project_sf["soundfont_id"])
+        if soundfont is None:
+            soundfont_warnings.append(f"项目指定的音源 {project_sf['soundfont_id']} 本地缺失，使用默认渲染策略")
+    if soundfont is None:
+        soundfont = resolve_default_soundfont()
+
     result = renderer.render_wav(
         midi_path,
         wav_path,
         sample_rate=settings.audio_sample_rate,
         gain=settings.audio_gain,
+        soundfont_path=soundfont.path if soundfont else None,
     )
     metadata = {
         "audio_file": AUDIO_FILENAME,
@@ -192,9 +207,12 @@ def _render_audio_for(song_id: str) -> RenderAudioResponse:
         "sample_rate": result.sample_rate,
         "duration_seconds": result.duration_seconds,
         "file_size": result.file_size,
+        "soundfont_id": soundfont.id if soundfont else None,
+        "soundfont_name": soundfont.name if soundfont else None,
+        "soundfont_path": Path(soundfont.path).name if soundfont else None,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "generator_version": AUDIO_GENERATOR_VERSION,
-        "warnings": result.warnings,
+        "warnings": [*result.warnings, *soundfont_warnings],
     }
     save_audio_metadata(song_id, metadata)
     return RenderAudioResponse(

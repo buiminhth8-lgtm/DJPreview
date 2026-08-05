@@ -42,6 +42,7 @@ DIFF_FILENAME = "diff.json"
 MIX_FILENAME = "mix_spec.json"
 QUALITY_FILENAME = "quality_report.json"
 OPTIMIZE_FILENAME = "optimize_report.json"
+SOUNDFONT_FILENAME = "soundfont.json"
 
 
 def is_valid_song_id(song_id: str) -> bool:
@@ -584,3 +585,16 @@ def get_stems_dir(song_id: str, version_id: str | None = None) -> Path:
 
 def get_stems_zip_path(song_id: str, version_id: str | None = None) -> Path:
     return get_stems_dir(song_id, version_id) / "stems.zip"
+
+
+def get_project_soundfont(song_id: str) -> dict | None:
+    """读取项目级音源设置（soundfont.json）；不存在返回 None。"""
+    path = _project_dir(song_id) / SOUNDFONT_FILENAME
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def save_project_soundfont(song_id: str, data: dict) -> None:
+    """保存项目级音源设置（不包含真实音源文件）。"""
+    _write_artifact_json(_project_dir(song_id) / SOUNDFONT_FILENAME, data)

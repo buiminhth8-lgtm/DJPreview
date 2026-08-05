@@ -43,10 +43,14 @@ class FluidSynthRenderer:
             return False, warnings
         return True, warnings
 
-    def _find_soundfont(self) -> Path | None:
+    def _find_soundfont(self, override: str | Path | None = None) -> Path | None:
+        if override:
+            candidate = Path(override)
+            return candidate if candidate.exists() else None
         if self.soundfont:
             candidate = Path(self.soundfont)
-            return candidate if candidate.exists() else None
+            if candidate.exists():
+                return candidate
         for candidate in _COMMON_SOUNDFONTS:
             path = Path(candidate)
             if path.exists():
@@ -60,6 +64,7 @@ class FluidSynthRenderer:
         *,
         sample_rate: int = 44100,
         gain: float = 0.6,
+        soundfont_path: Path | str | None = None,
     ) -> AudioRenderResult:
         exe = shutil.which(self.binary)
         if exe is None:
@@ -67,7 +72,7 @@ class FluidSynthRenderer:
                 "未找到 fluidsynth 可执行文件，请安装 FluidSynth，"
                 "或将 AUDIO_RENDERER 设为 fallback 使用开发兜底渲染。"
             )
-        soundfont = self._find_soundfont()
+        soundfont = self._find_soundfont(soundfont_path)
         if soundfont is None:
             raise RuntimeError(
                 "未找到 SoundFont 文件，请设置 SOUNDFONT_PATH 环境变量，"

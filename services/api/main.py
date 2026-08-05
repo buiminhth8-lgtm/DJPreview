@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from services.api.dependencies.config import get_settings
+from services.api.routes.soundfonts import router as soundfonts_router
 from services.api.routes.songs import router as songs_router
 
 load_dotenv()
@@ -34,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(songs_router, prefix="/api/v1")
+app.include_router(soundfonts_router, prefix="/api/v1")
 
 
 @app.exception_handler(HTTPException)

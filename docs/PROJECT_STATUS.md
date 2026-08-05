@@ -19,6 +19,7 @@
 - T24 完成：前端 App 状态拆分到 hooks（8 个领域 hook + hooks/index.ts，App.tsx 业务逻辑收敛）
 - T25 完成：前端工作台布局拆分（components/workspace/ 12 个组件 + 布局样式，App.tsx 变组合层）
 - T26/T27（Docker / GHCR）按用户指示跳过；T28 完成：示例工程与演示脚本（8 个 demo prompt + 演示文档/讲稿 + smoke 脚本）
+- T29 完成：SoundFont / 音源管理（扫描 / 稳定 id / 默认策略 / 项目级选择 / renderer 接入 / API / 前端面板 / 文档）
 - 当前分支：`master`
 
 ## 已完成功能

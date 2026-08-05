@@ -19,6 +19,7 @@ _FILES = [
     "mix_spec.json",
     "quality_report.json",
     "optimize_report.json",
+    "soundfont.json",
     "stems/stems_metadata.json",
     "prompts.json",
     "eval_report.json",

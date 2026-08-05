@@ -248,6 +248,43 @@ class RestoreVersionResponse(BaseModel):
     restore_summary: RestoreSummary | None = None
 
 
+# ---------- T29：SoundFont / 音源管理 ----------
+
+class SoundFontInfo(BaseModel):
+    """单个 SoundFont 音源信息。"""
+
+    id: str
+    name: str
+    path: str
+    format: str
+    size_bytes: int
+    is_default: bool = False
+    tags: list[str] = Field(default_factory=list)
+
+
+class SoundfontListResponse(BaseModel):
+    """音源列表响应。"""
+
+    soundfonts: list[SoundFontInfo] = Field(default_factory=list)
+    default_soundfont_id: str | None = None
+
+
+class ProjectSoundfontRequest(BaseModel):
+    """项目级音源选择请求。"""
+
+    soundfont_id: str = Field(min_length=1)
+    renderer: str | None = None
+
+
+class ProjectSoundfontResponse(BaseModel):
+    """项目级音源响应（含本地可用性提示）。"""
+
+    song_id: str
+    soundfont: dict | None = None
+    available: bool = False
+    warning: str | None = None
+
+
 # ---------- 第五阶段：混音 / 质量 / stems ----------
 
 class TrackMixPatch(BaseModel):

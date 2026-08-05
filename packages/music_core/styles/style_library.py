@@ -35,6 +35,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         melody_profile={"density": 0.45, "range": "mid-high", "energy_boost": 0.6},
         arrangement_curve={"intro": 0.2, "verse": 0.5, "chorus": 0.9, "outro": 0.25, "dynamic": "wide"},
         mix_hints={"pad_volume": 0.7, "piano_volume": 1.0},
+        soundfont_hint="cinematic_piano",
+        preferred_soundfont_tags=["strings", "piano"],
         notes="慢速电影感钢琴配乐模板",
     ),
     StyleTemplateSpec(
@@ -58,6 +60,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         rhythm_presets=["lo-fi", "broken_chords"],
         melody_profile={"density": 0.4, "range": "mid", "energy_boost": 0.3},
         arrangement_curve={"intro": 0.25, "verse": 0.5, "chorus": 0.7, "outro": 0.3},
+        soundfont_hint="lofi",
+        preferred_soundfont_tags=["warm", "vintage"],
         notes="Lo-fi hiphop 模板",
     ),
     StyleTemplateSpec(
@@ -81,6 +85,7 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         rhythm_presets=["pop", "block_chords"],
         melody_profile={"density": 0.55, "range": "mid-high", "energy_boost": 0.7},
         arrangement_curve={"intro": 0.2, "verse": 0.5, "chorus": 1.0, "outro": 0.3, "chorus_boost": True},
+        preferred_soundfont_tags=["piano", "strings"],
         notes="流行情歌模板",
     ),
     StyleTemplateSpec(
@@ -104,6 +109,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         rhythm_presets=["arpeggio", "sustained_pad"],
         melody_profile={"density": 0.4, "range": "mid-high", "energy_boost": 0.5},
         arrangement_curve={"intro": 0.2, "verse": 0.5, "chorus": 0.85, "outro": 0.25},
+        soundfont_hint="chinese",
+        preferred_soundfont_tags=["ethnic", "orchestral"],
         notes="中国风五声音阶模板",
     ),
     StyleTemplateSpec(
@@ -127,6 +134,7 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         rhythm_presets=["rock", "electronic"],
         melody_profile={"density": 0.75, "range": "high", "energy_boost": 1.0},
         arrangement_curve={"intro": 0.4, "verse": 0.7, "chorus": 1.0, "outro": 0.4, "dynamic": "intense"},
+        preferred_soundfont_tags=["orchestral", "band"],
         notes="游戏战斗模板",
     ),
     StyleTemplateSpec(
@@ -148,6 +156,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         rhythm_presets=["sustained_pad"],
         melody_profile={"density": 0.15, "range": "mid", "energy_boost": 0.1},
         arrangement_curve={"intro": 0.1, "verse": 0.35, "chorus": 0.5, "outro": 0.1, "dynamic": "calm"},
+        soundfont_hint="meditation",
+        preferred_soundfont_tags=["warm", "pad"],
         notes="冥想氛围模板",
     ),
     StyleTemplateSpec(
@@ -170,6 +180,7 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         rhythm_presets=["electronic", "arpeggio"],
         melody_profile={"density": 0.7, "range": "mid-high", "energy_boost": 0.8},
         arrangement_curve={"intro": 0.3, "verse": 0.6, "chorus": 1.0, "outro": 0.3},
+        preferred_soundfont_tags=["synth", "electronic"],
         notes="电子律动模板",
     ),
     StyleTemplateSpec(
@@ -192,6 +203,8 @@ _TEMPLATES: list[StyleTemplateSpec] = [
         rhythm_presets=["rock"],
         melody_profile={"density": 0.65, "range": "mid-high", "energy_boost": 0.9},
         arrangement_curve={"intro": 0.3, "verse": 0.65, "chorus": 1.0, "outro": 0.35},
+        soundfont_hint="rock",
+        preferred_soundfont_tags=["electric-guitar", "band"],
         notes="摇滚主题模板",
     ),
 ]
