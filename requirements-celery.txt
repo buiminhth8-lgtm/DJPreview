@@ -1,0 +1,4 @@
+# 生产可选：Celery / Redis 任务队列（TASK_BACKEND=celery 时使用）
+# 默认进程内后端不需要这些依赖。
+celery>=5.4,<6
+redis>=5.0,<6
