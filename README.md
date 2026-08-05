@@ -414,6 +414,17 @@ curl -X POST http://localhost:8000/api/v1/evaluation/run \
 - `VITE_API_BASE_URL` 可配置、默认相对路径 `/api/v1`；FormData 请求不设 JSON Content-Type；
   文件下载走 `apiDownloadBlob`，不被 JSON 解析。
 
+## 前端状态拆分（T24）
+
+- App 状态拆分到 `apps/web/src/hooks/`：`useSongProject`（songId / musicSpec / prompt / 编辑指令 /
+  生成 / 读取 / 编辑 / 重置）、`useAudioAssets`（MIDI / WAV / assets / 下载 URL）、
+  `useVersions`（版本列表 / 详情 / diff / 恢复）、`useMixer`、`useQuality`、`useEvaluation`、
+  `useReferenceMidi`、`useStyles`（风格选中）。
+- `App.tsx` 保留现有 UI 结构与交互流程，直接 API 调用移除，通过 hooks 编排联动
+  （生成→加载、编辑→刷新版本/资产、MIDI/WAV→刷新资产、恢复→刷新歌曲/资产/版本）。
+- 各 hook 有独立 loading / error 状态，复用 T23 API 模块与统一错误解析（`getErrorMessage`）。
+- T25 将继续做工作台布局重构。
+
 ## 当前项目状态
 
 ```text

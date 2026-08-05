@@ -1,24 +1,13 @@
 import { useState } from "react";
-import {
-  editSong,
-  generateMidi,
-  generateMusicSpec,
-  getSong,
-  getVersions,
-  renderAudio,
-  resolveUrl,
-  restoreVersion,
-  type AudioMetadata,
-  type DiffItem,
-  type EditSongResponse,
-  type GenerateFromReferenceResponse,
-  type GenerateMidiResponse,
-  type MusicSpec,
-  type OptimizeResponse,
-  type RegenerationResult,
-  type RenderAudioResponse,
-  type VersionInfo,
-} from "./api/musicApi";
+import type {
+  AudioMetadata,
+  AssetsResponse,
+  DiffItem,
+  GenerateFromReferenceResponse,
+  OptimizeResponse,
+  RegenerationResult,
+} from "./api/types";
+import { useAudioAssets, useSongProject, useStyles, useVersions } from "./hooks";
 import ArrangementInspector from "./components/ArrangementInspector";
 import AudioPlayer from "./components/AudioPlayer";
 import EvaluationPanel from "./components/EvaluationPanel";
@@ -28,29 +17,6 @@ import ReferenceMidiPanel from "./components/ReferenceMidiPanel";
 import RegenerationPanel from "./components/RegenerationPanel";
 import StemExportPanel from "./components/StemExportPanel";
 import StyleTemplatePanel from "./components/StyleTemplatePanel";
-
-function audioResultFromAssets(
-  songId: string,
-  assets: EditSongResponse["assets"],
-): RenderAudioResponse | null {
-  if (!assets.audio) return null;
-  return {
-    song_id: songId,
-    audio_file: "output.wav",
-    stream_url: assets.audio.stream_url,
-    download_url: assets.audio.download_url,
-    metadata: assets.audio.metadata ?? {
-      audio_file: "output.wav",
-      renderer: "unknown",
-      sample_rate: 0,
-      duration_seconds: null,
-      file_size: 0,
-      generated_at: null,
-      generator_version: null,
-      warnings: [],
-    },
-  };
-}
 
 function formatDiff(diff: DiffItem[]): string {
   return diff
@@ -63,187 +29,87 @@ function formatDiff(diff: DiffItem[]): string {
 }
 
 export default function App() {
-  const [prompt, setPrompt] = useState("");
-  const [styleId, setStyleId] = useState("");
+  const project = useSongProject();
+  const styles = useStyles();
   const [styleStrength, setStyleStrength] = useState(0.7);
-  const [loadingSpec, setLoadingSpec] = useState(false);
-  const [loadingMidi, setLoadingMidi] = useState(false);
-  const [loadingAudio, setLoadingAudio] = useState(false);
-  const [loadingEdit, setLoadingEdit] = useState(false);
-  const [loadingVersions, setLoadingVersions] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [songId, setSongId] = useState<string | null>(null);
-  const [musicSpec, setMusicSpec] = useState<MusicSpec | null>(null);
-  const [midiResult, setMidiResult] = useState<GenerateMidiResponse | null>(null);
-  const [audioResult, setAudioResult] = useState<RenderAudioResponse | null>(null);
-  const [audioStreamUrl, setAudioStreamUrl] = useState<string | null>(null);
-
-  const [editPrompt, setEditPrompt] = useState("");
-  const [lastDiff, setLastDiff] = useState<DiffItem[] | null>(null);
-  const [versions, setVersions] = useState<VersionInfo[] | null>(null);
-  const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
   const [pianoRefreshKey, setPianoRefreshKey] = useState(0);
+  const [lastDiff, setLastDiff] = useState<DiffItem[] | null>(null);
 
-  const refreshAudioFromAssets = (songId: string, assets: EditSongResponse["assets"]) => {
-    const next = audioResultFromAssets(songId, assets);
-    setAudioResult(next);
-    if (next) {
-      setAudioStreamUrl(`${resolveUrl(next.stream_url)}?t=${Date.now()}`);
-    } else {
-      setAudioStreamUrl(null);
-    }
-  };
+  const audio = useAudioAssets(project.songId);
+  const versions = useVersions({ songId: project.songId });
 
-  const refreshVersions = async () => {
-    if (!songId) return;
-    const result = await getVersions(songId);
-    setVersions(result.versions);
-    setCurrentVersionId(result.current_version_id);
-  };
-
-  const resetDerived = () => {
-    setMidiResult(null);
-    setAudioResult(null);
-    setAudioStreamUrl(null);
-    setVersions(null);
+  const loadProject = async (newSongId: string) => {
+    const spec = await project.loadSong(newSongId);
+    if (!spec) return;
+    audio.resetAssets();
+    versions.resetVersions();
     setLastDiff(null);
-  };
-
-  const handleGenerateSpec = async () => {
-    if (!prompt.trim()) {
-      setError("请输入音乐描述");
-      return;
-    }
-    setLoadingSpec(true);
-    setError(null);
-    resetDerived();
-    try {
-      const result = await generateMusicSpec(prompt.trim(), styleId || null, styleStrength);
-      setSongId(result.song_id);
-      setMusicSpec(result.music_spec);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoadingSpec(false);
-    }
-  };
-
-  const loadSong = async (newSongId: string) => {
-    const result = await getSong(newSongId);
-    setSongId(newSongId);
-    setMusicSpec(result.music_spec);
-    resetDerived();
     setPianoRefreshKey((k) => k + 1);
   };
 
-  const handleGenerateFromReference = async (result: GenerateFromReferenceResponse) => {
-    await loadSong(result.song_id);
+  const handleGenerateSpec = async () => {
+    audio.resetAssets();
+    versions.resetVersions();
+    setLastDiff(null);
+    await project.generate(project.prompt, styles.selectedStyleId, styleStrength);
   };
 
-  const handleImported = async (newSongId: string) => {
-    await loadSong(newSongId);
+  const handleGenerateFromReference = (result: GenerateFromReferenceResponse) => {
+    void loadProject(result.song_id);
+  };
+
+  const handleImported = (newSongId: string) => {
+    void loadProject(newSongId);
   };
 
   const handleGenerateMidi = async () => {
-    if (!songId) return;
-    setLoadingMidi(true);
-    setError(null);
-    setAudioResult(null);
-    setAudioStreamUrl(null);
-    try {
-      const result = await generateMidi(songId);
-      setMidiResult(result);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoadingMidi(false);
-    }
+    await audio.generateMidi();
   };
 
   const handleRenderAudio = async () => {
-    if (!songId) return;
-    setLoadingAudio(true);
-    setError(null);
-    try {
-      const result = await renderAudio(songId);
-      setAudioResult(result);
-      setAudioStreamUrl(`${resolveUrl(result.stream_url)}?t=${Date.now()}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoadingAudio(false);
-    }
+    await audio.renderAudio();
   };
 
   const handleApplyEdit = async () => {
-    if (!songId || !editPrompt.trim()) {
-      setError("请输入修改指令");
-      return;
-    }
-    setLoadingEdit(true);
-    setError(null);
-    try {
-      const result = await editSong(songId, editPrompt.trim());
-      setMusicSpec(result.music_spec);
-      setLastDiff(result.diff);
-      refreshAudioFromAssets(songId, result.assets);
-      await refreshVersions();
-      setPianoRefreshKey((k) => k + 1);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoadingEdit(false);
-    }
+    const result = await project.edit(project.editInstruction);
+    if (!result) return;
+    setLastDiff(result.diff);
+    audio.updateFromAssets(result.assets);
+    await versions.refreshVersions();
+    setPianoRefreshKey((k) => k + 1);
   };
 
   const handleLoadVersions = async () => {
-    if (!songId) return;
-    setLoadingVersions(true);
-    setError(null);
-    try {
-      await refreshVersions();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoadingVersions(false);
-    }
+    await versions.refreshVersions();
   };
 
   const handleRestore = async (versionId: string) => {
-    if (!songId) return;
-    setError(null);
-    try {
-      const result = await restoreVersion(songId, versionId);
-      setMusicSpec(result.music_spec);
-      refreshAudioFromAssets(songId, result.assets);
-      await refreshVersions();
-      setPianoRefreshKey((k) => k + 1);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
+    const result = await versions.restoreVersion(versionId);
+    if (!result) return;
+    project.setMusicSpec(result.music_spec);
+    audio.updateFromAssets(result.assets);
+    await versions.refreshVersions();
+    setPianoRefreshKey((k) => k + 1);
   };
 
-  const handleMixApplied = (assets: EditSongResponse["assets"]) => {
-    refreshAudioFromAssets(songId ?? "", assets);
+  const handleMixApplied = (assets: AssetsResponse) => {
+    audio.updateFromAssets(assets);
     setPianoRefreshKey((k) => k + 1);
   };
 
   const handleOptimized = async (result: OptimizeResponse) => {
-    setMusicSpec(result.music_spec);
-    refreshAudioFromAssets(result.song_id, result.assets);
-    await refreshVersions();
+    project.setMusicSpec(result.music_spec);
+    audio.updateFromAssets(result.assets);
+    await versions.refreshVersions();
     setPianoRefreshKey((k) => k + 1);
   };
 
   const handleRegenerated = async (result: RegenerationResult) => {
-    setMusicSpec(result.music_spec);
-    refreshAudioFromAssets(songId ?? "", result.assets);
-    await refreshVersions();
+    project.setMusicSpec(result.music_spec);
+    audio.updateFromAssets(result.assets);
+    await versions.refreshVersions();
     setPianoRefreshKey((k) => k + 1);
   };
-
-  const midiDownloadUrl = midiResult ? resolveUrl(midiResult.download_url) : null;
 
   return (
     <div className="container">
@@ -256,75 +122,72 @@ export default function App() {
 
       <section className="panel">
         <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          value={project.prompt}
+          onChange={(e) => project.setPrompt(e.target.value)}
           placeholder="例如：生成一段忧郁空灵的钢琴配乐，72 BPM，D 小调"
           rows={4}
-          disabled={loadingSpec}
+          disabled={project.loadingSpec}
         />
         <StyleTemplatePanel
-          value={styleId}
+          value={styles.selectedStyleId}
           strength={styleStrength}
           onChange={(id, strength) => {
-            setStyleId(id);
+            styles.setSelectedStyleId(id);
             setStyleStrength(strength);
           }}
-          onError={(msg) => setError(msg)}
+          onError={(msg) => project.setError(msg)}
         />
         <div className="actions">
-          <button onClick={handleGenerateSpec} disabled={loadingSpec}>
-            {loadingSpec ? "生成中…" : "生成 MusicSpec"}
+          <button onClick={handleGenerateSpec} disabled={project.loadingSpec}>
+            {project.loadingSpec ? "生成中…" : "生成 MusicSpec"}
           </button>
         </div>
       </section>
 
-      {error && <div className="error">⚠ {error}</div>}
+      {project.error && <div className="error">⚠ {project.error}</div>}
 
-      {musicSpec && songId && (
+      {project.musicSpec && project.songId && (
         <>
           <section className="panel result">
             <h2>播放与下载</h2>
             <p className="song-id">
-              song_id：<code>{songId}</code>
+              song_id：<code>{project.songId}</code>
             </p>
             <div className="midi-actions">
-              <button onClick={handleGenerateMidi} disabled={loadingMidi}>
-                {loadingMidi ? "MIDI 生成中…" : "生成 MIDI"}
+              <button onClick={handleGenerateMidi} disabled={audio.loadingMidi}>
+                {audio.loadingMidi ? "MIDI 生成中…" : "生成 MIDI"}
               </button>
-              {midiDownloadUrl && (
-                <a className="download-link" href={midiDownloadUrl} download={`${songId}.mid`}>
+              {audio.midiDownloadUrl && (
+                <a className="download-link" href={audio.midiDownloadUrl} download={`${project.songId}.mid`}>
                   下载 MIDI
                 </a>
               )}
             </div>
-            {midiResult && (
+            {audio.midiResult && (
               <div className="summary">
                 <div className="summary-row">
                   <span className="summary-label">轨道数</span>
-                  <span className="summary-value">{midiResult.summary.tracks}</span>
+                  <span className="summary-value">{audio.midiResult.summary.tracks}</span>
                 </div>
                 <div className="summary-row">
                   <span className="summary-label">小节数</span>
-                  <span className="summary-value">{midiResult.summary.bars}</span>
+                  <span className="summary-value">{audio.midiResult.summary.bars}</span>
                 </div>
                 <div className="summary-row">
                   <span className="summary-label">BPM</span>
-                  <span className="summary-value">{midiResult.summary.bpm}</span>
+                  <span className="summary-value">{audio.midiResult.summary.bpm}</span>
                 </div>
               </div>
             )}
             <div className="midi-actions">
-              <button onClick={handleRenderAudio} disabled={loadingAudio}>
-                {loadingAudio ? "WAV 渲染中…" : "渲染 WAV"}
+              <button onClick={handleRenderAudio} disabled={audio.loadingAudio}>
+                {audio.loadingAudio ? "WAV 渲染中…" : "渲染 WAV"}
               </button>
             </div>
-            {audioResult && audioStreamUrl && (
+            {audio.audioResult && audio.audioStreamUrl && (
               <>
-                <AudioPlayer
-                  audioUrl={audioStreamUrl}
-                  downloadUrl={resolveUrl(audioResult.download_url)}
-                />
-                <AudioMeta metadata={audioResult.metadata} />
+                <AudioPlayer audioUrl={audio.audioStreamUrl} downloadUrl={audio.audioDownloadUrl ?? ""} />
+                <AudioMeta metadata={audio.audioResult.metadata} />
               </>
             )}
           </section>
@@ -334,11 +197,11 @@ export default function App() {
               <h2>编曲检查（摘要 / 段落 / 轨道 / 钢琴卷帘 / 质量）</h2>
             </summary>
             <ArrangementInspector
-              songId={songId}
-              spec={musicSpec}
+              songId={project.songId}
+              spec={project.musicSpec}
               refreshKey={pianoRefreshKey}
-              onOptimized={handleOptimized}
-              onError={(msg) => setError(msg)}
+              onOptimized={(result) => void handleOptimized(result)}
+              onError={(msg) => project.setError(msg)}
             />
           </details>
 
@@ -347,15 +210,15 @@ export default function App() {
               <h2>自然语言修改与版本管理</h2>
             </summary>
             <textarea
-              value={editPrompt}
-              onChange={(e) => setEditPrompt(e.target.value)}
+              value={project.editInstruction}
+              onChange={(e) => project.setEditInstruction(e.target.value)}
               placeholder="例如：副歌更亮一点 / 整首更快一点 / 加点中国风 / 去掉贝斯 / 副歌加鼓"
               rows={3}
-              disabled={loadingEdit}
+              disabled={project.loadingEdit}
             />
             <div className="actions">
-              <button onClick={handleApplyEdit} disabled={loadingEdit}>
-                {loadingEdit ? "修改中…" : "应用修改"}
+              <button onClick={handleApplyEdit} disabled={project.loadingEdit}>
+                {project.loadingEdit ? "修改中…" : "应用修改"}
               </button>
             </div>
             {lastDiff && lastDiff.length > 0 && (
@@ -368,28 +231,28 @@ export default function App() {
               <p className="muted-note">本次修改未产生字段变化。</p>
             )}
             <div className="actions">
-              <button onClick={handleLoadVersions} disabled={loadingVersions}>
-                {loadingVersions ? "加载中…" : "查看版本"}
+              <button onClick={handleLoadVersions} disabled={versions.loadingVersions}>
+                {versions.loadingVersions ? "加载中…" : "查看版本"}
               </button>
             </div>
-            {versions && (
+            {versions.versions && (
               <div className="version-list">
-                {[...versions].reverse().map((v) => (
+                {[...versions.versions].reverse().map((v) => (
                   <div
-                    className={`version-item${v.version_id === currentVersionId ? " current" : ""}`}
+                    className={`version-item${v.version_id === versions.currentVersionId ? " current" : ""}`}
                     key={v.version_id}
                   >
                     <div className="version-head">
                       <span className="version-number">v{v.version_number}</span>
-                      {v.version_id === currentVersionId && (
+                      {v.version_id === versions.currentVersionId && (
                         <span className="version-current">当前</span>
                       )}
                     </div>
                     <div className="version-detail">
                       {v.instruction ?? "初始版本"} · {new Date(v.created_at).toLocaleString()}
                     </div>
-                    {v.version_id !== currentVersionId && (
-                      <button className="restore-btn" onClick={() => handleRestore(v.version_id)}>
+                    {v.version_id !== versions.currentVersionId && (
+                      <button className="restore-btn" onClick={() => void handleRestore(v.version_id)}>
                         恢复此版本
                       </button>
                     )}
@@ -404,10 +267,10 @@ export default function App() {
               <h2>混音器</h2>
             </summary>
             <MixerPanel
-              songId={songId}
+              songId={project.songId}
               refreshKey={pianoRefreshKey}
               onApplied={handleMixApplied}
-              onError={(msg) => setError(msg)}
+              onError={(msg) => project.setError(msg)}
             />
           </details>
 
@@ -415,7 +278,7 @@ export default function App() {
             <summary>
               <h2>分轨导出</h2>
             </summary>
-            <StemExportPanel songId={songId} onError={(msg) => setError(msg)} />
+            <StemExportPanel songId={project.songId} onError={(msg) => project.setError(msg)} />
           </details>
 
           <details className="panel result">
@@ -423,10 +286,10 @@ export default function App() {
               <h2>局部重生成</h2>
             </summary>
             <RegenerationPanel
-              songId={songId}
-              spec={musicSpec}
-              onRegenerated={handleRegenerated}
-              onError={(msg) => setError(msg)}
+              songId={project.songId}
+              spec={project.musicSpec}
+              onRegenerated={(result) => void handleRegenerated(result)}
+              onError={(msg) => project.setError(msg)}
             />
           </details>
 
@@ -435,10 +298,10 @@ export default function App() {
               <h2>参考 MIDI 分析与生成</h2>
             </summary>
             <ReferenceMidiPanel
-              styleTemplateId={styleId || null}
+              styleTemplateId={styles.selectedStyleId || null}
               styleStrength={styleStrength}
               onGenerated={handleGenerateFromReference}
-              onError={(msg) => setError(msg)}
+              onError={(msg) => project.setError(msg)}
             />
           </details>
 
@@ -447,9 +310,9 @@ export default function App() {
               <h2>工程导入导出</h2>
             </summary>
             <ProjectIOPanel
-              songId={songId}
+              songId={project.songId}
               onImported={handleImported}
-              onError={(msg) => setError(msg)}
+              onError={(msg) => project.setError(msg)}
             />
           </details>
 
@@ -457,7 +320,7 @@ export default function App() {
             <summary>
               <h2>批量评估</h2>
             </summary>
-            <EvaluationPanel onError={(msg) => setError(msg)} />
+            <EvaluationPanel onError={(msg) => project.setError(msg)} />
           </details>
         </>
       )}
