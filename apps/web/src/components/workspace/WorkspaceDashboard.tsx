@@ -18,12 +18,12 @@ import type {
 import { SectionCard } from "../ui";
 import QualityReportPanel from "../QualityReport";
 import RegenerationPanel from "../RegenerationPanel";
-import EditPanel from "./EditPanel";
+import { EditSongPanel } from "./EditSongPanel";
 import EvaluationPanel from "./EvaluationPanel";
 import { FormHarmonyPanel } from "./FormHarmonyPanel";
 import { GenerateConsole } from "./GenerateConsole";
 import GenerationDebugPanel from "./GenerationDebugPanel";
-import MixerPanel from "./MixerPanel";
+import { MixerPanel } from "./MixerPanel";
 import { MusicSpecPanel } from "./MusicSpecPanel";
 import { PianoRollPanel } from "./PianoRollPanel";
 import { PlaybackDownloadPanel } from "./PlaybackDownloadPanel";
@@ -32,8 +32,9 @@ import { ProjectOverviewPanel } from "./ProjectOverviewPanel";
 import ProjectPanel from "./ProjectPanel";
 import ReferencePanel from "./ReferencePanel";
 import RenderTasksPanel from "./RenderTasksPanel";
+import { StemsPanel } from "./StemsPanel";
 import { TrackInstrumentPanel } from "./TrackInstrumentPanel";
-import VersionPanel from "./VersionPanel";
+import { VersionPanel } from "./VersionPanel";
 import { WarningsPanel } from "./WarningsPanel";
 import WorkspaceHeader from "./WorkspaceHeader";
 import { WorkspaceSectionPlaceholder } from "./WorkspaceSectionPlaceholder";
@@ -50,7 +51,7 @@ export interface WorkspaceDashboardProps {
   onGenerate: () => void;
   onGenerateMidi: () => void;
   onRenderAudio: () => void;
-  onApplyEdit: () => void;
+  onApplyEdit: (autoRender?: boolean) => void;
   onLoadVersions: () => void;
   onRestore: (versionId: string) => void;
   onMixApplied: (assets: AssetsResponse) => void;
@@ -230,71 +231,50 @@ export default function WorkspaceDashboard({
         )}
 
         {/* 混音器 */}
-        {hasSong && songId ? (
-          <SectionCard title="混音器" description="音量 / 声像 / 静音 / 独奏">
-            <MixerPanel
-              songId={songId}
-              refreshKey={pianoRefreshKey}
-              onApplied={onMixApplied}
-              onError={songProject.setError}
-            />
-          </SectionCard>
-        ) : (
-          <WorkspaceSectionPlaceholder
-            title="混音器"
-            description="音量 / 声像 / 静音 / 独奏"
-            emptyTitle="暂无可混音轨道"
-            emptyDescription="生成 MusicSpec 后将显示轨道音量、声像、静音和独奏控制。"
-          />
-        )}
+        <MixerPanel
+          songId={songId}
+          musicSpec={spec}
+          refreshKey={pianoRefreshKey}
+          onApplied={onMixApplied}
+          onError={songProject.setError}
+        />
 
         {/* Stems / 分轨导出 */}
-        <WorkspaceSectionPlaceholder
-          title="Stems / 分轨导出"
-          description="各轨道独立 MIDI / WAV"
-          emptyTitle="暂无分轨"
-          emptyDescription="渲染音频后可导出分轨。"
+        <StemsPanel
+          songId={songId}
+          hasMidi={Boolean(audioAssets.assets?.has_midi) || Boolean(audioAssets.midiResult)}
+          hasAudio={Boolean(audioAssets.assets?.has_audio) || Boolean(audioAssets.audioResult)}
+          onError={songProject.setError}
         />
 
         {/* 版本管理 */}
-        {hasSong && songId ? (
-          <SectionCard title="版本管理" description="版本列表 / 恢复">
-            <VersionPanel
-              versions={versions.versions}
-              currentVersionId={versions.currentVersionId}
-              loading={versions.loadingVersions}
-              onLoad={onLoadVersions}
-              onRestore={onRestore}
-            />
-          </SectionCard>
-        ) : (
-          <WorkspaceSectionPlaceholder
-            title="版本管理"
-            description="版本列表 / 恢复"
-            emptyTitle="暂无版本"
-            emptyDescription="生成或导入工程后会自动创建 v1。"
-          />
-        )}
+        <VersionPanel
+          songId={songId}
+          versions={versions.versions}
+          currentVersionId={versions.currentVersionId}
+          loading={versions.loadingVersions}
+          restoring={versions.restoringVersion}
+          selectedDetail={versions.versionDetail}
+          selectedDiff={versions.versionDiff}
+          onLoad={onLoadVersions}
+          onRestore={onRestore}
+          onViewDetail={(vid) => void versions.loadVersionDetail(vid)}
+          onViewDiff={(vid) => void versions.loadVersionDiff(vid)}
+        />
 
         {/* 自然语言修改 */}
-        {hasSong && songId ? (
-          <SectionCard title="自然语言修改" description="用一句话修改音乐">
-            <EditPanel
-              value={songProject.editInstruction}
-              loading={songProject.loadingEdit}
-              diff={lastDiff}
-              onChange={songProject.setEditInstruction}
-              onApply={onApplyEdit}
-            />
-          </SectionCard>
-        ) : (
-          <WorkspaceSectionPlaceholder
-            title="自然语言修改"
-            description="用一句话修改音乐"
-            emptyTitle="请先生成或导入工程"
-            emptyDescription="创建工程后，可输入“让副歌更宏大”等指令修改音乐。"
-          />
-        )}
+        <EditSongPanel
+          songId={songId}
+          hasProject={hasSong}
+          isEditing={songProject.loadingEdit}
+          editError={songProject.error}
+          initialInstruction={songProject.editInstruction}
+          diff={lastDiff}
+          onEditSong={(instruction, options) => {
+            songProject.setEditInstruction(instruction);
+            onApplyEdit(options?.autoRender ?? false);
+          }}
+        />
 
         {/* SoundFont / 音源管理 */}
         <WorkspaceSectionPlaceholder

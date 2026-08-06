@@ -390,12 +390,35 @@ RenderTasksPanel / RegenerationPanel / ReferencePanel / EvaluationPanel。
 
 后续 T38-G 将接入混音器 / Stems / 版本管理 / 自然语言修改。
 
-### T38-G：混音器、Stems、版本管理、自然语言修改常驻化
+### T38-G：混音器、Stems、版本管理、自然语言编辑常驻化
 - 目标：Mixer / StemExport / VersionPanel / EditPanel / Reference / Evaluation 常驻。
 - 修改范围：对应 panel 组件 + hooks 空态支持。
 - 风险点：混音器无 mix 时不能请求；版本恢复需 song_id。
 - 验收标准：无工程时各操作 disabled 并提示原因。
 - 建议 commit message：`feat(frontend): persistent mixer/stems/versions/edit sections`
+
+#### T38-G 已落地（完成）
+
+已新增/升级编辑与生产区常驻组件：
+
+- `MixerPanel.tsx`（workspace 版）— 混音器常驻：无 songId → Empty State「暂无可混音工程」；
+  有 songId 但无 tracks → Empty State「暂无可混音轨道」；有 songId+tracks 才挂载真实
+  `MixerPanelInner`（其内部仅在 songId 存在时请求 mix endpoint）。
+- `StemsPanel.tsx` — Stems / 分轨导出常驻：无 songId → Empty State「暂无分轨工程」；
+  有 songId 但无 MIDI → Empty State + 导出按钮 disabled（原因「请先生成 MIDI」）；
+  有 MIDI 后显示「导出 Stems」按钮（无 WAV 时提示基于 MIDI 导出）；导出后显示分轨表 +
+  stems.zip 下载。
+- `VersionPanel.tsx`（workspace 版）— 版本管理常驻：无 songId → Empty State「暂无版本」；
+  有 songId 但无版本 → 空版本状态 + 刷新按钮；有版本 → 列表（v号/时间/instruction/当前标识）
+  + 查看详情 / 查看 Diff（JsonPreview）/ 恢复版本（`window.confirm` 确认）。
+- `EditSongPanel.tsx` — 自然语言修改常驻：无工程 → Empty State「请先生成或导入工程」；
+  有工程 → 修改指令输入框 + 「应用修改」/「应用并重新渲染」（autoRender 支持）；
+  disabled 原因（无工程/指令为空/正在修改）。
+- `useSongProject.edit` 增加 `autoRender` 参数；`App.handleApplyEdit` 透传 autoRender。
+- `styles/workspace-editing.css` — 混音/Stems/版本/编辑区样式（mixer、version list、edit
+  textarea、diff preview 限高、移动端）。
+
+后续 T38-H 将接入 SoundFont / 工程导入导出 / 任务日志。
 
 ### T38-H：SoundFont、工程导入导出、任务日志常驻化
 - 目标：SoundfontPanel（可无工程扫描）、ProjectPanel（导入始终可用/导出需 song）、

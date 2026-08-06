@@ -43,8 +43,8 @@ export default function App() {
     await audioAssets.renderAudio();
   };
 
-  const handleApplyEdit = async () => {
-    const result = await songProject.edit(songProject.editInstruction);
+  const handleApplyEdit = async (autoRender = true) => {
+    const result = await songProject.edit(songProject.editInstruction, autoRender);
     if (!result) return;
     setLastDiff(result.diff);
     audioAssets.updateFromAssets(result.assets);
@@ -105,7 +105,7 @@ export default function App() {
       onGenerate={() => void handleGenerate()}
       onGenerateMidi={() => void handleGenerateMidi()}
       onRenderAudio={() => void handleRenderAudio()}
-      onApplyEdit={() => void handleApplyEdit()}
+      onApplyEdit={(autoRender) => void handleApplyEdit(autoRender)}
       onLoadVersions={() => void handleLoadVersions()}
       onRestore={(versionId) => void handleRestore(versionId)}
       onMixApplied={handleMixApplied}

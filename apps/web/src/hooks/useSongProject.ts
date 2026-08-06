@@ -145,7 +145,7 @@ export function useSongProject() {
   }, []);
 
   const edit = useCallback(
-    async (instruction: string): Promise<EditSongResponse | null> => {
+    async (instruction: string, autoRender = true): Promise<EditSongResponse | null> => {
       if (!songId) {
         setError("请先生成或加载歌曲");
         return null;
@@ -157,7 +157,7 @@ export function useSongProject() {
       setLoadingEdit(true);
       setError(null);
       try {
-        const result = await editSong(songId, instruction.trim());
+        const result = await editSong(songId, instruction.trim(), autoRender);
         setMusicSpec(result.music_spec);
         return result;
       } catch (e) {

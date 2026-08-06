@@ -7,6 +7,7 @@ import "./styles/workspace-ui.css";
 import "./styles/workspace-layout.css";
 import "./styles/workspace-results.css";
 import "./styles/workspace-structure.css";
+import "./styles/workspace-editing.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

@@ -26,3 +26,5 @@ export { HarmonyProgressionView } from "./HarmonyProgressionView";
 export { FormHarmonyPanel } from "./FormHarmonyPanel";
 export { TrackInstrumentPanel } from "./TrackInstrumentPanel";
 export { PianoRollPanel } from "./PianoRollPanel";
+export { StemsPanel } from "./StemsPanel";
+export { EditSongPanel } from "./EditSongPanel";
