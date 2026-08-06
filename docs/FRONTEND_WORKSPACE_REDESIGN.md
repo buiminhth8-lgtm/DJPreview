@@ -275,6 +275,36 @@ useAudioAssets/useVersions）均有 `if (!songId) return null` 守卫，**不会
 - 验收标准：首次打开显示所有段；生成前均为 Empty/Disabled；`npm run build` 通过。
 - 建议 commit message：`refactor(frontend): render all sections persistently in flow layout`
 
+#### T38-C 已落地（完成）
+
+已新增工作台瀑布流骨架：
+
+- `apps/web/src/components/workspace/WorkspaceDashboard.tsx` — 新的工作台总容器：
+  首次打开页面时所有核心模块入口常驻显示；无 song/spec 时各模块显示 Empty State；
+  有 song/spec 时接入现有真实面板（保留全部既有功能）；不直接发 API 请求。
+- `apps/web/src/components/workspace/WorkspaceSectionPlaceholder.tsx` — 统一常驻占位卡片
+  （内部复用 T38-B 的 SectionCard + EmptyState + StatusBadge）。
+- `apps/web/src/components/workspace/ProjectOverviewPanel.tsx` — 当前工程轻量概览
+  （纯 props，不发请求；有 musicSpec 显示标题/风格/BPM/调性/拍号/长度/段落数/轨道数/warnings 数；
+  无 musicSpec 显示 Empty State）。
+- `apps/web/src/components/workspace/WorkspaceHeader.tsx` — 改造为 AI Music Studio 头部：
+  显示 Provider（前端暂不感知，标「当前环境 / 未知」）、Model（未知）、工程状态
+  （未生成 / song_id / 版本 / MIDI / WAV）与状态 badges。
+- `apps/web/src/styles/workspace-layout.css` — 瀑布流布局（1180px 居中、hero 双列、瀑布流单列、
+  768px 全部单列）。
+- `App.tsx` 改为渲染 `WorkspaceDashboard`（仅替换 JSX 布局，保留全部 hooks / handlers）。
+
+瀑布流顺序：Header → 生成控制台 + 工程概览 → 播放与下载 → MusicSpec/Warnings/Debug →
+编曲检查（曲式/轨道/Piano Roll/质量）→ 混音器 → Stems → 版本管理 → 自然语言修改 →
+SoundFont → 工程导入导出 → 任务与调试日志 → 局部重生成 → 参考 MIDI → 批量评估。
+
+当前为真实组件（有 song 时接入）：GeneratePanel / ProjectOverviewPanel / PlayerPanel /
+GenerationDebugPanel / AnalysisPanel / MixerPanel / VersionPanel / EditPanel / ProjectPanel /
+RenderTasksPanel / RegenerationPanel / ReferencePanel / EvaluationPanel。
+当前为 Empty State 占位：Stems / SoundFont（有工程后仍在 PlayerPanel 内，独立段后续拆分）。
+
+后续 T38-D 将基于这些组件继续拆分各段实现。
+
 ### T38-D：生成控制台与项目概览改造
 - 目标：Generate Console + 项目概览（song_id/版本/资产 chips）常驻并完善 Empty/Disabled。
 - 修改范围：`GeneratePanel.tsx`、`WorkspaceHeader.tsx`。

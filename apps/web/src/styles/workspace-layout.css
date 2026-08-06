@@ -1,0 +1,64 @@
+/* T38-C：工作台瀑布流布局。
+使用 `workspace-*` 前缀，避免与现有 styles.css / workspace-ui.css 冲突。 */
+
+.workspace-dashboard {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
+
+/* 顶部生成区域：桌面双列 */
+.workspace-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--workspace-gap-lg, 24px);
+  align-items: start;
+  margin-bottom: var(--workspace-gap-lg, 24px);
+}
+
+/* 瀑布流：单列纵向排列 */
+.workspace-waterfall {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-lg, 24px);
+}
+
+.workspace-header {
+  margin-bottom: var(--workspace-gap-xl, 32px);
+  padding: 8px 0;
+}
+
+.workspace-header__titles {
+  margin-bottom: var(--workspace-gap-md, 16px);
+}
+
+.workspace-header__title {
+  margin: 0 0 4px;
+  font-size: 28px;
+  letter-spacing: 0.5px;
+}
+
+.workspace-header__subtitle {
+  margin: 0;
+  color: var(--workspace-text-muted, #94a3b8);
+}
+
+.workspace-header__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--workspace-gap-sm, 10px);
+  margin-bottom: var(--workspace-gap-md, 16px);
+}
+
+.workspace-section-note {
+  font-size: 13px;
+  color: var(--workspace-text-muted, #94a3b8);
+  margin-bottom: var(--workspace-gap-sm, 10px);
+}
+
+/* 移动端：全部单列 */
+@media (max-width: 768px) {
+  .workspace-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -115,7 +115,13 @@
     `apps/web/src/styles/design-tokens.css`（`--workspace-*` tokens）与
     `apps/web/src/styles/workspace-ui.css`（`ui-*` 类名，含 768px 响应式）；
     组件不依赖业务数据、未接入现有页面）
-  - T38-C next：持久化瀑布流工作台骨架
+  - T38-C completed：持久化瀑布流工作台骨架（新增 `WorkspaceDashboard` 总容器：
+    首次打开页面所有核心模块入口常驻显示，无 song/spec 时 Empty State，有 song 时接入现有
+    真实面板；新增 `WorkspaceSectionPlaceholder`（SectionCard+EmptyState+StatusBadge）、
+    `ProjectOverviewPanel`（轻量工程概览，纯 props）；改造 `WorkspaceHeader`（AI Music Studio
+    + Provider/Model/状态 badges）；新增 `styles/workspace-layout.css`（瀑布流 + 响应式）；
+    `App.tsx` 改渲染 WorkspaceDashboard，保留全部 hooks/handlers）
+  - T38-D next：生成控制台与项目概览集成
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /

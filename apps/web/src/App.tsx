@@ -6,7 +6,7 @@ import type {
   OptimizeResponse,
   RegenerationResult,
 } from "./api/types";
-import { WorkspaceLayout } from "./components/workspace";
+import { WorkspaceDashboard } from "./components/workspace";
 import { useAudioAssets, useSongProject, useStyles, useVersions } from "./hooks";
 
 export default function App() {
@@ -93,7 +93,7 @@ export default function App() {
   };
 
   return (
-    <WorkspaceLayout
+    <WorkspaceDashboard
       songProject={songProject}
       audioAssets={audioAssets}
       versions={versions}
