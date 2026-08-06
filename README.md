@@ -535,9 +535,10 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（483 passed，2026-08-05 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+后端测试：pytest -q passed（510 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 354 passed（约 17s）
 前端依赖：npm ci passed（vite 7.3.6）
-前端构建：npm run build passed
+前端构建：npm run build passed（tsc + vite）
 前端安全：npm audit 0 vulnerabilities
 ```
 
@@ -545,7 +546,7 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 
 ## 下一阶段计划
 
-1. 文档 / 测试分层：把慢速集成测试与单元测试分离，缩短全量回归时间
-2. 前端 E2E：Playwright 演示测试（生成 → MIDI → WAV → 编辑 → 版本 → 混音 → 导出）
-3. 生产级任务队列：用 Redis / Celery 等替换进程内 `ThreadPoolExecutor`，支持多实例与任务恢复
-4. 音乐质量细化：弦乐真实分部、CC11/CC7 expression 自动化、混音母带实验
+1. ~~文档 / 测试分层~~（已完成：T33 引入 `slow` marker，快速回归约 17s，全量 44s）
+2. 前端 E2E：Playwright 用例已就绪（`apps/web/e2e/demo.spec.ts`），需在联网环境 `npx playwright install chromium` 后运行 `npm run e2e`
+3. 生产级任务队列：进程内执行器已抽象为可插拔后端，按需启用 `TASK_BACKEND=celery`（Redis + worker）验证多实例与任务恢复
+4. 音乐质量细化：真实 SoundFont 渲染体验优化、弦乐声部进一步细化、混音母带实验
