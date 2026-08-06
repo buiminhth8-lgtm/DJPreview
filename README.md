@@ -883,4 +883,4 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 3. 生产级任务队列：进程内执行器已抽象为可插拔后端，按需启用 `TASK_BACKEND=celery`（Redis + worker）验证多实例与任务恢复
 4. 音乐质量细化：真实 SoundFont 渲染体验优化、弦乐声部进一步细化、混音母带实验
 5. 前端工作台改版（T38 系列）：所有核心模块常驻显示 + Empty State / Disabled State + 瀑布流布局，
-   方案见 [docs/FRONTEND_WORKSPACE_REDESIGN.md](docs/FRONTEND_WORKSPACE_REDESIGN.md)（T38-A 审计、T38-B UI primitives、T38-C 瀑布流骨架、T38-D 生成控制台与项目概览、T38-E 播放/下载/MusicSpec/Warnings/Debug、T38-F 曲式/轨道/Piano Roll、T38-G 混音/Stems/版本/自然语言修改常驻化已完成，T38-H 起实现）
+   方案见 [docs/FRONTEND_WORKSPACE_REDESIGN.md](docs/FRONTEND_WORKSPACE_REDESIGN.md)（T38-A 审计、T38-B UI primitives、T38-C 瀑布流骨架、T38-D 生成控制台与项目概览、T38-E 播放/下载/MusicSpec/Warnings/Debug、T38-F 曲式/轨道/Piano Roll、T38-G 混音/Stems/版本/自然语言修改、T38-H SoundFont/导入导出/任务日志常驻化已完成，T38-I 起实现）

@@ -141,9 +141,15 @@
     无 tracks Empty State、有 songId+tracks 才挂真实混音器；新增 `StemsPanel`：无 MIDI/WAV 导出 disabled
     并提示原因、导出后分轨表 + stems.zip；升级 `VersionPanel`：无工程 Empty State、列表 + 详情/Diff/
     恢复（window.confirm 确认）；新增 `EditSongPanel`：无工程 Empty State、应用修改 / 应用并重新渲染
-    （autoRender）；`useSongProject.edit` 增加 autoRender 参数、`App.handleApplyEdit` 透传；
+    （autoRender）；    `useSongProject.edit` 增加 autoRender 参数、`App.handleApplyEdit` 透传；
     `styles/workspace-editing.css`）
-  - T38-H next：SoundFont、工程导入导出、任务日志面板
+  - T38-H completed：SoundFont、工程导入导出、任务日志面板常驻化（新增 `SoundfontPanel`：
+    无工程扫描可用、应用/选择音源需 song_id 且带原因、无音源 Empty State；新增
+    `ProjectImportExportPanel`：导入始终可用、导出工程/下载 MIDI/WAV/Stems 无资产 disabled、
+    导入失败提示；升级 `RenderTasksPanel`：无工程 Empty State、有工程才 listSongTasks、
+    任务卡片（状态 badges/进度/错误/result JSON）、刷新按钮、`TaskStatusList` 只读列表；
+    `styles/workspace-utilities.css`；与 GenerationDebugPanel（LLM 调试）职责区分）
+  - T38-I next：整体 UI 美化与响应式优化
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /

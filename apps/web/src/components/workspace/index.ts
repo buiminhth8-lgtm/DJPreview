@@ -28,3 +28,6 @@ export { TrackInstrumentPanel } from "./TrackInstrumentPanel";
 export { PianoRollPanel } from "./PianoRollPanel";
 export { StemsPanel } from "./StemsPanel";
 export { EditSongPanel } from "./EditSongPanel";
+export { SoundfontPanel } from "./SoundfontPanel";
+export { ProjectImportExportPanel } from "./ProjectImportExportPanel";
+export { RenderTasksPanel, TaskStatusList } from "./RenderTasksPanel";

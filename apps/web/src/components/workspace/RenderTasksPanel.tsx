@@ -1,75 +1,135 @@
-// 异步渲染任务面板：MIDI / WAV / stems + 进度条。
+// RenderTasksPanel：任务与日志（常驻，T38-H）。
+// 无工程时 Empty State；有工程才请求任务列表；展示任务状态/进度/错误/结果资产。
+// 专注 render/export tasks，与 T38-E 的 GenerationDebugPanel（LLM 调试）区分。
 
-import { useEffect } from "react";
-
-import { useRenderTasks } from "../../hooks";
+import { useCallback, useEffect, useState } from "react";
+import { listSongTasks } from "../../api/taskApi";
+import type { RenderTask } from "../../api/types";
+import { ActionButton, ButtonRow, EmptyState, InlineNotice, SectionCard, StatusBadge } from "../ui";
+import type { StatusBadgeVariant } from "../ui";
 
 export interface RenderTasksPanelProps {
-  songId: string;
-  onAssetsChanged?: () => void | Promise<void>;
+  songId?: string | null;
   onError?: (message: string) => void;
+  onAssetsChanged?: () => void | Promise<void>;
 }
 
-const BUSY_STATUSES = new Set(["queued", "running"]);
+const STATUS_VARIANT: Record<string, StatusBadgeVariant> = {
+  queued: "neutral",
+  running: "info",
+  succeeded: "success",
+  failed: "danger",
+  cancelled: "warning",
+};
 
-export default function RenderTasksPanel({ songId, onAssetsChanged, onError }: RenderTasksPanelProps) {
-  const tasks = useRenderTasks(songId, onAssetsChanged);
+export function RenderTasksPanel({ songId, onError }: RenderTasksPanelProps) {
+  const [tasks, setTasks] = useState<RenderTask[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    if (!songId) {
+      setTasks(null);
+      return null;
+    }
+    setLoading(true);
+    try {
+      const list = await listSongTasks(songId);
+      setTasks(Array.isArray(list) ? list : []);
+      return list;
+    } catch (e) {
+      onError?.(e instanceof Error ? e.message : String(e));
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [songId, onError]);
 
   useEffect(() => {
-    if (tasks.error) onError?.(tasks.error);
-  }, [tasks.error, onError]);
+    void refresh();
+  }, [refresh]);
 
-  const status = tasks.task?.status;
-  const busy = status !== undefined && BUSY_STATUSES.has(status);
-  const progress = tasks.task?.progress ?? 0;
+  let body;
+  if (!songId) {
+    body = (
+      <EmptyState
+        title="暂无任务"
+        description="生成或导入工程后，MIDI 渲染、WAV 渲染、Stems 导出等任务会显示在这里。"
+      />
+    );
+  } else if (tasks === null) {
+    body = <EmptyState title="当前工程暂无任务" description="执行渲染或导出操作后，任务进度会显示在这里。" />;
+  } else if (tasks.length === 0) {
+    body = (
+      <EmptyState
+        title="当前工程暂无任务"
+        description="执行渲染或导出操作后，任务进度会显示在这里。"
+        action={
+          <ButtonRow>
+            <ActionButton variant="secondary" onClick={() => void refresh()} disabled={loading} loading={loading}>
+              {loading ? "加载中…" : "刷新任务"}
+            </ActionButton>
+          </ButtonRow>
+        }
+      />
+    );
+  } else {
+    body = (
+      <div className="workspace-render-tasks">
+        <ButtonRow className="workspace-render-tasks__toolbar">
+          <ActionButton variant="secondary" onClick={() => void refresh()} disabled={loading} loading={loading}>
+            {loading ? "加载中…" : "刷新任务"}
+          </ActionButton>
+        </ButtonRow>
+        <TaskStatusList tasks={tasks} />
+      </div>
+    );
+  }
 
   return (
-    <section className="panel result">
-      <h2>异步渲染任务</h2>
-      <div className="actions">
-        <button onClick={() => void tasks.startMidi()} disabled={busy}>
-          {status === "running" && tasks.task?.task_type === "midi" ? "MIDI 渲染中…" : "异步生成 MIDI"}
-        </button>
-        <button onClick={() => void tasks.startAudio()} disabled={busy}>
-          {status === "running" && tasks.task?.task_type === "audio" ? "WAV 渲染中…" : "异步渲染 WAV"}
-        </button>
-        <button onClick={() => void tasks.startStems()} disabled={busy}>
-          {status === "running" && tasks.task?.task_type === "stems" ? "stems 导出中…" : "异步导出 stems"}
-        </button>
-        {busy && (
-          <button onClick={() => void tasks.cancel()} className="danger-btn">
-            取消任务
-          </button>
-        )}
-      </div>
-      {tasks.task && (
-        <div className="task-status">
-          <div className="summary-row">
-            <span className="summary-label">task_id</span>
-            <span className="summary-value">{tasks.task.task_id}</span>
-          </div>
-          <div className="summary-row">
-            <span className="summary-label">状态</span>
-            <span className="summary-value">{tasks.task.status}</span>
-          </div>
-          {tasks.task.message && (
-            <div className="summary-row">
-              <span className="summary-label">信息</span>
-              <span className="summary-value">{tasks.task.message}</span>
-            </div>
-          )}
-          {tasks.task.status === "failed" && tasks.task.error && (
-            <div className="error">✗ {tasks.task.error}</div>
-          )}
-          <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
-          </div>
-          <div className="summary-row">
-            <span className="summary-label">进度</span>
-            <span className="summary-value">{progress}%</span>
-          </div>
-        </div>
-      )}
-    </section>
+    <SectionCard title="任务与日志" description="渲染 / 导出任务进度与结果">
+      {body}
+    </SectionCard>
   );
 }
+
+export function TaskStatusList({ tasks }: { tasks: RenderTask[] }) {
+  const list = Array.isArray(tasks) ? tasks : [];
+  if (list.length === 0) {
+    return <div className="muted-note">暂无任务。</div>;
+  }
+  return (
+    <div className="workspace-task-list">
+      {list.map((task) => {
+        const progress = Math.max(0, Math.min(100, task.progress ?? 0));
+        return (
+          <div className="workspace-task-card" key={task.task_id}>
+            <div className="workspace-task-card__head">
+              <span className="workspace-task-card__type">{task.task_type || "—"}</span>
+              <StatusBadge variant={STATUS_VARIANT[task.status] ?? "neutral"}>{task.status}</StatusBadge>
+              <span className="workspace-task-card__time">
+                {task.created_at ? new Date(task.created_at).toLocaleString() : "—"}
+              </span>
+            </div>
+            <div className="workspace-task-card__id">task_id: {task.task_id || "—"}</div>
+            {task.message && <div className="workspace-task-card__message">{task.message}</div>}
+            <div className="progress-track">
+              <div className="progress-fill" style={{ width: `${progress}%` }} />
+            </div>
+            <div className="workspace-task-card__progress">{progress}%</div>
+            {task.status === "failed" && task.error && (
+              <InlineNotice variant="danger">{task.error}</InlineNotice>
+            )}
+            {task.result && (
+              <details className="workspace-task-card__result">
+                <summary>任务结果</summary>
+                <pre>{JSON.stringify(task.result, null, 2)}</pre>
+              </details>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export default RenderTasksPanel;

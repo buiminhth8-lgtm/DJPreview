@@ -1,0 +1,177 @@
+/* T38-H：SoundFont / 工程导入导出 / 任务日志 工具与工程管理区样式。
+使用 `workspace-*` 前缀，避免与现有样式冲突。 */
+
+/* ---------- SoundFont ---------- */
+.workspace-soundfont {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-md, 16px);
+}
+
+.workspace-soundfont__actions {
+  flex-wrap: wrap;
+}
+
+.workspace-soundfont__hint {
+  font-size: 12.5px;
+  color: var(--workspace-text-dim, #64748b);
+}
+
+.workspace-soundfont-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-sm, 10px);
+}
+
+.workspace-soundfont-item {
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  padding: var(--workspace-gap-sm, 10px) var(--workspace-gap-md, 16px);
+}
+
+.workspace-soundfont-item.current {
+  border-color: var(--workspace-success, #22c55e);
+}
+
+.workspace-soundfont-item__head {
+  display: flex;
+  align-items: center;
+  gap: var(--workspace-gap-sm, 10px);
+}
+
+.workspace-soundfont-item__name {
+  font-weight: 600;
+  color: var(--workspace-text, #f8fafc);
+}
+
+.workspace-soundfont-item__meta {
+  font-size: 12.5px;
+  color: var(--workspace-text-muted, #94a3b8);
+}
+
+.workspace-soundfont-item__path {
+  font-size: 11.5px;
+  color: var(--workspace-text-dim, #64748b);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  word-break: break-all;
+}
+
+.workspace-soundfont-item__tags {
+  font-size: 11.5px;
+  color: var(--workspace-text-dim, #64748b);
+}
+
+.workspace-soundfont-item__actions {
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* ---------- 导入导出 ---------- */
+.workspace-import-export {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-md, 16px);
+}
+
+.workspace-import-export__ready {
+  font-size: 13px;
+  color: var(--workspace-text-muted, #94a3b8);
+}
+
+.workspace-import-export__file {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspace-import-export__file input[type="file"] {
+  font-size: 12.5px;
+  color: var(--workspace-text, #f8fafc);
+  max-width: 100%;
+}
+
+.workspace-import-export__filename {
+  font-size: 12px;
+  color: var(--workspace-text-muted, #94a3b8);
+  word-break: break-all;
+}
+
+.workspace-import-export__actions {
+  flex-wrap: wrap;
+}
+
+/* ---------- 任务列表 ---------- */
+.workspace-render-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-md, 16px);
+}
+
+.workspace-render-tasks__toolbar {
+  flex-wrap: wrap;
+}
+
+.workspace-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-sm, 10px);
+}
+
+.workspace-task-card {
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  padding: var(--workspace-gap-sm, 10px) var(--workspace-gap-md, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspace-task-card__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--workspace-gap-sm, 10px);
+}
+
+.workspace-task-card__type {
+  font-weight: 600;
+  color: var(--workspace-text, #f8fafc);
+}
+
+.workspace-task-card__time {
+  font-size: 12px;
+  color: var(--workspace-text-dim, #64748b);
+  margin-left: auto;
+}
+
+.workspace-task-card__id,
+.workspace-task-card__message,
+.workspace-task-card__progress {
+  font-size: 12.5px;
+  color: var(--workspace-text-muted, #94a3b8);
+  word-break: break-word;
+}
+
+.workspace-task-card__result pre {
+  margin: 6px 0 0;
+  max-height: 200px;
+  overflow: auto;
+  padding: var(--workspace-gap-sm, 10px);
+  background: var(--workspace-bg-soft, #101827);
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--workspace-radius-sm, 8px);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 移动端 */
+@media (max-width: 768px) {
+  .workspace-task-card__time {
+    margin-left: 0;
+  }
+}

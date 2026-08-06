@@ -428,6 +428,30 @@ RenderTasksPanel / RegenerationPanel / ReferencePanel / EvaluationPanel。
 - 验收标准：无工程时可扫描音源、可导入工程；导出 disabled。
 - 建议 commit message：`feat(frontend): persistent soundfont/io/tasks/debug sections`
 
+#### T38-H 已落地（完成）
+
+已新增/升级工具与工程管理区常驻组件：
+
+- `SoundfontPanel.tsx` — 音源管理常驻：无工程时扫描可用、「选择此音源/应用到当前工程」
+  disabled（原因「请先生成或导入工程」）；无音源时 Empty State「暂无已扫描音源」；
+  有工程才请求项目音源（useSoundfonts 的 loadProjectSoundfont/selectSoundfont 均有
+  `if (!songId)` guard）。
+- `ProjectImportExportPanel.tsx` — 工程导入导出常驻：导入 `.aimusic.zip` 始终可用
+  （无工程也可）；导出当前工程 / 下载 MIDI / WAV / Stems 无 song/资产时 disabled 并显示原因；
+  导入失败 InlineNotice；导入后触发 onImported 刷新。
+- `RenderTasksPanel.tsx` — 任务与日志常驻：无工程 Empty State「暂无任务」；有工程才调用
+  `listSongTasks` 加载任务列表；任务卡片展示 task_type / status（queued/running/succeeded/
+  failed/cancelled badges）/ 进度条 / created_at / message / error / result JSON（可折叠限高）；
+  刷新任务按钮；无工程不请求 tasks endpoint。
+- `TaskStatusList` — 只读任务列表展示组件（不发请求）。
+- `styles/workspace-utilities.css` — 工具区样式（soundfont list / import-export file input /
+  task list / result JSON 限高 / 移动端）。
+
+区分：`RenderTasksPanel`（渲染/导出任务）与 `GenerationDebugPanel`（LLM 调试：request_id /
+provider / raw path）职责分离，不重复。
+
+后续 T38-I 将进行整体 UI 美化与响应式优化。
+
 ### T38-I：整体 UI 美化与响应式优化
 - 目标：瀑布流响应式（窄屏单列）、折叠策略、Empty/Disabled 视觉统一。
 - 修改范围：`styles.css`。

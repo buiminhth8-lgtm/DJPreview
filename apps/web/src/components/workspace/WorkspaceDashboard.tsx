@@ -8,6 +8,7 @@
 // - 曲式/轨道/Piano Roll 已拆分为独立段（T38-F）。
 
 import type { useAudioAssets, useSongProject, useStyles, useVersions } from "../../hooks";
+import { exportStems } from "../../api/audioApi";
 import type {
   AssetsResponse,
   DiffItem,
@@ -28,10 +29,11 @@ import { MusicSpecPanel } from "./MusicSpecPanel";
 import { PianoRollPanel } from "./PianoRollPanel";
 import { PlaybackDownloadPanel } from "./PlaybackDownloadPanel";
 import PlayerPanel from "./PlayerPanel";
+import { ProjectImportExportPanel } from "./ProjectImportExportPanel";
 import { ProjectOverviewPanel } from "./ProjectOverviewPanel";
-import ProjectPanel from "./ProjectPanel";
 import ReferencePanel from "./ReferencePanel";
-import RenderTasksPanel from "./RenderTasksPanel";
+import { RenderTasksPanel } from "./RenderTasksPanel";
+import { SoundfontPanel } from "./SoundfontPanel";
 import { StemsPanel } from "./StemsPanel";
 import { TrackInstrumentPanel } from "./TrackInstrumentPanel";
 import { VersionPanel } from "./VersionPanel";
@@ -277,45 +279,34 @@ export default function WorkspaceDashboard({
         />
 
         {/* SoundFont / 音源管理 */}
-        <WorkspaceSectionPlaceholder
-          title="SoundFont / 音源管理"
-          description="扫描 / 选择音源"
-          emptyTitle="暂无已选择音源"
-          emptyDescription="可以扫描本地 SoundFont；生成工程后可应用到当前工程。"
-        />
+        <SoundfontPanel songId={songId} onError={songProject.setError} />
 
         {/* 工程导入导出 */}
-        {hasSong && songId ? (
-          <SectionCard title="工程导入导出" description=".aimusic.zip 导入 / 导出">
-            <ProjectPanel songId={songId} onImported={onImported} onError={songProject.setError} />
-          </SectionCard>
-        ) : (
-          <WorkspaceSectionPlaceholder
-            title="工程导入导出"
-            description=".aimusic.zip 导入 / 导出"
-            emptyTitle="可以导入 .aimusic.zip 工程"
-            emptyDescription="生成或导入工程后，可导出当前工程、MIDI、WAV 和分轨。"
-            badgeVariant="info"
-          />
-        )}
+        <ProjectImportExportPanel
+          songId={songId}
+          hasMidi={Boolean(audioAssets.assets?.has_midi) || Boolean(audioAssets.midiResult)}
+          hasAudio={Boolean(audioAssets.assets?.has_audio) || Boolean(audioAssets.audioResult)}
+          onImported={onImported}
+          onExportProject={() => {
+            if (songId) window.open(`/api/v1/songs/${songId}/project/export`, "_blank");
+          }}
+          onDownloadMidi={() => {
+            if (audioAssets.midiDownloadUrl) window.open(audioAssets.midiDownloadUrl, "_blank");
+          }}
+          onDownloadWav={() => {
+            if (audioAssets.audioDownloadUrl) window.open(audioAssets.audioDownloadUrl, "_blank");
+          }}
+          onExportStems={() => {
+            if (songId) {
+              exportStems(songId)
+                .then(() => audioAssets.refreshAssets())
+                .catch((e) => songProject.setError(e instanceof Error ? e.message : String(e)));
+            }
+          }}
+        />
 
-        {/* 任务与调试日志 */}
-        {hasSong && songId ? (
-          <SectionCard title="任务与调试日志" description="异步任务与请求日志">
-            <RenderTasksPanel
-              songId={songId}
-              onAssetsChanged={() => void audioAssets.refreshAssets()}
-              onError={songProject.setError}
-            />
-          </SectionCard>
-        ) : (
-          <WorkspaceSectionPlaceholder
-            title="任务与调试日志"
-            description="异步任务与请求日志"
-            emptyTitle="暂无任务或日志"
-            emptyDescription="生成、渲染和导出操作的请求日志会显示在这里。"
-          />
-        )}
+        {/* 任务与日志 */}
+        <RenderTasksPanel songId={songId} onError={songProject.setError} />
 
         {/* 局部重生成 */}
         {hasSong && songId && spec ? (
