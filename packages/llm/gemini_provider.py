@@ -14,6 +14,7 @@ import os
 
 from packages.llm.openai_compatible_provider import OpenAICompatibleProvider
 from packages.llm.structured_call import LLMAPIError
+from packages.llm.trace import llm_logger, log_stage
 
 # Gemini OpenAI-compatible 官方 base URL（尾部带斜杠，拼接时会去重避免双斜杠）
 DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
@@ -102,9 +103,12 @@ class GeminiProvider(OpenAICompatibleProvider):
 
     # ---------- HTTP：response_format fallback ----------
 
-    def _chat_raw_with_status(self, request: dict) -> tuple[str, int | None]:
+    def _chat_raw_with_status(self, request: dict):
         """发送 chat/completions；若启用 response_format 且被服务拒绝（HTTP 4xx），
-        fallback 到去掉 response_format 的普通 chat completions。"""
+        fallback 到去掉 response_format 的普通 chat completions。
+
+        返回 LLMChatResult；fallback 时标记 response_format_fallback_used。
+        """
         if self.use_response_format and request.get("response_format"):
             fallback_request = dict(request)
             fallback_request.pop("response_format", None)
@@ -113,5 +117,9 @@ class GeminiProvider(OpenAICompatibleProvider):
             except LLMAPIError as exc:
                 if exc.status_code not in (400, 422, 404):
                     raise
-                return super()._chat_raw_with_status(fallback_request)
+                log_stage(llm_logger, "llm.response_format.fallback", provider=self.name, reason=str(exc))
+                result = super()._chat_raw_with_status(fallback_request)
+                result.response_format_fallback_used = True
+                result.response_format_enabled = False
+                return result
         return super()._chat_raw_with_status(request)

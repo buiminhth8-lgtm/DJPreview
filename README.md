@@ -334,6 +334,42 @@ LLM_DEBUG_LOG_CONTENT=true
 
 > 建议仅在本地调试开启；生产环境保持 `false`，避免完整 prompt / response 落盘。
 
+### T35-Fix：LLM 原始响应调试日志
+
+当 Gemini / LM Studio / DeepSeek 返回 200 OK 但 JSON parse 失败时，可通过以下配置
+查看完整原始响应：
+
+```env
+LLM_DEBUG_LOG_CONTENT=true          # console 打印 message content preview
+LLM_DEBUG_LOG_MAX_CHARS=4000        # console preview 最大长度（默认 2000）
+LLM_DEBUG_SAVE_RAW_RESPONSE=true    # 保存完整 upstream response + message content（默认 true）
+LLM_DEBUG_RAW_RESPONSE_DIR=data/llm_calls  # raw response 保存目录
+LLM_DEBUG_LOG_FULL_CONTENT=false    # 本地强调试：打印完整 content（默认必须 false）
+```
+
+行为：
+
+1. `llm.call.success` 日志包含 `provider / model / base_url / http_status / duration_ms /
+   content_chars / finish_reason / prompt_tokens / completion_tokens / total_tokens /
+   response_format_enabled / reasoning_effort`。
+2. `LLM_DEBUG_SAVE_RAW_RESPONSE=true` 时保存两个文件：
+   `data/llm_calls/<timestamp>_<provider>_<request_id>_raw_response.json` 与
+   `..._message_content.txt`（保存前递归 mask API key / Authorization / Bearer）。
+3. `json.parse.failed` 日志包含 `raw_response_path / message_content_path / finish_reason /
+   content_chars`，可直接打开文件查看完整 Gemini 返回。
+4. `finish_reason=length` 时日志给出截断 hint（建议增大 `GEMINI_MAX_TOKENS`）；
+   `finish_reason=stop` 但内容不是合法 JSON 时给出 `finish_reason=stop but content is invalid JSON`。
+5. Gemini response_format 被拒后 fallback 时记录 `llm.response_format.fallback`。
+
+API 错误响应的 `error.details` 会包含 `raw_response_path / message_content_path /
+finish_reason / content_chars / hint`（仅本地路径字符串，不含完整 content），前端调试面板可直接显示。
+
+安全：
+
+- 不要在生产环境开启 `LLM_DEBUG_LOG_FULL_CONTENT=true`。
+- 不要提交 `data/llm_calls`（已 gitignore）。
+- 所有日志 / 保存文件均 mask API key。
+
 ### 开发环境推荐默认
 
 ```env
@@ -810,8 +846,8 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（611 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 444 passed（约 24s）
+后端测试：pytest -q passed（618 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 450 passed（约 22s）
 前端依赖：npm ci passed（vite 7.3.6）
 前端构建：npm run build passed（tsc + vite）
 前端安全：npm audit 0 vulnerabilities

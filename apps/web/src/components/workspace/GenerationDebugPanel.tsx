@@ -121,6 +121,34 @@ export default function GenerationDebugPanel({
                 <code className="debug-value">{errorInfo.provider}</code>
               </div>
             )}
+            {errorInfo.finish_reason && (
+              <div className="debug-row">
+                <span className="debug-label">finish_reason</span>
+                <code className="debug-value">{errorInfo.finish_reason}</code>
+              </div>
+            )}
+            {errorInfo.content_chars != null && (
+              <div className="debug-row">
+                <span className="debug-label">content_chars</span>
+                <code className="debug-value">{errorInfo.content_chars}</code>
+              </div>
+            )}
+            {errorInfo.hint && (
+              <div className="debug-row">
+                <span className="debug-label">hint</span>
+                <code className="debug-value">{errorInfo.hint}</code>
+              </div>
+            )}
+            {(errorInfo.raw_response_path || errorInfo.message_content_path) && (
+              <div className="debug-row">
+                <span className="debug-label">raw saved</span>
+                <div className="debug-value">
+                  <div>LLM 原始响应已保存：</div>
+                  {errorInfo.raw_response_path && <div className="debug-path">{errorInfo.raw_response_path}</div>}
+                  {errorInfo.message_content_path && <div className="debug-path">{errorInfo.message_content_path}</div>}
+                </div>
+              </div>
+            )}
             {errorSummary && (
               <button className="copy-btn" onClick={() => void copyText(errorSummary)}>
                 复制错误摘要

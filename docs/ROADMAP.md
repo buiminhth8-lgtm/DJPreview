@@ -411,6 +411,35 @@
   `test_llm_call_logging.py`，更新 generate_song_api / error_response 测试；
   全量 pytest 611 passed（fast 444 / slow 167）
 
+## T35-Fix LLM 原始响应调试日志 ✅
+
+- 目标：Gemini / LM Studio / DeepSeek 返回 200 OK 但 JSON parse 失败时，用户能查看完整
+  原始响应并判断截断 / markdown 包裹 / 非法字符等原因
+- 优先级：P1
+- 依赖：T35
+- 实现：
+  - `packages/llm/llm_debug.py`：调试 env（LLM_DEBUG_LOG_CONTENT / LLM_DEBUG_LOG_MAX_CHARS /
+    LLM_DEBUG_SAVE_RAW_RESPONSE / LLM_DEBUG_RAW_RESPONSE_DIR / LLM_DEBUG_LOG_FULL_CONTENT）；
+    `save_raw_response` 保存 `data/llm_calls/<ts>_<provider>_<request_id>_raw_response.json` +
+    `_message_content.txt`，递归 mask api_key / authorization / Bearer；保存失败只 warning
+  - `LLMChatResult`：content / http_status / finish_reason / usage / raw_response /
+    response_format 状态 / reasoning_effort
+  - `llm.call.success` 日志记录 provider / model / base_url / http_status / duration_ms /
+    content_chars / finish_reason / prompt_tokens / completion_tokens / total_tokens /
+    response_format_enabled / reasoning_effort / raw_response_path / message_content_path
+  - `json.parse.failed` 日志附带 raw_response_path / message_content_path / finish_reason /
+    content_chars；finish_reason=length 给出截断 hint；stop 但 JSON 非法给出明确提示；
+    `LLM_DEBUG_LOG_CONTENT` / `LLM_DEBUG_LOG_FULL_CONTENT` 控制 preview / full content 打印
+  - Gemini response_format fallback 记录 `llm.response_format.fallback`
+  - `LLMOutputError.debug_info` 透传诊断字段；API error `error.details` 返回
+    raw_response_path / message_content_path / finish_reason / content_chars / hint
+  - 前端 `GenerationDebugPanel` 展示 raw saved 路径 / finish_reason / content_chars / hint
+- 验收：200 OK + JSON parse failed 时 console 能看到 raw_response_path /
+  message_content_path / finish_reason / content_chars / usage；保存文件完整且不含 API key；
+  API error debug 与前端可显示路径；Mock / LM Studio / Gemini / DeepSeek 不被破坏
+- 测试：更新 `test_llm_call_logging.py`（raw 保存 / mask / finish_reason hint / usage）、
+  `test_api_error_response.py`（error.details 透传路径）
+
 ## 下一轮建议
 
 1. 文档 / 测试分层：拆分慢速集成测试（如音频渲染 / 全链路 API），缩短全量回归时间。

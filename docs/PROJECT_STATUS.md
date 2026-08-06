@@ -82,6 +82,17 @@
   网络错误 vs HTTP 错误 vs JSON 解析错误区分）、新增 `GenerationDebugPanel`（默认折叠、
   出错自动展开、复制 request_id / 错误摘要、warnings / debug / raw preview 展示）；
   新增 `test_request_id_middleware.py` / `test_api_error_response.py` / `test_llm_call_logging.py`）
+- T35-Fix：LLM 原始响应调试日志
+  （新增 `packages/llm/llm_debug.py`：`LLM_DEBUG_LOG_CONTENT` / `LLM_DEBUG_LOG_MAX_CHARS` /
+  `LLM_DEBUG_SAVE_RAW_RESPONSE` / `LLM_DEBUG_RAW_RESPONSE_DIR` / `LLM_DEBUG_LOG_FULL_CONTENT`；
+  `save_raw_response` 保存完整 upstream response + message content 到
+  `data/llm_calls/<ts>_<provider>_<request_id>_raw_response.json` 与 `_message_content.txt`
+  （递归 mask api_key / authorization / Bearer）；`LLMChatResult` 记录 finish_reason / usage /
+  raw_response；`llm.call.success` / `json.parse.failed` 日志包含 finish_reason / usage token /
+  raw_response_path / message_content_path；finish_reason=length 给截断 hint、stop 但 JSON
+  非法给明确提示；`LLMOutputError.debug_info` 透传诊断字段，API error `error.details` 返回
+  raw_response_path / message_content_path / finish_reason / content_chars / hint；
+  前端调试面板展示 raw saved 路径 / finish_reason / hint）
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
@@ -129,9 +140,9 @@
 ## 当前测试与构建结果（2026-08-06 实测）
 
 ```text
-后端：pytest -q → 611 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 444 passed（约 24s）
-慢速集成：pytest -m slow → 167 passed
+后端：pytest -q → 618 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 450 passed（约 22s）
+慢速集成：pytest -m slow → 168 passed
 前端：npm ci → passed（vite 7.3.6）
 前端：npm run build → passed（tsc 无错误）
 前端：npm audit → 0 vulnerabilities

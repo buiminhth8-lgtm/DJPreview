@@ -7,7 +7,6 @@ from services.api.main import app
 
 client = TestClient(app)
 
-
 def _assert_error_structure(body: dict, code: str):
     assert body["success"] is False
     assert body["request_id"]
@@ -49,3 +48,29 @@ def test_internal_error_structure():
     """未知异常应返回 INTERNAL_ERROR + request_id（不返回 traceback）。"""
     resp = client.get("/api/v1/songs/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404
+
+
+def test_llm_output_error_debug_includes_raw_response_path():
+    """T35-Fix：LLMOutputError 时 error.details 应包含 raw_response_path / finish_reason / hint。"""
+    from fastapi.exceptions import HTTPException
+    from packages.llm.structured_call import LLMOutputError
+    from services.api.routes.songs import _map_llm_exception
+
+    exc = LLMOutputError("模型输出解析失败", task_name="generate_music_spec")
+    exc.debug_info = {
+        "provider": "gemini",
+        "model": "gemini-3.5-flash",
+        "finish_reason": "length",
+        "content_chars": 2003,
+        "raw_response_path": "data/llm_calls/xxx_raw_response.json",
+        "message_content_path": "data/llm_calls/xxx_message_content.txt",
+        "hint": "LLM output was truncated. Increase GEMINI_MAX_TOKENS.",
+    }
+    err = _map_llm_exception(exc, provider="gemini")
+    assert isinstance(err, HTTPException)
+    body = err.detail
+    assert body["error_code"] == "LLM_INVALID_RESPONSE"
+    assert body["details"]["finish_reason"] == "length"
+    assert body["details"]["raw_response_path"] == "data/llm_calls/xxx_raw_response.json"
+    assert body["details"]["message_content_path"] == "data/llm_calls/xxx_message_content.txt"
+    assert "truncated" in body["details"]["hint"]

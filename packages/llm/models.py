@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -10,6 +11,26 @@ from pydantic import BaseModel, Field
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+@dataclass
+class LLMChatResult:
+    """一次 Chat Completions 调用结果（含诊断元数据）。
+
+    raw_response / finish_reason / usage 用于调试日志与 raw response 保存。
+    """
+
+    content: str = ""
+    http_status: int | None = None
+    finish_reason: str = "unknown"
+    usage: dict[str, Any] | None = None
+    raw_response: dict[str, Any] = field(default_factory=dict)
+    raw_response_path: str | None = None
+    message_content_path: str | None = None
+    response_format_enabled: bool | None = None
+    response_format_type: str | None = None
+    response_format_fallback_used: bool = False
+    reasoning_effort: str | None = None
 
 
 class LLMCallRecord(BaseModel):
@@ -35,3 +56,9 @@ class LLMCallRecord(BaseModel):
     json_parse: str | None = None
     validation_warning_count: int | None = None
     raw_response_preview: str | None = None
+    finish_reason: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+    raw_response_path: str | None = None
+    message_content_path: str | None = None

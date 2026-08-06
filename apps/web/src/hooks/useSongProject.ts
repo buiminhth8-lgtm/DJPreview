@@ -31,6 +31,11 @@ export interface GenerationErrorInfo {
   requestId?: string;
   provider?: string;
   rawBodyPreview?: string;
+  finish_reason?: string;
+  content_chars?: number;
+  raw_response_path?: string;
+  message_content_path?: string;
+  hint?: string;
 }
 
 export function useSongProject() {
@@ -195,14 +200,20 @@ export function useSongProject() {
 
 export function toGenerationErrorInfo(e: unknown): GenerationErrorInfo {
   if (e instanceof ApiRequestError) {
+    const d = (e.details ?? {}) as Record<string, unknown>;
     return {
       message: e.message,
       code: e.code,
       stage: e.stage,
       status: e.status,
       requestId: e.requestId,
-      provider: e.provider,
+      provider: e.provider ?? (typeof d.provider === "string" ? d.provider : undefined),
       rawBodyPreview: e.rawBodyPreview,
+      finish_reason: typeof d.finish_reason === "string" ? d.finish_reason : undefined,
+      content_chars: typeof d.content_chars === "number" ? d.content_chars : undefined,
+      raw_response_path: typeof d.raw_response_path === "string" ? d.raw_response_path : undefined,
+      message_content_path: typeof d.message_content_path === "string" ? d.message_content_path : undefined,
+      hint: typeof d.hint === "string" ? d.hint : undefined,
     };
   }
   return { message: getErrorMessage(e) };

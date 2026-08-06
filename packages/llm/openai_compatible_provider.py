@@ -8,11 +8,11 @@
 
 可复用给：DeepSeek、LM Studio、Ollama（OpenAI-compatible）、vLLM、LocalAI 等。
 
-环境变量（以 `{PREFIX}` 前缀统一）：
-  {PREFIX}_BASE_URL           base url，可带 /v1 结尾
-  {PREFIX}_API_KEY            api key；本地服务允许占位值（如 lm-studio）
-  {PREFIX}_MODEL              模型名
-  {PREFIX}_TIMEOUT_SECONDS    HTTP 超时秒数
+调试日志（T35-Fix）：
+  - llm.call.start / llm.call.success 记录 provider / model / base_url / duration_ms /
+    http_status / content_chars / finish_reason / usage token / response_format 状态
+  - LLM_DEBUG_SAVE_RAW_RESPONSE=true 时保存完整 upstream response 与 message content
+  - json.parse.failed 输出 raw_response_path / message_content_path / finish_reason 等
 """
 
 from __future__ import annotations
@@ -26,6 +26,13 @@ import httpx
 
 from packages.llm.base import LLMProvider, T
 from packages.llm.call_logger import LLMCallLogger
+from packages.llm.llm_debug import (
+    get_llm_debug_log_content,
+    get_llm_debug_log_full_content,
+    get_llm_debug_log_max_chars,
+    save_raw_response,
+)
+from packages.llm.models import LLMChatResult
 from packages.llm.prompt_registry import PromptRegistry
 from packages.llm.structured_call import (
     LLMAPIError,
@@ -36,6 +43,28 @@ from packages.llm.structured_call import (
 from packages.llm.trace import get_request_id, llm_logger, log_stage
 from services.api.schemas.music_edit_spec import MusicEditSpec
 from services.api.schemas.music_spec import MusicSpec
+
+
+def _finish_reason_hint(finish_reason: str) -> str | None:
+    """根据 finish_reason 返回诊断 hint。"""
+    if finish_reason == "length":
+        return (
+            "LLM output was truncated. Increase GEMINI_MAX_TOKENS / provider max_tokens "
+            "or reduce prompt/schema size."
+        )
+    if finish_reason == "stop":
+        return None
+    return None
+
+
+def _usage_tokens(usage: dict | None) -> tuple[int | None, int | None, int | None]:
+    if not usage:
+        return None, None, None
+    return (
+        usage.get("prompt_tokens"),
+        usage.get("completion_tokens"),
+        usage.get("total_tokens"),
+    )
 
 
 class OpenAICompatibleProvider(LLMProvider):
@@ -144,11 +173,16 @@ class OpenAICompatibleProvider(LLMProvider):
         }
 
         request_id = get_request_id()
-        log_stage(llm_logger, "llm.call.start", provider=self.name, model=self.model)
+        log_stage(
+            llm_logger,
+            "llm.call.start",
+            provider=self.name,
+            model=self.model,
+            base_url=self.base_url,
+        )
         started = time.monotonic()
-        http_status: int | None = None
         try:
-            raw, http_status = self._chat_raw_with_status(request)
+            chat = self._chat_raw_with_status(request)
         except Exception:
             latency_ms = int((time.monotonic() - started) * 1000)
             self.call_logger.log_call(
@@ -160,20 +194,50 @@ class OpenAICompatibleProvider(LLMProvider):
                 request=self._loggable_request(request),
                 error="API 调用失败",
                 latency_ms=latency_ms,
-                http_status=http_status,
+                http_status=None,
             )
             log_stage(llm_logger, "llm.call.failed", error="API 调用失败", duration_ms=latency_ms)
             raise
 
         latency_ms = int((time.monotonic() - started) * 1000)
-        content_chars = len(raw or "")
+        content_chars = len(chat.content or "")
+        raw_path, content_path = self._save_raw(chat, request_id, task_name)
+        prompt_tokens, completion_tokens, total_tokens = _usage_tokens(chat.usage)
+
         log_stage(
             llm_logger,
             "llm.call.success",
+            provider=self.name,
+            model=self.model,
+            base_url=self.base_url,
+            http_status=chat.http_status,
             duration_ms=latency_ms,
             content_chars=content_chars,
-            http_status=http_status,
+            finish_reason=chat.finish_reason,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            response_format_enabled=chat.response_format_enabled,
+            response_format_type=chat.response_format_type,
+            reasoning_effort=chat.reasoning_effort,
+            raw_response_path=raw_path,
+            message_content_path=content_path,
         )
+
+        hint = _finish_reason_hint(chat.finish_reason)
+        if chat.finish_reason == "length":
+            log_stage(llm_logger, "llm.truncation.warning", hint=hint)
+
+        debug_context = {
+            "provider": self.name,
+            "model": self.model,
+            "base_url": self.base_url,
+            "finish_reason": chat.finish_reason,
+            "content_chars": content_chars,
+            "raw_response_path": raw_path,
+            "message_content_path": content_path,
+            "hint": hint,
+        }
 
         def repair(raw_output: str, error_text: str) -> str:
             repair_system = self.prompt_registry.get_prompt("json_repair")
@@ -193,8 +257,13 @@ class OpenAICompatibleProvider(LLMProvider):
                 **self._request_extra(),
             }
             log_stage(llm_logger, "json.repair.start")
-            repaired, repair_status = self._chat_raw_with_status(repair_request)
-            log_stage(llm_logger, "json.repair.success", http_status=repair_status)
+            repaired_chat = self._chat_raw_with_status(repair_request)
+            log_stage(
+                llm_logger,
+                "json.repair.success",
+                http_status=repaired_chat.http_status,
+                finish_reason=repaired_chat.finish_reason,
+            )
             self.call_logger.log_call(
                 project_id=project_id,
                 request_id=request_id,
@@ -202,23 +271,36 @@ class OpenAICompatibleProvider(LLMProvider):
                 provider=self.name,
                 model=self.model,
                 request=self._loggable_request(repair_request),
-                response=self._loggable_response(repaired),
+                response=self._loggable_response(repaired_chat.content),
                 latency_ms=None,
-                http_status=repair_status,
-                content_chars=len(repaired or ""),
+                http_status=repaired_chat.http_status,
+                content_chars=len(repaired_chat.content or ""),
+                finish_reason=repaired_chat.finish_reason,
                 json_parse="repaired",
             )
-            return repaired
+            return repaired_chat.content
 
         try:
             result = parse_structured_response(
                 response_model,
-                raw,
+                chat.content,
                 repair_fn=repair,
                 retries=retries,
                 task_name=task_name,
+                debug_context=debug_context,
             )
         except LLMOutputError as exc:
+            if getattr(exc, "debug_info", None) is None:
+                exc.debug_info = dict(debug_context)
+            if chat.finish_reason == "stop":
+                exc.debug_info["hint"] = "finish_reason=stop but content is invalid JSON"
+                log_stage(
+                    llm_logger,
+                    "llm.invalid_json.hint",
+                    hint=exc.debug_info["hint"],
+                    finish_reason="stop",
+                )
+            self._log_message_content(chat.content)
             self.call_logger.log_call(
                 project_id=project_id,
                 request_id=request_id,
@@ -226,13 +308,30 @@ class OpenAICompatibleProvider(LLMProvider):
                 provider=self.name,
                 model=self.model,
                 request=self._loggable_request(request),
-                response=self._loggable_response(raw),
+                response=self._loggable_response(chat.content),
                 error=str(exc),
                 latency_ms=latency_ms,
-                http_status=http_status,
+                http_status=chat.http_status,
                 content_chars=content_chars,
+                finish_reason=chat.finish_reason,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
                 json_parse="failed",
-                raw_response_preview=self._raw_preview(raw),
+                raw_response_preview=self._raw_preview(chat.content),
+                raw_response_path=raw_path,
+                message_content_path=content_path,
+            )
+            log_stage(
+                llm_logger,
+                "json.parse.failed.diagnostic",
+                provider=self.name,
+                model=self.model,
+                finish_reason=chat.finish_reason,
+                content_chars=content_chars,
+                raw_response_path=raw_path,
+                message_content_path=content_path,
+                hint=exc.debug_info.get("hint"),
             )
             log_stage(llm_logger, "generate_structured.failed", error_stage="llm_response_parse")
             raise
@@ -244,29 +343,60 @@ class OpenAICompatibleProvider(LLMProvider):
             provider=self.name,
             model=self.model,
             request=self._loggable_request(request),
-            response=self._loggable_response(raw),
+            response=self._loggable_response(chat.content),
             parsed=result.model_dump(mode="json"),
             latency_ms=latency_ms,
-            http_status=http_status,
+            http_status=chat.http_status,
             content_chars=content_chars,
+            finish_reason=chat.finish_reason,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
             json_parse="success",
-            raw_response_preview=self._raw_preview(raw),
+            raw_response_preview=self._raw_preview(chat.content),
+            raw_response_path=raw_path,
+            message_content_path=content_path,
         )
         log_stage(llm_logger, "generate_structured.success")
         return result
 
-    def _raw_preview(self, content: str) -> str | None:
-        """raw response preview（仅 LLM_DEBUG_LOG_CONTENT=true 时返回，最长 2000 字符）。"""
-        from services.api.logging_config import get_llm_debug_log_content
+    # ---------- raw response 保存与内容日志 ----------
 
+    def _save_raw(self, chat: LLMChatResult, request_id: str, task_name: str) -> tuple[str | None, str | None]:
+        """保存 raw response / message content；返回路径。"""
+        try:
+            return save_raw_response(
+                provider=self.name,
+                request_id=request_id,
+                task_name=task_name,
+                raw_response=chat.raw_response,
+                content=chat.content,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log_stage(llm_logger, "llm.raw.save.failed", error=str(exc))
+            return None, None
+
+    def _log_message_content(self, content: str) -> None:
+        """按 env 打印 message content preview / full（不打印 API key）。"""
+        max_chars = get_llm_debug_log_max_chars()
+        if get_llm_debug_log_full_content():
+            log_stage(llm_logger, "llm.message.full BEGIN")
+            llm_logger.info("[request_id=%s] %s", get_request_id(), content)
+            log_stage(llm_logger, "llm.message.full END")
+        elif get_llm_debug_log_content():
+            log_stage(llm_logger, "llm.message.preview BEGIN")
+            llm_logger.info("[request_id=%s] %s", get_request_id(), (content or "")[:max_chars])
+            log_stage(llm_logger, "llm.message.preview END")
+
+    def _raw_preview(self, content: str) -> str | None:
+        """raw response preview（仅 LLM_DEBUG_LOG_CONTENT=true 时返回）。"""
         if get_llm_debug_log_content():
-            return (content or "")[:2000]
+            max_chars = get_llm_debug_log_max_chars()
+            return (content or "")[:max_chars]
         return None
 
     def _loggable_request(self, request: dict) -> dict:
         """构造日志用请求摘要（不含完整 prompt；LLM_DEBUG_LOG_CONTENT 时保留消息）。"""
-        from services.api.logging_config import get_llm_debug_log_content
-
         if get_llm_debug_log_content():
             return request
         return {
@@ -277,15 +407,41 @@ class OpenAICompatibleProvider(LLMProvider):
         }
 
     def _loggable_response(self, content: str) -> dict | None:
-        """构造日志用响应摘要（默认不含原文；LLM_DEBUG_LOG_CONTENT 时保留前 2000 字符）。"""
-        from services.api.logging_config import get_llm_debug_log_content
-
+        """构造日志用响应摘要（默认不含原文；LLM_DEBUG_LOG_CONTENT 时保留前 max_chars 字符）。"""
         if get_llm_debug_log_content():
-            return {"content": (content or "")[:2000]}
+            max_chars = get_llm_debug_log_max_chars()
+            return {"content": (content or "")[:max_chars]}
         return {"content_chars": len(content or ""), "debug_content_disabled": True}
 
-    def _chat_raw_with_status(self, request: dict) -> tuple[str, int | None]:
-        """发送请求并返回 (content, http_status)；失败抛 LLMAPIError。"""
+    # ---------- HTTP 层 ----------
+
+    def _parse_chat_result(self, data: dict, status_code: int, request: dict) -> LLMChatResult:
+        """从 upstream JSON response 提取 content / finish_reason / usage / raw_response。"""
+        choices = data.get("choices") or []
+        content: str | None = None
+        finish_reason = "unknown"
+        if choices:
+            choice = choices[0] or {}
+            message = choice.get("message") or {}
+            content = message.get("content")
+            finish_reason = choice.get("finish_reason") or "unknown"
+        if content is None:
+            raise LLMAPIError(f"{self.display_name} API 返回格式异常（invalid response）：缺少 message.content")
+        usage = data.get("usage")
+        response_format = request.get("response_format") if isinstance(request.get("response_format"), dict) else None
+        return LLMChatResult(
+            content=content,
+            http_status=status_code,
+            finish_reason=finish_reason,
+            usage=usage,
+            raw_response=data,
+            response_format_enabled=bool(response_format),
+            response_format_type=(response_format or {}).get("type") if response_format else None,
+            reasoning_effort=request.get("reasoning_effort"),
+        )
+
+    def _chat_raw_with_status(self, request: dict) -> LLMChatResult:
+        """发送请求并返回 LLMChatResult；失败抛 LLMAPIError。"""
         try:
             with httpx.Client(timeout=self.timeout, transport=self._transport) as client:
                 resp = client.post(
@@ -293,7 +449,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 )
                 resp.raise_for_status()
                 data = resp.json()
-            return data["choices"][0]["message"]["content"], resp.status_code
+            return self._parse_chat_result(data, resp.status_code, request)
         except httpx.HTTPStatusError as exc:
             raise LLMAPIError(
                 f"{self.display_name} API 请求失败（HTTP {exc.response.status_code}）："
@@ -315,8 +471,6 @@ class OpenAICompatibleProvider(LLMProvider):
         """请求体额外字段（子类可覆盖，如 response_format）。"""
         return {}
 
-    # ---------- HTTP 层 ----------
-
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -325,8 +479,7 @@ class OpenAICompatibleProvider(LLMProvider):
 
     def _chat_raw(self, request: dict) -> str:
         """发送 Chat Completions 请求，返回 message.content；失败抛 LLMAPIError。"""
-        content, _ = self._chat_raw_with_status(request)
-        return content
+        return self._chat_raw_with_status(request).content
 
     def fetch_models(self) -> list[str]:
         """调用 {base_url}/models（如服务支持）返回模型 id 列表；失败抛 LLMAPIError。"""

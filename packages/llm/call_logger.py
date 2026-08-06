@@ -72,6 +72,12 @@ class LLMCallLogger:
         json_parse: str | None = None,
         validation_warning_count: int | None = None,
         raw_response_preview: str | None = None,
+        finish_reason: str | None = None,
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
+        total_tokens: int | None = None,
+        raw_response_path: str | None = None,
+        message_content_path: str | None = None,
     ) -> Path | None:
         """记录一次调用；成功返回日志路径，失败返回 None（不影响主流程）。
 
@@ -94,6 +100,12 @@ class LLMCallLogger:
                 json_parse=json_parse,
                 validation_warning_count=validation_warning_count,
                 raw_response_preview=raw_response_preview,
+                finish_reason=finish_reason,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                raw_response_path=raw_response_path,
+                message_content_path=message_content_path,
             )
             target_dir = self._target_dir(project_id)
             target_dir.mkdir(parents=True, exist_ok=True)

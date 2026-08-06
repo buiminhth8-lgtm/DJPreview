@@ -165,9 +165,24 @@ def _map_llm_exception(exc: Exception, provider: str | None = None) -> HTTPExcep
             return llm_timeout(str(exc), details={"provider": provider}, provider=provider)
         return llm_error(str(exc), details={"provider": provider}, provider=provider)
     if isinstance(exc, LLMOutputError):
+        details: dict = {"task_name": exc.task_name, "provider": provider}
+        # 透传调试元数据（仅本地路径 / finish_reason / content_chars / hint，不含完整 content）
+        if getattr(exc, "debug_info", None):
+            for key in (
+                "finish_reason",
+                "content_chars",
+                "raw_response_path",
+                "message_content_path",
+                "hint",
+                "provider",
+                "model",
+            ):
+                value = exc.debug_info.get(key)
+                if value is not None:
+                    details[key] = value
         return llm_invalid_response(
             f"模型输出解析失败：{exc}",
-            details={"task_name": exc.task_name, "provider": provider},
+            details=details,
             provider=provider,
         )
     return llm_error(str(exc), details={"provider": provider}, provider=provider)
