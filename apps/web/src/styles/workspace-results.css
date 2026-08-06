@@ -1,0 +1,107 @@
+/* T38-E：播放 / MusicSpec / Warnings / Debug 结果区样式。
+使用 `workspace-*` 前缀，避免与现有样式冲突。 */
+
+/* ---------- 播放与下载 ---------- */
+.workspace-playback {
+  margin-top: var(--workspace-gap-md, 16px);
+}
+
+.workspace-playback__audio {
+  width: 100%;
+  margin-bottom: var(--workspace-gap-sm, 10px);
+}
+
+.workspace-asset-actions {
+  flex-wrap: wrap;
+  margin-bottom: var(--workspace-gap-md, 16px);
+}
+
+/* ---------- JsonPreview ---------- */
+.workspace-json-preview {
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--workspace-radius-md, 12px);
+  overflow: hidden;
+  background: var(--workspace-bg-soft, #101827);
+}
+
+.workspace-json-preview__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--workspace-gap-sm, 10px);
+  padding: var(--workspace-gap-xs, 6px) var(--workspace-gap-sm, 10px);
+  border-bottom: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+}
+
+.workspace-json-preview__meta {
+  font-size: 11px;
+  color: var(--workspace-text-dim, #64748b);
+}
+
+.workspace-json-preview__body {
+  margin: 0;
+  padding: var(--workspace-gap-md, 16px);
+  overflow: auto;
+  max-height: 420px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--workspace-text, #f8fafc);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---------- Warnings ---------- */
+.workspace-warning-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-sm, 10px);
+}
+
+.workspace-warning-list__item {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--workspace-gap-xs, 6px);
+  padding: var(--workspace-gap-sm, 10px) var(--workspace-gap-md, 16px);
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  font-size: 13px;
+}
+
+.workspace-warning-list__code {
+  color: var(--workspace-warning, #f59e0b);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.workspace-warning-list__message {
+  color: var(--workspace-text, #f8fafc);
+  min-width: 0;
+}
+
+.workspace-warning-list__stage {
+  color: var(--workspace-text-dim, #64748b);
+  font-size: 12px;
+  margin-left: auto;
+}
+
+/* ---------- Debug（复用 workspace-ui 的 ui-* 之外补充） ---------- */
+.workspace-debug-panel {
+  font-size: 13px;
+}
+
+.workspace-debug-panel .ui-key-value-grid {
+  margin-bottom: var(--workspace-gap-md, 16px);
+}
+
+/* 移动端：不横向溢出 */
+@media (max-width: 768px) {
+  .workspace-json-preview__body {
+    max-height: 320px;
+  }
+}

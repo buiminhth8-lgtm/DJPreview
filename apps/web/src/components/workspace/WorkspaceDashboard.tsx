@@ -23,12 +23,15 @@ import EvaluationPanel from "./EvaluationPanel";
 import { GenerateConsole } from "./GenerateConsole";
 import GenerationDebugPanel from "./GenerationDebugPanel";
 import MixerPanel from "./MixerPanel";
+import { MusicSpecPanel } from "./MusicSpecPanel";
+import { PlaybackDownloadPanel } from "./PlaybackDownloadPanel";
 import PlayerPanel from "./PlayerPanel";
 import { ProjectOverviewPanel } from "./ProjectOverviewPanel";
 import ProjectPanel from "./ProjectPanel";
 import ReferencePanel from "./ReferencePanel";
 import RenderTasksPanel from "./RenderTasksPanel";
 import VersionPanel from "./VersionPanel";
+import { WarningsPanel } from "./WarningsPanel";
 import WorkspaceHeader from "./WorkspaceHeader";
 import { WorkspaceSectionPlaceholder } from "./WorkspaceSectionPlaceholder";
 
@@ -132,8 +135,26 @@ export default function WorkspaceDashboard({
       {/* 瀑布流：所有核心模块常驻 */}
       <div className="workspace-waterfall">
         {/* 播放与下载（含分轨 / 音源 / 异步任务，位于 PlayerPanel 内） */}
-        {hasSong && songId ? (
-          <SectionCard title="播放与下载" description="MIDI / WAV / 分轨 / 音源 / 异步任务">
+        <PlaybackDownloadPanel
+          songId={songId}
+          midiUrl={hasSong ? audioAssets.midiUrl : null}
+          wavUrl={hasSong ? audioAssets.audioStreamUrl : null}
+          hasMidi={Boolean(audioAssets.assets?.has_midi) || Boolean(audioAssets.midiResult)}
+          hasAudio={Boolean(audioAssets.assets?.has_audio) || Boolean(audioAssets.audioResult)}
+          isRenderingAudio={audioAssets.loadingAudio}
+          isGeneratingMidi={audioAssets.loadingMidi}
+          hasMusicSpec={Boolean(spec)}
+          onGenerateMidi={onGenerateMidi}
+          onRenderAudio={onRenderAudio}
+          onDownloadMidi={() => {
+            if (audioAssets.midiDownloadUrl) window.open(audioAssets.midiDownloadUrl, "_blank");
+          }}
+          onDownloadWav={() => {
+            if (audioAssets.audioDownloadUrl) window.open(audioAssets.audioDownloadUrl, "_blank");
+          }}
+        />
+        {hasSong && songId && (
+          <SectionCard title="更多操作" description="分轨 / 音源 / 异步任务">
             <PlayerPanel
               songId={songId}
               midiResult={audioAssets.midiResult}
@@ -149,39 +170,22 @@ export default function WorkspaceDashboard({
               onError={songProject.setError}
             />
           </SectionCard>
-        ) : (
-          <WorkspaceSectionPlaceholder
-            title="播放与下载"
-            description="MIDI / WAV / 分轨 / 音源 / 异步任务"
-            emptyTitle="暂无可播放音频"
-            emptyDescription="生成 MIDI 后可渲染 WAV，渲染完成后可播放和下载。"
-          />
         )}
 
         {/* MusicSpec / Warnings / Debug */}
-        {hasSong && spec ? (
-          <SectionCard title="MusicSpec / Warnings / Debug" description="生成状态、校验与调试日志">
-            <div className="workspace-section-note">
-              当前工程：{spec.title} · {spec.tempo?.bpm ?? "?"} BPM ·{" "}
-              {spec.tonality ? `${spec.tonality.key} ${spec.tonality.mode}` : "未知调性"}
-            </div>
-            <GenerationDebugPanel
-              status={songProject.generationStatus}
-              log={songProject.generationLog}
-              requestId={songProject.generationRequestId}
-              debug={songProject.generationDebug}
-              warnings={songProject.generationWarnings}
-              errorInfo={songProject.generationErrorInfo}
-            />
-          </SectionCard>
-        ) : (
-          <WorkspaceSectionPlaceholder
-            title="MusicSpec / Warnings / Debug"
-            description="生成状态、校验与调试日志"
-            emptyTitle="暂无 MusicSpec"
-            emptyDescription="输入音乐描述并点击生成，或导入 .aimusic.zip 工程。"
-          />
-        )}
+        <MusicSpecPanel musicSpec={spec} requestId={songProject.generationRequestId} />
+        <WarningsPanel
+          warnings={songProject.generationWarnings}
+          hasMusicSpec={Boolean(spec)}
+        />
+        <GenerationDebugPanel
+          status={songProject.generationStatus}
+          log={songProject.generationLog}
+          requestId={songProject.generationRequestId}
+          debug={songProject.generationDebug}
+          warnings={songProject.generationWarnings}
+          errorInfo={songProject.generationErrorInfo}
+        />
 
         {/* 编曲检查：曲式与和声 / 轨道与乐器 / Piano Roll / 质量（T38-F 拆分为独立段） */}
         {hasSong && songId && spec ? (

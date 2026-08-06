@@ -338,6 +338,27 @@ RenderTasksPanel / RegenerationPanel / ReferencePanel / EvaluationPanel。
 - 验收标准：无资产时显示 Empty State，下载按钮 disabled。
 - 建议 commit message：`feat(frontend): persistent playback/musicspec/debug sections`
 
+#### T38-E 已落地（完成）
+
+已新增结果查看区常驻组件：
+
+- `PlaybackDownloadPanel.tsx` — 播放与下载常驻：无 MusicSpec/MIDI/WAV 时 Empty State；
+  有 WAV 时 `<audio controls>` 播放器；下载 MIDI / 下载 WAV 按钮无资产时 disabled 并显示原因
+  （「请先生成 MIDI」「当前工程暂无音频」）；生成 MIDI / 渲染 WAV 按钮带 disabled 原因。
+- `MusicSpecPanel.tsx` — MusicSpec 常驻：无数据时 Empty State；有数据时 KeyValueGrid 摘要
+  （标题/风格/情绪/BPM/调性/拍号/长度/段落数/轨道数/request_id）+ 可滚动 JSON。
+- `WarningsPanel.tsx` — 校验警告常驻：支持字符串与结构化 warning（code/message/stage/severity）；
+  无 MusicSpec 显示「暂无校验结果」，无 warning 显示成功提示，有 warning 逐条显示。
+- `JsonPreview.tsx` — 统一 JSON 预览（可滚动、限高 420px、复制 JSON、空状态）。
+- `GenerationDebugPanel.tsx` 升级 — 常驻显示：无请求时 Empty State「暂无请求日志」；
+  有请求时展示 request_id / provider / model / debug 元数据 / error（code/stage/status/message）/
+  raw_response_path / message_content_path；默认折叠、出错自动展开。
+- `styles/workspace-results.css` — 结果区样式（播放器 / JSON preview / warning 列表 / 移动端限高）。
+- `WorkspaceDashboard` 接入：播放与下载 → PlaybackDownloadPanel（+ 有工程时「更多操作」保留
+  PlayerPanel 分轨/音源/任务）；MusicSpec / Warnings / Debug 三段独立常驻。
+
+后续 T38-F 将接入曲式/轨道/Piano Roll 段。
+
 ### T38-F：曲式和声、轨道乐器、Piano Roll 常驻化
 - 目标：从 `ArrangementInspector` 拆出 SectionTimeline / TrackList / PianoRoll 为独立段。
 - 修改范围：`ArrangementInspector.tsx`、新增/调整 section 组件。

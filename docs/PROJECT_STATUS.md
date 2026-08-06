@@ -126,7 +126,12 @@
     风格模板保留、错误 InlineNotice；升级 `ProjectOverviewPanel`：标题/风格/BPM/调性/拍号/长度/
     段落数/轨道数/Warnings/song_id/版本/MIDI/WAV/request_id，安全读取字段；`workspace-hero-grid`
     双列 1.35fr/0.65fr，900px 单列；生成 MusicSpec 功能保留）
-  - T38-E next：播放、下载、MusicSpec、warnings、debug 面板
+  - T38-E completed：播放、下载、MusicSpec、warnings、debug 面板常驻化（新增 `PlaybackDownloadPanel`
+    （播放器/下载按钮 disabled 原因/Empty State）、`MusicSpecPanel`（摘要+JSON）、`WarningsPanel`
+    （字符串+结构化 warning）、`JsonPreview`（滚动+复制）；升级 `GenerationDebugPanel` 常驻显示
+    （空态/request_id/provider/model/error/raw path）；`styles/workspace-results.css`；下载按钮无资产
+    disabled 并提示；无 song_id/asset 不触发无效请求）
+  - T38-F next：曲式/和声、轨道/乐器、Piano Roll 面板
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /

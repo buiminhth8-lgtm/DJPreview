@@ -17,3 +17,7 @@ export { default as StatusMessage } from "./StatusMessage";
 export { default as GenerationDebugPanel } from "./GenerationDebugPanel";
 export { WorkspaceSectionPlaceholder } from "./WorkspaceSectionPlaceholder";
 export { ProjectOverviewPanel } from "./ProjectOverviewPanel";
+export { JsonPreview } from "./JsonPreview";
+export { MusicSpecPanel } from "./MusicSpecPanel";
+export { WarningsPanel } from "./WarningsPanel";
+export { PlaybackDownloadPanel } from "./PlaybackDownloadPanel";

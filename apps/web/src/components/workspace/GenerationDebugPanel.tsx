@@ -1,10 +1,12 @@
-// GenerationDebugPanel：生成 MusicSpec 调试信息面板（T35）。
-// 默认折叠，出错时自动展开；展示 request_id / provider / error / warnings / debug 元数据。
+// GenerationDebugPanel：生成 MusicSpec 调试信息面板（T35 / T38-E）。
+// 常驻显示：无请求时 Empty State；有请求时展示 request_id / provider / model / error /
+// debug 元数据 / raw response 路径。默认折叠，出错时自动展开。
 
 import { useEffect, useState } from "react";
 
 import type { GenerationDebug, WarningItem } from "../../api/types";
 import type { GenerationErrorInfo, GenerationLogEntry, GenerationStatus } from "../../hooks/useSongProject";
+import { EmptyState, SectionCard } from "../ui";
 
 export interface GenerationDebugPanelProps {
   status: GenerationStatus;
@@ -38,8 +40,17 @@ export default function GenerationDebugPanel({
     if (status === "failed") setExpanded(true);
   }, [status]);
 
-  if (status === "idle" && log.length === 0) {
-    return null;
+  const hasData = status !== "idle" || log.length > 0 || Boolean(requestId || debug || errorInfo);
+
+  if (!hasData) {
+    return (
+      <SectionCard title="调试日志" description="请求与响应诊断">
+        <EmptyState
+          title="暂无请求日志"
+          description="生成 MusicSpec、MIDI 或 WAV 后，请求信息会显示在这里。"
+        />
+      </SectionCard>
+    );
   }
 
   const hasError = status === "failed";
@@ -59,13 +70,27 @@ export default function GenerationDebugPanel({
     : "";
 
   return (
-    <details className={`debug-panel ${statusClass}`} open={expanded} onToggle={(e) => setExpanded((e.target as HTMLDetailsElement).open)}>
-      <summary>
-        <span className={`status-chip ${statusClass}`}>{STATUS_LABEL[status]}</span>
-        <span className="debug-title">生成调试</span>
-        {requestId && <span className="debug-request-id">req: {requestId}</span>}
-      </summary>
-      <div className="debug-body">
+    <SectionCard
+      title="调试日志"
+      description="请求与响应诊断"
+      badge={
+        hasError ? (
+          <span className="status-chip status-error">{STATUS_LABEL[status]}</span>
+        ) : (
+          <span className={`status-chip ${statusClass}`}>{STATUS_LABEL[status]}</span>
+        )
+      }
+    >
+      <details
+        className={`debug-panel ${statusClass}`}
+        open={expanded}
+        onToggle={(e) => setExpanded((e.target as HTMLDetailsElement).open)}
+      >
+        <summary>
+          <span className="debug-title">生成调试</span>
+          {requestId && <span className="debug-request-id">req: {requestId}</span>}
+        </summary>
+        <div className="debug-body">
         <div className="debug-row">
           <span className="debug-label">request_id</span>
           <code className="debug-value">{requestId || "-"}</code>
@@ -194,5 +219,6 @@ export default function GenerationDebugPanel({
         )}
       </div>
     </details>
+    </SectionCard>
   );
 }
