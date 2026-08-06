@@ -238,3 +238,18 @@ python scripts/demo_t28_smoke.py --provider deepseek   # 仅显式选择
   当返回 200 OK 但 JSON 无法解析时，直接打开这两个文件查看完整返回。
 - 安全：API key 永不显示在前端、不出现在普通日志中；保存文件递归 mask
   api_key / authorization / Bearer token；`LLM_DEBUG_LOG_FULL_CONTENT=true` 仅限本地强调试。
+
+## LLM 乐器名归一化（T36）
+
+LLM 输出的自然语言乐器名会在进入语义校验与 MIDI 生成前自动归一化：
+
+- `brass` / `epic_brass` / `horns` → `brass_section`
+- `electric_guitar_distorted` / `distortion guitar` / `heavy_guitar` → `distortion_guitar`
+- `strings` / `string ensemble` / `orchestral_strings` → `string_ensemble_1`
+- `heavy_drums` / `rock_drums` / `battle_drums` / `percussion` → `standard_drum_kit`
+- `synth_bass` / `sub_bass` / `electronic_bass` → `synth_bass_1`
+- `grand piano` / `cinematic_piano` / `piano` → `acoustic_grand_piano`
+- `pad` / `warm pad` / `synth pad` → `pad_2_warm`
+
+真正未知的乐器（如 `magic_space_laser`）仍会 warning，不会静默吞掉。
+System prompt 已更新为优先使用 canonical 名称，后端 normalize 仍是兜底保障。

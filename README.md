@@ -34,6 +34,8 @@
   pattern 保留）；chorus / outro 自动补明确终止式（V7/IV → 主和弦），生成时不再出现这两类 warning。
 - 参考 MIDI 分析（高层特征，不复制旋律）
 - 基于参考 MIDI 高层特征生成新项目
+- LLM 乐器名自动归一化（T36）：`brass`→`brass_section`、`electric_guitar_distorted`→`distortion_guitar`、
+  `strings`→`string_ensemble_1`、`heavy_drums`→`standard_drum_kit` 等常见别名在语义校验前统一修正
 - `.aimusic.zip` 工程导入导出（防 zip slip）
 - Evaluation Runner（内置 8 个评估用例）
 - 基础质量门禁（后端 pytest + 前端 npm ci / build，CI + 本地脚本）
@@ -369,6 +371,25 @@ finish_reason / content_chars / hint`（仅本地路径字符串，不含完整 
 - 不要在生产环境开启 `LLM_DEBUG_LOG_FULL_CONTENT=true`。
 - 不要提交 `data/llm_calls`（已 gitignore）。
 - 所有日志 / 保存文件均 mask API key。
+
+## LLM 乐器名归一化（T36）
+
+Gemini / LM Studio / DeepSeek / Mock 输出的乐器名在进入语义校验与 MIDI 生成前统一归一化：
+
+- 流程：`LLM raw JSON → JSON parse/repair → Pydantic MusicSpec → normalize_music_spec() → semantic validation → MIDI`
+- 常见别名自动映射到 canonical：
+  - `brass` / `epic_brass` / `horns` → `brass_section`
+  - `electric_guitar_distorted` / `distortion guitar` / `heavy_guitar` → `distortion_guitar`
+  - `strings` / `string ensemble` / `orchestral_strings` → `string_ensemble_1`
+  - `heavy_drums` / `rock_drums` / `battle_drums` → `standard_drum_kit`
+  - `synth_bass` / `sub_bass` / `electronic_bass` → `synth_bass_1`
+  - `grand piano` / `cinematic_piano` → `acoustic_grand_piano`
+  - `pad` / `warm pad` / `synth pad` → `pad_2_warm`
+- 支持复数（strings / drums / horns / violins）、大小写、空格、横线。
+- 保留 track 的 id / role / pattern / register / velocity。
+- 真正未知的乐器（如 `magic_space_laser`）仍会 warning，不会静默吞掉。
+- 后端日志输出 `instrument.normalized track_id=... from=... to=...`。
+- System prompt 已更新为优先使用 canonical 名称，降低 LLM 出错概率。
 
 ### 开发环境推荐默认
 
@@ -846,8 +867,8 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（618 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 450 passed（约 22s）
+后端测试：pytest -q passed（642 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 469 passed（约 22s）
 前端依赖：npm ci passed（vite 7.3.6）
 前端构建：npm run build passed（tsc + vite）
 前端安全：npm audit 0 vulnerabilities

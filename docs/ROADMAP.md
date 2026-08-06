@@ -440,6 +440,34 @@
 - 测试：更新 `test_llm_call_logging.py`（raw 保存 / mask / finish_reason hint / usage）、
   `test_api_error_response.py`（error.details 透传路径）
 
+## T36 LLM 乐器别名归一化与 GM 映射修复 ✅
+
+- 目标：修复 Gemini 等 LLM 输出的自然语言乐器名（brass / electric_guitar_distorted 等）
+  无法识别导致的 unknown instrument warning 与 MIDI 默认音色 fallback
+- 优先级：P1
+- 依赖：T17 / T35
+- 实现：
+  - 扩展 `instruments/registry.py` 别名表（brass/epic_brass/horns → brass_section、
+    electric_guitar_distorted/distortion guitar/heavy_guitar → distortion_guitar、
+    strings/string ensemble/orchestral_strings → string_ensemble_1、heavy_drums/rock_drums/
+    battle_drums → standard_drum_kit、synth_bass/sub_bass → synth_bass_1、grand piano/
+    cinematic_piano → acoustic_grand_piano、pad/warm pad → pad_2_warm 等）
+  - `normalize_instrument_name(name, role=None)`：role-aware（drums→standard_drum_kit /
+    bass→electric_bass_finger）、复数（strings/drums/horns/violins）、大小写/空格/横线
+  - 新增 `canonical_instrument_name`；`normalize_music_spec`（
+    `normalization/instrument_normalizer.py`）在语义校验前修正 track.instrument，
+    保留 id/role/pattern/register/velocity，记录 instrument.normalized 日志
+  - `music_planner.generate_music_spec_from_prompt` 在 validate 前调用 normalize
+  - validator 基于 canonical 判断 unknown（brass / electric_guitar_distorted /
+    low_tom_percussion 不再 warning），真正未知乐器仍 warning 且建议 canonical
+  - System prompt 更新为优先使用 canonical 乐器名
+- 验收：brass / electric_guitar_distorted 不再触发 unknown warning 且归一化为合法
+  canonical；归一化发生在 validation 前；track 字段不丢失；MIDI 不再 fallback 默认音色；
+  真正未知乐器仍 warning；Mock / Gemini / LM Studio / DeepSeek 不被破坏
+- 测试：新增 `test_instrument_aliases.py`、`test_music_spec_normalization.py`，
+  更新 `test_semantic_validator.py`、`test_midi_writer.py`、`test_generate_song_api.py`；
+  全量 pytest 642 passed（fast 469 / slow 173）
+
 ## 下一轮建议
 
 1. 文档 / 测试分层：拆分慢速集成测试（如音频渲染 / 全链路 API），缩短全量回归时间。

@@ -248,6 +248,44 @@ def test_canonical_instrument_no_warning():
     assert "UNKNOWN_INSTRUMENT_ALIAS" not in _codes(result, "warnings")
 
 
+# ---------- T36：LLM 乐器别名归一化 ----------
+
+def test_brass_no_unknown_warning():
+    spec = build_spec()
+    spec.tracks[0] = spec.tracks[0].model_copy(update={"instrument": "brass"})
+    result = validate_music_spec_semantics(spec)
+    assert "UNKNOWN_INSTRUMENT_ALIAS" not in _codes(result, "warnings")
+    assert spec.tracks[0].instrument == "brass_section"
+
+
+def test_distorted_guitar_no_unknown_warning():
+    spec = build_spec()
+    spec.tracks[0] = spec.tracks[0].model_copy(update={"instrument": "electric_guitar_distorted"})
+    result = validate_music_spec_semantics(spec)
+    assert "UNKNOWN_INSTRUMENT_ALIAS" not in _codes(result, "warnings")
+    assert spec.tracks[0].instrument == "distortion_guitar"
+
+
+def test_heavy_drums_no_unknown_warning():
+    spec = build_spec()
+    for i, t in enumerate(spec.tracks):
+        if t.role == "drums":
+            spec.tracks[i] = t.model_copy(update={"instrument": "heavy_drums"})
+    result = validate_music_spec_semantics(spec)
+    assert "UNKNOWN_INSTRUMENT_ALIAS" not in _codes(result, "warnings")
+    drums = next(t for t in spec.tracks if t.role == "drums")
+    assert drums.instrument == "standard_drum_kit"
+
+
+def test_unknown_instrument_warning_has_suggestion():
+    spec = build_spec()
+    spec.tracks[0] = spec.tracks[0].model_copy(update={"instrument": "magic_space_laser"})
+    result = validate_music_spec_semantics(spec)
+    issues = [w for w in result.warnings if w.code == "UNKNOWN_INSTRUMENT_ALIAS"]
+    assert issues
+    assert "magic_space_laser" in issues[0].message
+
+
 # ---------- T19：和声扩展与终止式 warnings ----------
 
 def test_extended_chords_pass_validation():

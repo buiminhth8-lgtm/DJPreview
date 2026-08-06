@@ -109,3 +109,43 @@ def test_cinematic_prompt_has_strings_and_pad():
     roles2 = {t["role"] for t in resp2.json()["music_spec"]["tracks"]}
     assert "strings" in roles2
     assert "pad" in roles2
+
+
+def test_generate_normalizes_llm_instrument_aliases(monkeypatch):
+    """T36：生成链路中 brass / distorted guitar 别名被归一化。"""
+    import httpx
+
+    from packages.music_core.planner import music_planner
+    from packages.llm.openai_compatible_provider import OpenAICompatibleProvider
+    from tests.test_harmony_engine import build_spec
+
+    spec_dict = build_spec().model_dump(mode="json")
+    # 模拟 Gemini 输出 brass / electric_guitar_distorted
+    spec_dict["tracks"] = [
+        *[t for t in spec_dict["tracks"] if t["role"] not in ("melody", "harmony")],
+        {"id": "brass_epic", "role": "melody", "instrument": "brass", "pattern": "sustained", "register": "mid-high", "velocity": 110},
+        {"id": "dist_guitar", "role": "harmony", "instrument": "electric_guitar_distorted", "pattern": "power_chords", "register": "mid", "velocity": 105},
+    ]
+
+    def fake_provider(*args, **kwargs):
+        return OpenAICompatibleProvider(
+            api_key="sk-test",
+            base_url="http://localhost:9999/v1",
+            model="gemini-3.5-flash",
+            transport=httpx.MockTransport(
+                lambda req: httpx.Response(
+                    200,
+                    json={"choices": [{"message": {"role": "assistant", "content": __import__("json").dumps(spec_dict)}}]},
+                )
+            ),
+        )
+
+    monkeypatch.setattr(music_planner, "get_llm_provider", fake_provider)
+    from packages.music_core.planner.music_planner import generate_music_spec_from_prompt
+
+    spec = generate_music_spec_from_prompt("游戏 Boss 战音乐")
+    instruments = {t.instrument for t in spec.tracks}
+    assert "brass_section" in instruments
+    assert "distortion_guitar" in instruments
+    assert "brass" not in instruments
+    assert "electric_guitar_distorted" not in instruments

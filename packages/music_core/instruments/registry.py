@@ -20,53 +20,181 @@ class InstrumentInfo:
 
 # 别名 → canonical id
 INSTRUMENT_ALIASES: dict[str, str] = {
+    # ---------- Piano / Keyboard ----------
     "piano": "acoustic_grand_piano",
     "grand_piano": "acoustic_grand_piano",
+    "grand_pianos": "acoustic_grand_piano",
     "keyboard": "acoustic_grand_piano",
+    "keys": "acoustic_grand_piano",
+    "cinematic_piano": "acoustic_grand_piano",
+    "soft_piano": "acoustic_grand_piano",
+    "solo_piano": "acoustic_grand_piano",
+    "acoustic_piano": "acoustic_grand_piano",
     "epiano": "electric_piano_1",
     "electric_piano": "electric_piano_1",
+    "electric_pianos": "electric_piano_1",
+    "e_piano": "electric_piano_1",
+    "rhodes": "electric_piano_1",
+    "wurli": "electric_piano_1",
+
+    # ---------- Guitar ----------
     "guitar": "acoustic_guitar_steel",
     "acoustic_guitar": "acoustic_guitar_steel",
+    "acoustic_guitars": "acoustic_guitar_steel",
     "electric_guitar": "electric_guitar_clean",
+    "electric_guitars": "electric_guitar_clean",
+    "clean_guitar": "electric_guitar_clean",
+    "clean_electric_guitar": "electric_guitar_clean",
     "dist_guitar": "distortion_guitar",
+    "dist_guitars": "distortion_guitar",
     "rock_guitar": "distortion_guitar",
+    "heavy_guitar": "distortion_guitar",
+    "metal_guitar": "distortion_guitar",
+    "power_chord_guitar": "distortion_guitar",
+    "distortion_guitars": "distortion_guitar",
+    "distorted_guitar": "distortion_guitar",
+    "distorted_guitars": "distortion_guitar",
+    "electric_guitar_distorted": "distortion_guitar",
+    "distortion_guitar_electric": "distortion_guitar",
+    "overdrive_guitar": "overdriven_guitar",
+    "overdriven_guitars": "overdriven_guitar",
+    "lead_guitar": "distortion_guitar",
+    "rhythm_guitar": "electric_guitar_muted",
+    "muted_guitar": "electric_guitar_muted",
+
+    # ---------- Bass ----------
     "bass": "electric_bass_finger",
+    "basses": "electric_bass_finger",
     "electric_bass": "electric_bass_finger",
+    "electric_basses": "electric_bass_finger",
+    "finger_bass": "electric_bass_finger",
+    "fingerstyle_bass": "electric_bass_finger",
+    "pick_bass": "electric_bass_pick",
+    "picked_bass": "electric_bass_pick",
     "synth_bass": "synth_bass_1",
+    "synth_basses": "synth_bass_1",
+    "sub_bass": "synth_bass_1",
+    "electronic_bass": "synth_bass_1",
+    "electronic_basses": "synth_bass_1",
+    "bass_synth": "synth_bass_1",
+    "dub_bass": "synth_bass_1",
+
+    # ---------- Strings ----------
     "strings": "string_ensemble_1",
+    "string": "string_ensemble_1",
     "string_ensemble": "string_ensemble_1",
+    "string_ensembles": "string_ensemble_1",
     "orchestral_strings": "string_ensemble_1",
+    "cinematic_strings": "string_ensemble_1",
+    "epic_strings": "string_ensemble_1",
+    "string_ostinato": "string_ensemble_1",
+    "string_section": "string_ensemble_1",
+    "strings_section": "string_ensemble_1",
     "synth_strings": "synth_strings_1",
-    "pad": "pad_2_warm",
-    "synth_pad": "pad_2_warm",
-    "warm_pad": "pad_2_warm",
-    "pad_warm": "pad_2_warm",
-    "ambient_pad": "pad_1_new_age",
-    "lead": "lead_2_sawtooth",
-    "synth_lead": "lead_2_sawtooth",
-    "lead_synth": "lead_1_square",
-    "lead_square": "lead_1_square",
-    "flute": "flute",
-    "pan_flute": "pan_flute",
-    "erhu": "erhu",
-    "koto": "koto",
-    "shamisen": "shamisen",
+    "synth_strings_ensemble": "synth_strings_1",
+    "violins": "violin",
+    "violin_section": "string_ensemble_1",
+    "cello_section": "cello",
+    "cellos": "cello",
+
+    # ---------- Brass ----------
+    "brass": "brass_section",
+    "brasses": "brass_section",
+    "brass_section": "brass_section",
+    "brass_sections": "brass_section",
+    "brass_ensemble": "brass_section",
+    "brass_ensembles": "brass_section",
+    "epic_brass": "brass_section",
+    "cinematic_brass": "brass_section",
+    "orchestral_brass": "brass_section",
+    "fanfare_brass": "brass_section",
+    "horns": "brass_section",
+    "horn_section": "brass_section",
+    "trumpets": "trumpet",
+    "trombones": "trombone",
+    "french_horn": "french_horn",
+    "french_horns": "french_horn",
+    "horn": "french_horn",
+
+    # ---------- Drums / Percussion ----------
     "drums": "standard_drum_kit",
     "drum": "standard_drum_kit",
     "drum_kit": "standard_drum_kit",
+    "drumset": "standard_drum_kit",
+    "drum_kits": "standard_drum_kit",
     "standard_drums": "standard_drum_kit",
     "percussion": "standard_drum_kit",
+    "percussions": "standard_drum_kit",
     "drum_percussion": "standard_drum_kit",
+    "heavy_drums": "standard_drum_kit",
+    "heavy_rock_drums": "standard_drum_kit",
+    "rock_drums": "standard_drum_kit",
+    "metal_drums": "standard_drum_kit",
+    "hard_drums": "standard_drum_kit",
+    "power_drums": "standard_drum_kit",
+    "epic_drums": "standard_drum_kit",
+    "orchestral_percussion": "standard_drum_kit",
     "toms": "standard_drum_kit",
     "tom": "standard_drum_kit",
+    "tom_drums": "standard_drum_kit",
     "low_tom": "standard_drum_kit",
     "mid_tom": "standard_drum_kit",
     "high_tom": "standard_drum_kit",
     "low_tom_percussion": "standard_drum_kit",
+    "mid_tom_percussion": "standard_drum_kit",
+    "high_tom_percussion": "standard_drum_kit",
+    "tom_percussion": "standard_drum_kit",
+    "kick": "standard_drum_kit",
+    "kick_drum": "standard_drum_kit",
+    "snare": "standard_drum_kit",
+    "snare_drum": "standard_drum_kit",
+    "cymbals": "standard_drum_kit",
+    "crash_cymbal": "standard_drum_kit",
+    "hi_hat": "standard_drum_kit",
+    "hihat": "standard_drum_kit",
     "taiko": "standard_drum_kit",
     "taiko_drums": "standard_drum_kit",
+    "taiko_percussion": "standard_drum_kit",
     "cinematic_drums": "standard_drum_kit",
+    "cinematic_percussion": "standard_drum_kit",
     "battle_drums": "standard_drum_kit",
+    "military_drums": "standard_drum_kit",
+
+    # ---------- Pad / Synth ----------
+    "pad": "pad_2_warm",
+    "pads": "pad_2_warm",
+    "synth_pad": "pad_2_warm",
+    "synth_pads": "pad_2_warm",
+    "warm_pad": "pad_2_warm",
+    "warm_pads": "pad_2_warm",
+    "pad_warm": "pad_2_warm",
+    "ambient_pad": "pad_1_new_age",
+    "ambient_pads": "pad_1_new_age",
+    "atmospheric_pad": "pad_1_new_age",
+    "dream_pad": "pad_2_warm",
+    "soft_pad": "pad_2_warm",
+    "lead": "lead_2_sawtooth",
+    "leads": "lead_2_sawtooth",
+    "synth_lead": "lead_2_sawtooth",
+    "synth_leads": "lead_2_sawtooth",
+    "lead_synth": "lead_1_square",
+    "lead_synths": "lead_1_square",
+    "lead_square": "lead_1_square",
+    "square_lead": "lead_1_square",
+    "sawtooth_lead": "lead_2_sawtooth",
+    "saw_lead": "lead_2_sawtooth",
+    "sawtooth": "lead_2_sawtooth",
+
+    # ---------- Woodwind / Ethnic ----------
+    "flute": "flute",
+    "flutes": "flute",
+    "pan_flute": "pan_flute",
+    "shakuhachi": "shakuhachi",
+    "erhu": "erhu",
+    "koto": "koto",
+    "shamisen": "shamisen",
+    "dizi": "flute",
+    "bamboo_flute": "pan_flute",
 }
 
 
@@ -161,14 +289,55 @@ def _normalize_name(name: str | None) -> str:
     return text
 
 
-def normalize_instrument_name(name: str | None) -> str:
-    """返回 canonical instrument id；未知乐器返回规范化后的原字符串。"""
+# 角色感知关键词：当 role 明确时优先按角色归一化
+_DRUM_KEYWORDS = ("drum", "percussion", "tom", "kick", "snare", "cymbal", "hi_hat", "hihat", "taiko")
+_BASS_KEYWORDS = ("bass",)
+
+
+def _resolve_canonical(key: str, role: str | None = None) -> str:
+    """别名/复数解析为 canonical id；未知返回 key。"""
+    if key in INSTRUMENTS:
+        return key
+    target = INSTRUMENT_ALIASES.get(key)
+    if target is not None:
+        return target
+    # 常见复数：去掉尾部 s 再查一次（strings→string, drums→drum, horns→horn, violins→violin）
+    if key.endswith("s") and len(key) > 3:
+        singular = key[:-1]
+        target = INSTRUMENT_ALIASES.get(singular)
+        if target is not None:
+            return target
+        if singular in INSTRUMENTS:
+            return singular
+    return key
+
+
+def normalize_instrument_name(name: str | None, role: str | None = None) -> str:
+    """返回 canonical instrument id；未知乐器返回规范化后的原字符串。
+
+    role 可选，用于角色感知归一化：
+      - role=drums 时，drum / percussion / tom / kick / snare / cymbal 类 → standard_drum_kit
+      - role=bass 时，bass 类优先映射到 bass canonical
+    """
     key = _normalize_name(name)
     if not key:
         return ""
-    if key in INSTRUMENTS:
-        return key
-    return INSTRUMENT_ALIASES.get(key, key)
+
+    canonical = _resolve_canonical(key, role)
+    if canonical in INSTRUMENTS:
+        return canonical
+
+    # 角色感知兜底（别名表未覆盖时）
+    if role == "drums" and any(kw in key for kw in _DRUM_KEYWORDS):
+        return "standard_drum_kit"
+    if role == "bass" and any(kw in key for kw in _BASS_KEYWORDS):
+        return "electric_bass_finger"
+    return canonical
+
+
+def canonical_instrument_name(name: str | None, role: str | None = None) -> str:
+    """normalize_instrument_name 的别名（更语义化命名）。"""
+    return normalize_instrument_name(name, role=role)
 
 
 def is_known_instrument(name: str | None) -> bool:
@@ -176,9 +345,9 @@ def is_known_instrument(name: str | None) -> bool:
     return normalize_instrument_name(name) in INSTRUMENTS
 
 
-def resolve_instrument(name: str | None) -> InstrumentInfo:
+def resolve_instrument(name: str | None, role: str | None = None) -> InstrumentInfo:
     """解析乐器信息；未知乐器返回 unknown 占位（不崩溃，gm_program=None）。"""
-    canonical = normalize_instrument_name(name)
+    canonical = normalize_instrument_name(name, role=role)
     info = INSTRUMENTS.get(canonical)
     if info is not None:
         return info
@@ -191,15 +360,15 @@ def resolve_instrument(name: str | None) -> InstrumentInfo:
     )
 
 
-def get_gm_program(name: str | None, default: int = 0) -> int:
+def get_gm_program(name: str | None, default: int = 0, role: str | None = None) -> int:
     """乐器 → 0-based GM program；未知或鼓组返回 default。"""
-    program = resolve_instrument(name).gm_program
+    program = resolve_instrument(name, role=role).gm_program
     return default if program is None else program
 
 
-def is_drum_instrument(name: str | None) -> bool:
+def is_drum_instrument(name: str | None, role: str | None = None) -> bool:
     """判断乐器是否属于 GM 鼓组（走 drum channel 9）。"""
-    return resolve_instrument(name).is_drum
+    return resolve_instrument(name, role=role).is_drum
 
 
 def list_instruments() -> list[InstrumentInfo]:

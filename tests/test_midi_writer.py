@@ -123,3 +123,32 @@ def test_strings_and_pad_program_change(tmp_path):
             programs["strings"] = program
     assert programs.get("pad") == 89  # pad_2_warm
     assert programs.get("strings") == 48  # string_ensemble_1
+
+
+def test_brass_and_distortion_guitar_program(tmp_path):
+    """T36：brass / distortion guitar canonical 不 fallback piano（0）。"""
+    from mido import MidiFile
+
+    spec = build_spec()
+    spec.tracks = [
+        TrackSpec(id="brass_epic", role="melody", instrument="brass_section", pattern="sustained", register="mid-high", velocity=110),
+        TrackSpec(id="dist_guitar", role="harmony", instrument="distortion_guitar", pattern="power_chords", register="mid", velocity=105),
+        TrackSpec(id="drums", role="drums", instrument="standard_drum_kit", velocity=100),
+    ]
+    composition = compose_music(spec)
+    output = write_midi(composition, tmp_path / "t36.mid")
+    programs: dict[str, int | None] = {}
+    for track in MidiFile(str(output)).tracks:
+        names = [m for m in track if m.type == "track_name"]
+        if not names:
+            continue
+        name = names[0].name
+        program = next((m.program for m in track if m.type == "program_change"), None)
+        if "brass" in name:
+            programs["brass"] = program
+        if "guitar" in name or "dist" in name:
+            programs["guitar"] = program
+    assert programs.get("brass") == 61  # brass_section
+    assert programs.get("guitar") == 30  # distortion_guitar
+    assert programs.get("brass") != 0
+    assert programs.get("guitar") != 0

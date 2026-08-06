@@ -11,7 +11,10 @@ from packages.music_core.composer.harmony_progressions import (
     subdominant_symbols,
     tonic_symbol,
 )
-from packages.music_core.instruments.registry import is_known_instrument, normalize_instrument_name
+from packages.music_core.instruments.registry import (
+    canonical_instrument_name,
+    is_known_instrument,
+)
 from packages.music_core.theory.chords import is_valid_chord_symbol
 from packages.music_core.theory.pitch import is_valid_note_name
 from packages.music_core.theory.scales import is_supported_mode
@@ -265,16 +268,17 @@ def validate_music_spec_semantics(music_spec: MusicSpec | dict) -> ValidationRes
                     )
                 )
         instrument = t.instrument
-        if t.role == "drums" and instrument:
-            # 鼓组 / tom / percussion 类名称自动归一化为 standard_drum_kit（保留 pattern）
-            normalized = normalize_instrument_name(instrument)
-            if normalized != instrument:
-                t.instrument = normalized
+        # 基于 canonical 判断：drum/percussion/tom 等常见别名自动归一化
+        canonical = canonical_instrument_name(instrument, role=t.role)
+        if canonical != instrument:
+            t.instrument = canonical
         if t.instrument and not is_known_instrument(t.instrument):
+            suggestion = canonical_instrument_name(t.instrument, role=t.role)
+            hint = f"，建议使用 {suggestion!r}" if suggestion and suggestion != t.instrument else ""
             warnings.append(
                 ValidationIssue(
                     code="UNKNOWN_INSTRUMENT_ALIAS",
-                    message=f"轨道 {t.id} 的乐器 {t.instrument!r} 无法识别，MIDI 生成时将回退默认音色",
+                    message=f"轨道 {t.id} 的乐器 {t.instrument!r} 无法识别，MIDI 生成时将回退默认音色{hint}",
                     path=f"tracks.{t.id}",
                     details={"track_id": t.id, "instrument": t.instrument},
                 )

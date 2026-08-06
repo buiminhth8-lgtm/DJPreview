@@ -18,6 +18,20 @@
    - `form[].start_bar` 从 1 开始，`start_bar + bars - 1` 不得超过 `length.bars`。
    - 各段落小节范围不能重叠，建议连续覆盖整曲。
    - `tempo.bpm` 在 40-220；`TrackSpec.velocity` 在 1-127；`SectionSpec.energy` 在 0-1。
+7. `tracks[].instrument` 必须使用**标准乐器名**，不要使用自然语言泛称。请优先使用以下 canonical 名称：
+   - `brass_section`，而不是 brass / epic_brass / horns
+   - `distortion_guitar`，而不是 electric_guitar_distorted / distortion guitar / heavy_guitar
+   - `overdriven_guitar`，而不是 overdrive guitar
+   - `electric_guitar_clean`，而不是 clean electric guitar
+   - `string_ensemble_1`，而不是 strings / string ensemble / orchestral_strings
+   - `standard_drum_kit`，而不是 drums / heavy_drums / percussion / taiko
+   - `synth_bass_1`，而不是 synth_bass / sub_bass / electronic_bass
+   - `electric_bass_finger`，而不是 bass / electric_bass
+   - `acoustic_grand_piano`，而不是 grand piano / piano
+   - `electric_piano_1`，而不是 epiano / electric piano
+   - `pad_2_warm`，而不是 pad / warm pad / synth pad
+   - `trumpet` / `trombone` / `french_horn`，而不是 trumpets / horns
+   - `violin` / `cello` / `flute` / `erhu` / `koto`，直接用单数标准名
 
 ## MusicSpec v0.1 示例
 
@@ -47,11 +61,11 @@
     { "section": "outro", "progression": ["C"] }
   ],
   "tracks": [
-    { "id": "melody", "role": "melody", "instrument": "lead_synth", "pattern": "legato", "register": "mid-high", "velocity": 100 },
-    { "id": "piano", "role": "harmony", "instrument": "piano", "pattern": "comping", "register": "mid", "velocity": 80 },
-    { "id": "bass", "role": "bass", "instrument": "bass", "pattern": "roots", "register": "low", "velocity": 90 },
-    { "id": "drums", "role": "drums", "instrument": "drums", "pattern": "four_on_floor", "velocity": 100 },
-    { "id": "pad", "role": "pad", "instrument": "strings", "pattern": "sustained", "register": "mid-low", "velocity": 70 }
+    { "id": "melody", "role": "melody", "instrument": "lead_1_square", "pattern": "legato", "register": "mid-high", "velocity": 100 },
+    { "id": "piano", "role": "harmony", "instrument": "acoustic_grand_piano", "pattern": "comping", "register": "mid", "velocity": 80 },
+    { "id": "bass", "role": "bass", "instrument": "electric_bass_finger", "pattern": "roots", "register": "low", "velocity": 90 },
+    { "id": "drums", "role": "drums", "instrument": "standard_drum_kit", "pattern": "four_on_floor", "velocity": 100 },
+    { "id": "pad", "role": "pad", "instrument": "string_ensemble_1", "pattern": "sustained", "register": "mid-low", "velocity": 70 }
   ],
   "notes": null
 }
