@@ -68,6 +68,20 @@
   env_loader 新增 `gemini -> .gemini.env`；新增 `.gemini.env.example`、`.gitignore` 忽略
   `.gemini.env`；`scripts/test_llm_provider.py` 支持 `--profile gemini` / `--list-models` /
   `--retrieve-model`；新增 `scripts/start-backend-gemini.ps1`）
+- T35：生成链路日志与前端调试信息面板
+  （新增 `RequestIdMiddleware`（纯 ASGI，`X-Request-ID` 请求头优先，响应头 + JSON 响应体注入
+  request_id）；统一错误结构 `{success, request_id, error_code, message, details,
+  error:{code, message, stage, provider, status_code, details}}`，错误码 / 阶段扩充
+  （UNKNOWN_PROVIDER / LLM_HTTP_ERROR / LLM_TIMEOUT / LLM_INVALID_RESPONSE / JSON_PARSE_ERROR /
+  MUSIC_SPEC_VALIDATION_ERROR 等）；`services/api/logging_config.py`（`LOG_LEVEL` 控制，
+  `LLM_DEBUG_LOG_CONTENT` 控制 raw preview）；`packages/llm/trace.py` contextvar 传递 request_id；
+  LLM call logger 增强（request_id / http_status / content_chars / json_parse /
+  raw_response_preview，文件名含 provider + request_id）；生成接口响应新增 request_id /
+  warnings（结构化）/ debug（provider / model / llm_duration_ms / validation_warning_count）；
+  前端 `client.ts` 结构化错误解析（code / stage / requestId / provider / rawBodyPreview，
+  网络错误 vs HTTP 错误 vs JSON 解析错误区分）、新增 `GenerationDebugPanel`（默认折叠、
+  出错自动展开、复制 request_id / 错误摘要、warnings / debug / raw preview 展示）；
+  新增 `test_request_id_middleware.py` / `test_api_error_response.py` / `test_llm_call_logging.py`）
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
@@ -115,9 +129,9 @@
 ## 当前测试与构建结果（2026-08-06 实测）
 
 ```text
-后端：pytest -q → 596 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 439 passed（约 19s）
-慢速集成：pytest -m slow → 157 passed
+后端：pytest -q → 611 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 444 passed（约 24s）
+慢速集成：pytest -m slow → 167 passed
 前端：npm ci → passed（vite 7.3.6）
 前端：npm run build → passed（tsc 无错误）
 前端：npm audit → 0 vulnerabilities

@@ -1,5 +1,7 @@
 """歌曲生成 / 查询 API 集成测试。"""
 
+import json
+
 from fastapi.testclient import TestClient
 
 from packages.llm.factory import get_llm_provider
@@ -17,7 +19,9 @@ def test_default_provider_is_mock():
 def test_health():
     resp = client.get("/api/v1/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["request_id"]
 
 
 def test_generate_and_get_song():
@@ -75,6 +79,21 @@ def test_generated_song_has_bass_track():
     assert resp.status_code == 200
     tracks = resp.json()["music_spec"]["tracks"]
     assert any(t["role"] == "bass" for t in tracks)
+
+
+def test_generate_response_has_debug_metadata():
+    """T35：生成响应包含 request_id / debug / warnings。"""
+    resp = client.post("/api/v1/songs/generate", json={"prompt": "生成一段忧郁空灵的钢琴配乐"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["request_id"]
+    assert data["debug"]["provider"] == "mock"
+    assert data["debug"]["request_id"] == data["request_id"]
+    assert "llm_duration_ms" in data["debug"]
+    assert "validation_warning_count" in data["debug"]
+    assert isinstance(data["warnings"], list)
+    # debug 元数据不应包含 api key
+    assert "api_key" not in json.dumps(data["debug"]).lower()
 
 
 def test_cinematic_prompt_has_strings_and_pad():

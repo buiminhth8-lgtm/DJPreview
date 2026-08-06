@@ -586,3 +586,51 @@ pre {
   line-height: 1.5;
   max-height: 480px;
 }
+
+/* T35：GenerationDebugPanel */
+.debug-panel {
+  margin-top: 12px;
+  background: #0b0f16;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+}
+.debug-panel.status-error { border-color: var(--error, #e5534b); }
+.debug-panel.status-ok { border-color: var(--ok, #3fb950); }
+.debug-panel summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.status-chip { font-size: 11px; padding: 2px 8px; border-radius: 10px; color: #c9d1d9; }
+.status-chip.status-pending { background: #1f6feb; }
+.status-chip.status-ok { background: #238636; }
+.status-chip.status-error { background: #da3633; }
+.debug-title { color: #8b949e; }
+.debug-request-id { margin-left: auto; color: #58a6ff; font-family: monospace; font-size: 11px; }
+.debug-body { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.debug-row { display: flex; align-items: center; gap: 8px; }
+.debug-label { color: #8b949e; width: 150px; flex-shrink: 0; }
+.debug-value { font-family: monospace; word-break: break-all; }
+.copy-btn, .raw-toggle {
+  background: #21262d; color: #c9d1d9; border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 10px; font-size: 11px; cursor: pointer;
+}
+.copy-btn:hover, .raw-toggle:hover { background: #30363d; }
+.debug-error-box { border: 1px solid var(--error, #e5534b); background: rgba(229,83,75,0.08); border-radius: 6px; padding: 8px; }
+.debug-warnings-box { border: 1px solid #d29922; background: rgba(210,153,34,0.08); border-radius: 6px; padding: 8px; }
+.debug-warnings-box ul, .debug-log-box ul { margin: 6px 0 0; padding-left: 16px; }
+.debug-warnings-box li.warning { color: #d29922; }
+.debug-log-box { border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+.log-level { color: #8b949e; margin-right: 4px; font-size: 11px; }
+li.log-warning { color: #d29922; }
+li.log-error { color: #e5534b; }
+.log-code { color: #58a6ff; font-size: 11px; }
+.debug-raw-preview {
+  background: #0d1119; border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px; overflow: auto; max-height: 240px; font-family: monospace; font-size: 11.5px;
+  margin: 6px 0 0;
+}

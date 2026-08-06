@@ -104,11 +104,30 @@ export interface GenerateSongRequest {
   style_strength?: number;
 }
 
+export interface WarningItem {
+  code: string;
+  message: string;
+  stage?: string;
+  severity?: string;
+}
+
+export interface GenerationDebug {
+  provider?: string | null;
+  model?: string | null;
+  llm_duration_ms?: number | null;
+  parse_duration_ms?: number | null;
+  validation_warning_count?: number;
+  request_id?: string | null;
+}
+
 export interface GenerateSongResponse {
   song_id: string;
   music_spec: MusicSpec;
   style_template: StyleTemplateSpec | null;
   validation?: ValidationResult | null;
+  request_id?: string | null;
+  warnings?: WarningItem[];
+  debug?: GenerationDebug | null;
 }
 
 export interface GenerateWithMidiResponse {

@@ -83,11 +83,16 @@ def test_plain_http_exception_fallback():
 
     body, status = asyncio.run(_run())
     assert status == 400
-    assert body == {"error_code": "HTTP_ERROR", "message": "boom", "details": {}}
+    assert body["success"] is False
+    assert body["error_code"] == "HTTP_ERROR"
+    assert body["message"] == "boom"
+    assert body["details"] == {}
+    assert body["error"]["code"] == "HTTP_ERROR"
+    assert body["error"]["stage"] == "unknown"
 
 
 def test_structured_detail_passthrough():
-    """结构化 dict detail 直接透出（不嵌套 detail 字段）。"""
+    """结构化 dict detail 展开为 T35 错误结构（保留旧字段 + 新增 error 对象）。"""
     detail = {
         "error_code": "PROJECT_NOT_FOUND",
         "message": "项目不存在",
@@ -98,7 +103,14 @@ def test_structured_detail_passthrough():
         response = await http_exception_handler(None, HTTPException(status_code=404, detail=detail))
         return json.loads(response.body)
 
-    assert asyncio.run(_run()) == detail
+    body = asyncio.run(_run())
+    assert body["success"] is False
+    assert body["error_code"] == "PROJECT_NOT_FOUND"
+    assert body["message"] == "项目不存在"
+    assert body["details"] == {"song_id": "x"}
+    assert body["error"]["code"] == "PROJECT_NOT_FOUND"
+    assert body["error"]["message"] == "项目不存在"
+    assert body["error"]["details"] == {"song_id": "x"}
 
 
 def test_invalid_eval_case_selection():

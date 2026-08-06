@@ -13,6 +13,7 @@ import AnalysisPanel from "./AnalysisPanel";
 import EditPanel from "./EditPanel";
 import EvaluationPanel from "./EvaluationPanel";
 import GeneratePanel from "./GeneratePanel";
+import GenerationDebugPanel from "./GenerationDebugPanel";
 import MixerPanel from "./MixerPanel";
 import PlayerPanel from "./PlayerPanel";
 import ProjectPanel from "./ProjectPanel";
@@ -92,6 +93,14 @@ export default function WorkspaceLayout({
             }}
             onError={songProject.setError}
             onGenerate={onGenerate}
+          />
+          <GenerationDebugPanel
+            status={songProject.generationStatus}
+            log={songProject.generationLog}
+            requestId={songProject.generationRequestId}
+            debug={songProject.generationDebug}
+            warnings={songProject.generationWarnings}
+            errorInfo={songProject.generationErrorInfo}
           />
           {hasSong && songId && spec && (
             <>

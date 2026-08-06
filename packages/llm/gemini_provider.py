@@ -102,16 +102,16 @@ class GeminiProvider(OpenAICompatibleProvider):
 
     # ---------- HTTP：response_format fallback ----------
 
-    def _chat_raw(self, request: dict) -> str:
+    def _chat_raw_with_status(self, request: dict) -> tuple[str, int | None]:
         """发送 chat/completions；若启用 response_format 且被服务拒绝（HTTP 4xx），
         fallback 到去掉 response_format 的普通 chat completions。"""
         if self.use_response_format and request.get("response_format"):
             fallback_request = dict(request)
             fallback_request.pop("response_format", None)
             try:
-                return super()._chat_raw(request)
+                return super()._chat_raw_with_status(request)
             except LLMAPIError as exc:
                 if exc.status_code not in (400, 422, 404):
                     raise
-                return super()._chat_raw(fallback_request)
-        return super()._chat_raw(request)
+                return super()._chat_raw_with_status(fallback_request)
+        return super()._chat_raw_with_status(request)

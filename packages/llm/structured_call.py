@@ -7,6 +7,7 @@ from typing import Callable, Type, TypeVar
 from pydantic import BaseModel, ValidationError
 
 from packages.llm.json_utils import extract_json_object
+from packages.llm.trace import llm_logger, log_stage
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -52,9 +53,16 @@ def parse_structured_response(
     for attempt in range(retries + 1):
         try:
             data = extract_json_object(current)
+            log_stage(llm_logger, "json.parse.success", attempt=attempt + 1)
             return response_model.model_validate(data)
         except (ValueError, ValidationError) as exc:
             last_error = exc
+            log_stage(
+                llm_logger,
+                "json.parse.failed",
+                attempt=attempt + 1,
+                error=str(exc)[:500],
+            )
             if attempt >= retries or repair_fn is None:
                 break
             try:

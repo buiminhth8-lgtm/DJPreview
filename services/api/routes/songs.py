@@ -3,10 +3,12 @@
 import logging
 import os
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, Query, UploadFile
+from fastapi import APIRouter, File, Form, Query, Request, UploadFile
+from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse
 
 from packages.llm.factory import get_llm_provider
@@ -15,6 +17,7 @@ from packages.llm.structured_call import (
     LLMConfigurationError,
     LLMOutputError,
 )
+from packages.llm.trace import api_logger, get_request_id, log_stage
 from packages.music_core.audio.soundfont_manager import get_soundfont, resolve_default_soundfont
 from packages.music_core.analysis.midi_parser import parse_midi_to_notes
 from packages.music_core.analysis.piano_roll import build_piano_roll_data
@@ -58,10 +61,15 @@ from services.api.errors import (
     internal_error,
     invalid_bundle,
     invalid_request,
+    json_parse_error,
     llm_error,
+    llm_http_error,
+    llm_invalid_response,
+    llm_timeout,
     project_not_found,
     render_failed,
     spec_validation_failed,
+    unknown_provider,
     version_not_found,
 )
 from services.api.schemas.api_models import (
@@ -78,6 +86,7 @@ from services.api.schemas.api_models import (
     GenerateSongResponse,
     GenerateWithAudioResponse,
     GenerateWithMidiResponse,
+    GenerationDebug,
     GetSongResponse,
     HealthResponse,
     MidiAssetInfo,
@@ -100,6 +109,7 @@ from services.api.schemas.api_models import (
     VersionDetailResponse,
     VersionInfo,
     VersionsResponse,
+    WarningItem,
 )
 from services.api.storage.project_store import (
     AUDIO_FILENAME,
@@ -137,6 +147,54 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10MB
+
+
+def _map_llm_exception(exc: Exception, provider: str | None = None) -> HTTPException:
+    """把 LLM 层异常映射为带 stage / code 的统一 HTTP 错误。"""
+    if isinstance(exc, LLMConfigurationError):
+        return llm_error("模型配置错误", details={"reason": str(exc)}, stage="provider_selection", provider=provider)
+    if isinstance(exc, LLMAPIError):
+        if exc.status_code in (400, 401, 403, 404, 429, 500, 502, 503):
+            return llm_http_error(
+                str(exc),
+                details={"provider": provider, "upstream_status": exc.status_code},
+                status_code=502,
+                provider=provider,
+            )
+        if "超时" in str(exc):
+            return llm_timeout(str(exc), details={"provider": provider}, provider=provider)
+        return llm_error(str(exc), details={"provider": provider}, provider=provider)
+    if isinstance(exc, LLMOutputError):
+        return llm_invalid_response(
+            f"模型输出解析失败：{exc}",
+            details={"task_name": exc.task_name, "provider": provider},
+            provider=provider,
+        )
+    return llm_error(str(exc), details={"provider": provider}, provider=provider)
+
+
+def _run_generate_llm(req: GenerateSongRequest) -> tuple[MusicSpec, StyleTemplateSpec | None, float, str, str | None]:
+    """执行生成 LLM 链路并记录阶段日志；返回 (spec, style_template, llm_duration_ms, provider, model)。"""
+    provider = get_llm_provider()
+    log_stage(api_logger, "generate_music_spec.start", provider=provider.name)
+    started = time.monotonic()
+    spec = generate_music_spec_from_prompt(req.prompt)
+    duration_ms = int((time.monotonic() - started) * 1000)
+    style_template = None
+    if req.style_template_id:
+        style_template = get_style_template(req.style_template_id)
+        spec = apply_style_template_to_music_spec(spec, style_template, req.style_strength)
+    return spec, style_template, duration_ms, provider.name, getattr(provider, "model", None)
+
+
+def _validation_warnings(validation) -> list[WarningItem]:
+    """把 ValidationResult.warnings 转为结构化 WarningItem。"""
+    if validation is None:
+        return []
+    return [
+        WarningItem(code=item.code, message=item.message, stage="music_spec_validation", severity="warning")
+        for item in validation.warnings
+    ]
 
 
 def _project_dir_for(song_id: str) -> Path:
@@ -324,28 +382,41 @@ def health() -> HealthResponse:
 # ---------- 生成 ----------
 
 @router.post("/songs/generate", response_model=GenerateSongResponse, summary="生成音乐方案（支持风格模板）")
-def generate_song(req: GenerateSongRequest) -> GenerateSongResponse:
+def generate_song(req: GenerateSongRequest, request: Request) -> GenerateSongResponse:
+    request_id = getattr(request.state, "request_id", "") or get_request_id()
     try:
-        spec = generate_music_spec_from_prompt(req.prompt)
-        style_template = None
-        if req.style_template_id:
-            style_template = get_style_template(req.style_template_id)
-            spec = apply_style_template_to_music_spec(spec, style_template, req.style_strength)
+        spec, style_template, llm_duration_ms, provider_name, provider_model = _run_generate_llm(req)
     except LLMOutputError as exc:
-        raise llm_error("模型输出解析失败", details={"task_name": exc.task_name}) from None
+        log_stage(api_logger, "generate_music_spec.failed", error_stage="llm_response_parse", error=str(exc))
+        raise _map_llm_exception(exc) from None
     except (LLMConfigurationError, LLMAPIError) as exc:
-        raise llm_error("模型调用失败", details={"reason": str(exc)}) from None
+        log_stage(api_logger, "generate_music_spec.failed", error_stage="llm_call", error=str(exc))
+        raise _map_llm_exception(exc) from None
     except ValueError as exc:
-        raise spec_validation_failed(f"生成失败：{exc}") from None
+        log_stage(api_logger, "generate_music_spec.failed", error_stage="music_spec_validation", error=str(exc))
+        raise spec_validation_failed(f"生成失败：{exc}", stage="music_spec_validation") from None
     except RuntimeError as exc:
+        log_stage(api_logger, "generate_music_spec.failed", error_stage="llm_call", error=str(exc))
         raise llm_error(f"LLM 服务错误：{exc}") from None
     validation = validate_music_spec_semantics(spec)
+    log_stage(api_logger, "music_spec.validation.warning", count=len(validation.warnings))
     song_id = create_project(spec)
+    log_stage(api_logger, "generate_music_spec.success", song_id=song_id)
+    debug = GenerationDebug(
+        provider=provider_name,
+        model=provider_model,
+        llm_duration_ms=llm_duration_ms,
+        validation_warning_count=len(validation.warnings),
+        request_id=request_id,
+    )
     return GenerateSongResponse(
         song_id=song_id,
         music_spec=spec,
         style_template=style_template,
         validation=validation,
+        request_id=request_id,
+        warnings=_validation_warnings(validation),
+        debug=debug,
     )
 
 

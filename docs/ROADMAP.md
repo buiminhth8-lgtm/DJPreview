@@ -375,6 +375,42 @@
 - 测试：新增 `test_gemini_provider.py`，更新 factory / env_loader / script / openai_compatible 测试；
   全量 pytest 596 passed（fast 439 / slow 157）
 
+## T35 生成链路日志与前端调试信息面板 ✅
+
+- 目标：生成 MusicSpec 链路的可观测性——request_id 追踪、结构化错误、阶段日志、
+  前端调试面板
+- 优先级：P1
+- 依赖：T32 / T33 / T34
+- 实现：
+  - `services/api/middleware/request_id.py`：纯 ASGI RequestIdMiddleware，`X-Request-ID`
+    请求头优先，写 scope.state + contextvar，响应头与 JSON 响应体注入 request_id
+  - `services/api/main.py`：注册中间件；HTTPException handler 展开统一错误结构
+    `{success, request_id, error_code, message, details, error:{code,message,stage,provider,status_code,details}}`；
+    新增兜底 500 handler（traceback 记录不返回前端）
+  - `services/api/errors.py`：扩充错误码与阶段（UNKNOWN_PROVIDER / LLM_HTTP_ERROR /
+    LLM_TIMEOUT / LLM_INVALID_RESPONSE / JSON_PARSE_ERROR / MUSIC_SPEC_VALIDATION_ERROR；
+    request_validation / provider_selection / llm_call / llm_response_parse / json_repair /
+    music_spec_validation 等）
+  - `services/api/logging_config.py`：`LOG_LEVEL` 控制日志级别；`LLM_DEBUG_LOG_CONTENT`
+    控制 raw response preview
+  - `packages/llm/trace.py`：request_id contextvar + 阶段日志 helper（`[request_id=...]`）
+  - `packages/llm/openai_compatible_provider.py`：generate_structured 记录 llm.call.start /
+    success / json.parse / repair 阶段；call log 增加 request_id / http_status / content_chars /
+    json_parse / raw_response_preview；`_loggable_request` / `_loggable_response` 默认不含完整内容
+  - `packages/llm/call_logger.py` + `models.py`：日志文件命名含 provider + request_id；
+    记录新增字段
+  - 生成接口（songs.py）：response 增加 request_id / warnings（WarningItem）/ debug
+    （GenerationDebug）；LLM 异常映射为带 stage 的错误
+  - 前端 `client.ts`：结构化错误解析（ApiRequestError 含 code/stage/provider/requestId/
+    details/rawBodyPreview；网络 vs HTTP vs JSON 解析错误区分）
+  - 前端新增 `components/workspace/GenerationDebugPanel.tsx`：默认折叠、出错自动展开、
+    复制 request_id / 错误摘要、warnings / debug / raw preview 展示
+- 验收：request_id 贯通响应头 + 响应体 + 错误 + 后端日志；错误含 code/stage；
+  前端不再只显示 Failed to fetch；API key 不泄露；Mock 流程不受影响
+- 测试：新增 `test_request_id_middleware.py` / `test_api_error_response.py` /
+  `test_llm_call_logging.py`，更新 generate_song_api / error_response 测试；
+  全量 pytest 611 passed（fast 444 / slow 167）
+
 ## 下一轮建议
 
 1. 文档 / 测试分层：拆分慢速集成测试（如音频渲染 / 全链路 API），缩短全量回归时间。

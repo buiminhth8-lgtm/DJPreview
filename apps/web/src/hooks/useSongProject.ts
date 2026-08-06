@@ -1,10 +1,37 @@
-// useSongProject：歌曲 / 项目核心状态（生成、读取、编辑、重置）。
+// useSongProject：歌曲 / 项目核心状态（生成、读取、编辑、重置）+ 生成调试日志（T35）。
 
 import { useCallback, useState } from "react";
 
+import { ApiRequestError } from "../api/client";
 import { editSong, generateMusicSpec, getSong } from "../api/songApi";
-import type { EditSongResponse, GenerateSongResponse, MusicSpec } from "../api/types";
+import type {
+  EditSongResponse,
+  GenerateSongResponse,
+  GenerationDebug,
+  MusicSpec,
+  WarningItem,
+} from "../api/types";
 import { getErrorMessage } from "./error";
+
+export type GenerationStatus = "idle" | "sending" | "success" | "failed";
+
+export interface GenerationLogEntry {
+  level: "info" | "warning" | "error";
+  message: string;
+  requestId?: string;
+  code?: string;
+  stage?: string;
+}
+
+export interface GenerationErrorInfo {
+  message: string;
+  code?: string;
+  stage?: string;
+  status?: number;
+  requestId?: string;
+  provider?: string;
+  rawBodyPreview?: string;
+}
 
 export function useSongProject() {
   const [songId, setSongId] = useState<string | null>(null);
@@ -16,6 +43,27 @@ export function useSongProject() {
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // T35：生成调试状态
+  const [generationStatus, setGenerationStatus] = useState<GenerationStatus>("idle");
+  const [generationLog, setGenerationLog] = useState<GenerationLogEntry[]>([]);
+  const [generationRequestId, setGenerationRequestId] = useState<string | null>(null);
+  const [generationDebug, setGenerationDebug] = useState<GenerationDebug | null>(null);
+  const [generationWarnings, setGenerationWarnings] = useState<WarningItem[]>([]);
+  const [generationErrorInfo, setGenerationErrorInfo] = useState<GenerationErrorInfo | null>(null);
+
+  const appendLog = useCallback((entry: GenerationLogEntry) => {
+    setGenerationLog((prev) => [...prev, entry]);
+  }, []);
+
+  const resetGenerationDebug = useCallback(() => {
+    setGenerationStatus("sending");
+    setGenerationLog([{ level: "info", message: "Sending generate MusicSpec request" }]);
+    setGenerationRequestId(null);
+    setGenerationDebug(null);
+    setGenerationWarnings([]);
+    setGenerationErrorInfo(null);
+  }, []);
+
   const resetProject = useCallback(() => {
     setSongId(null);
     setMusicSpec(null);
@@ -23,6 +71,12 @@ export function useSongProject() {
     setPrompt("");
     setEditInstruction("");
     setError(null);
+    setGenerationStatus("idle");
+    setGenerationLog([]);
+    setGenerationRequestId(null);
+    setGenerationDebug(null);
+    setGenerationWarnings([]);
+    setGenerationErrorInfo(null);
   }, []);
 
   const generate = useCallback(
@@ -37,20 +91,40 @@ export function useSongProject() {
       }
       setLoadingSpec(true);
       setError(null);
+      resetGenerationDebug();
       try {
         const result = await generateMusicSpec(promptText.trim(), styleTemplateId || null, styleStrength);
         setSongId(result.song_id);
         setMusicSpec(result.music_spec);
         setValidation(result.validation ?? null);
+        setGenerationStatus("success");
+        setGenerationRequestId(result.request_id ?? null);
+        setGenerationDebug(result.debug ?? null);
+        setGenerationWarnings(result.warnings ?? []);
+        appendLog({ level: "info", message: "API response received", requestId: result.request_id ?? undefined });
+        for (const w of result.warnings ?? []) {
+          appendLog({ level: "warning", message: `MusicSpec validation warning: ${w.message}`, code: w.code });
+        }
         return result;
       } catch (e) {
+        const info = toGenerationErrorInfo(e);
+        setGenerationStatus("failed");
+        setGenerationErrorInfo(info);
+        setGenerationRequestId(info.requestId ?? null);
+        appendLog({
+          level: "error",
+          message: info.message,
+          code: info.code,
+          stage: info.stage,
+          requestId: info.requestId,
+        });
         setError(getErrorMessage(e));
         return null;
       } finally {
         setLoadingSpec(false);
       }
     },
-    [],
+    [appendLog, resetGenerationDebug],
   );
 
   const loadSong = useCallback(async (newSongId: string): Promise<MusicSpec | null> => {
@@ -109,5 +183,27 @@ export function useSongProject() {
     loadSong,
     edit,
     resetProject,
+    // T35
+    generationStatus,
+    generationLog,
+    generationRequestId,
+    generationDebug,
+    generationWarnings,
+    generationErrorInfo,
   };
+}
+
+export function toGenerationErrorInfo(e: unknown): GenerationErrorInfo {
+  if (e instanceof ApiRequestError) {
+    return {
+      message: e.message,
+      code: e.code,
+      stage: e.stage,
+      status: e.status,
+      requestId: e.requestId,
+      provider: e.provider,
+      rawBodyPreview: e.rawBodyPreview,
+    };
+  }
+  return { message: getErrorMessage(e) };
 }

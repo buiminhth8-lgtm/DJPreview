@@ -224,3 +224,11 @@ python scripts/demo_t28_smoke.py --provider deepseek   # 仅显式选择
    系统会 fallback 到普通 JSON extract / repair；Gemini 输出仍需经过
    MusicSpec normalize / repair / validation，不要直接信任为可作曲结果。
 5. DeepSeek / Gemini 仍需真实 API Key；请勿提交密钥。
+
+## 生成链路可观测性（T35）
+
+- 所有请求带 `request_id`（响应头 `X-Request-ID` + JSON 响应体），错误响应含 `error.stage`。
+- 后端阶段日志以 `[request_id=...]` 前缀输出；复制前端显示的 request_id 即可定位后端日志。
+- LLM 调用日志（`data/llm_calls/`）文件名含 provider + request_id，默认不保存完整
+  prompt / response；`LLM_DEBUG_LOG_CONTENT=true` 时保留前 2000 字符 raw preview。
+- API key 永不显示在前端、不出现在普通日志中。

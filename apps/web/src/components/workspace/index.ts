@@ -12,3 +12,4 @@ export { default as ReferencePanel } from "./ReferencePanel";
 export { default as EvaluationPanel } from "./EvaluationPanel";
 export { default as ProjectPanel } from "./ProjectPanel";
 export { default as StatusMessage } from "./StatusMessage";
+export { default as GenerationDebugPanel } from "./GenerationDebugPanel";

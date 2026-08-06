@@ -38,11 +38,34 @@ class GenerateSongRequest(BaseModel):
         return stripped
 
 
+class WarningItem(BaseModel):
+    """结构化 warning（T35）。"""
+
+    code: str = Field(..., description="warning code，如 UNCOVERED_BARS")
+    message: str = Field(..., description="人类可读描述")
+    stage: str = Field(default="music_spec_validation", description="产生阶段")
+    severity: str = Field(default="warning", description="warning / error")
+
+
+class GenerationDebug(BaseModel):
+    """生成调试元数据（T35，不含 API key）。"""
+
+    provider: str | None = None
+    model: str | None = None
+    llm_duration_ms: int | None = None
+    parse_duration_ms: int | None = None
+    validation_warning_count: int = 0
+    request_id: str | None = None
+
+
 class GenerateSongResponse(BaseModel):
     song_id: str
     music_spec: MusicSpec
     style_template: StyleTemplateSpec | None = None
     validation: ValidationResult | None = None
+    request_id: str | None = None
+    warnings: list[WarningItem] = Field(default_factory=list)
+    debug: GenerationDebug | None = None
 
 
 class GetSongResponse(BaseModel):

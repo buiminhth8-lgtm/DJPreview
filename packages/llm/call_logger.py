@@ -1,7 +1,9 @@
 """LLM 调用日志记录器。
 
-有 project_id：{base_dir}/{project_id}/llm_calls/{timestamp}_{task_name}.json
-无 project_id：{base_dir.parent}/llm_calls/{timestamp}_{task_name}.json
+有 project_id：{base_dir}/{project_id}/llm_calls/{timestamp}_{task}_{provider}_{request_id}.json
+无 project_id：{base_dir.parent}/llm_calls/{timestamp}_{task}_{provider}_{request_id}.json
+
+日志自动剔除 API Key / Authorization；raw response preview 受 LLM_DEBUG_LOG_CONTENT 控制。
 """
 
 from __future__ import annotations
@@ -64,11 +66,21 @@ class LLMCallLogger:
         parsed: dict | None = None,
         error: str | None = None,
         latency_ms: int | None = None,
+        request_id: str | None = None,
+        http_status: int | None = None,
+        content_chars: int | None = None,
+        json_parse: str | None = None,
+        validation_warning_count: int | None = None,
+        raw_response_preview: str | None = None,
     ) -> Path | None:
-        """记录一次调用；成功返回日志路径，失败返回 None（不影响主流程）。"""
+        """记录一次调用；成功返回日志路径，失败返回 None（不影响主流程）。
+
+        raw_response_preview 由调用方根据 LLM_DEBUG_LOG_CONTENT 决定是否传入。
+        """
         try:
             record = LLMCallRecord(
                 project_id=project_id,
+                request_id=request_id,
                 task_name=task_name,
                 provider=provider,
                 model=model,
@@ -77,12 +89,19 @@ class LLMCallLogger:
                 parsed=_sanitize(parsed),
                 error=error,
                 latency_ms=latency_ms,
+                http_status=http_status,
+                content_chars=content_chars,
+                json_parse=json_parse,
+                validation_warning_count=validation_warning_count,
+                raw_response_preview=raw_response_preview,
             )
             target_dir = self._target_dir(project_id)
             target_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
             safe_task = _FILENAME_SAFE.sub("_", task_name) or "llm_call"
-            path = target_dir / f"{timestamp}_{safe_task}.json"
+            safe_provider = _FILENAME_SAFE.sub("_", provider) or "unknown"
+            safe_rid = _FILENAME_SAFE.sub("_", request_id or "") or "noreq"
+            path = target_dir / f"{timestamp}_{safe_task}_{safe_provider}_{safe_rid}.json"
             path.write_text(
                 json.dumps(record.model_dump(mode="json"), ensure_ascii=False, indent=2),
                 encoding="utf-8",

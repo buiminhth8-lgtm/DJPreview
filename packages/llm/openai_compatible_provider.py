@@ -33,6 +33,7 @@ from packages.llm.structured_call import (
     LLMOutputError,
     parse_structured_response,
 )
+from packages.llm.trace import get_request_id, llm_logger, log_stage
 from services.api.schemas.music_edit_spec import MusicEditSpec
 from services.api.schemas.music_spec import MusicSpec
 
@@ -142,22 +143,37 @@ class OpenAICompatibleProvider(LLMProvider):
             **self._request_extra(),
         }
 
+        request_id = get_request_id()
+        log_stage(llm_logger, "llm.call.start", provider=self.name, model=self.model)
         started = time.monotonic()
+        http_status: int | None = None
         try:
-            raw = self._chat_raw(request)
+            raw, http_status = self._chat_raw_with_status(request)
         except Exception:
             latency_ms = int((time.monotonic() - started) * 1000)
             self.call_logger.log_call(
                 project_id=project_id,
+                request_id=request_id,
                 task_name=task_name,
                 provider=self.name,
                 model=self.model,
-                request=request,
+                request=self._loggable_request(request),
                 error="API 调用失败",
                 latency_ms=latency_ms,
+                http_status=http_status,
             )
+            log_stage(llm_logger, "llm.call.failed", error="API 调用失败", duration_ms=latency_ms)
             raise
+
         latency_ms = int((time.monotonic() - started) * 1000)
+        content_chars = len(raw or "")
+        log_stage(
+            llm_logger,
+            "llm.call.success",
+            duration_ms=latency_ms,
+            content_chars=content_chars,
+            http_status=http_status,
+        )
 
         def repair(raw_output: str, error_text: str) -> str:
             repair_system = self.prompt_registry.get_prompt("json_repair")
@@ -176,15 +192,21 @@ class OpenAICompatibleProvider(LLMProvider):
                 "temperature": 0.2,
                 **self._request_extra(),
             }
-            repaired = self._chat_raw(repair_request)
+            log_stage(llm_logger, "json.repair.start")
+            repaired, repair_status = self._chat_raw_with_status(repair_request)
+            log_stage(llm_logger, "json.repair.success", http_status=repair_status)
             self.call_logger.log_call(
                 project_id=project_id,
+                request_id=request_id,
                 task_name=f"{task_name}/repair",
                 provider=self.name,
                 model=self.model,
-                request=repair_request,
-                response={"content": repaired[:2000]},
+                request=self._loggable_request(repair_request),
+                response=self._loggable_response(repaired),
                 latency_ms=None,
+                http_status=repair_status,
+                content_chars=len(repaired or ""),
+                json_parse="repaired",
             )
             return repaired
 
@@ -199,42 +221,71 @@ class OpenAICompatibleProvider(LLMProvider):
         except LLMOutputError as exc:
             self.call_logger.log_call(
                 project_id=project_id,
+                request_id=request_id,
                 task_name=task_name,
                 provider=self.name,
                 model=self.model,
-                request=request,
-                response={"content": raw[:2000]},
+                request=self._loggable_request(request),
+                response=self._loggable_response(raw),
                 error=str(exc),
                 latency_ms=latency_ms,
+                http_status=http_status,
+                content_chars=content_chars,
+                json_parse="failed",
+                raw_response_preview=self._raw_preview(raw),
             )
+            log_stage(llm_logger, "generate_structured.failed", error_stage="llm_response_parse")
             raise
 
         self.call_logger.log_call(
             project_id=project_id,
+            request_id=request_id,
             task_name=task_name,
             provider=self.name,
             model=self.model,
-            request=request,
-            response={"content": raw[:2000]},
+            request=self._loggable_request(request),
+            response=self._loggable_response(raw),
             parsed=result.model_dump(mode="json"),
             latency_ms=latency_ms,
+            http_status=http_status,
+            content_chars=content_chars,
+            json_parse="success",
+            raw_response_preview=self._raw_preview(raw),
         )
+        log_stage(llm_logger, "generate_structured.success")
         return result
 
-    def _request_extra(self) -> dict:
-        """请求体额外字段（子类可覆盖，如 response_format）。"""
-        return {}
+    def _raw_preview(self, content: str) -> str | None:
+        """raw response preview（仅 LLM_DEBUG_LOG_CONTENT=true 时返回，最长 2000 字符）。"""
+        from services.api.logging_config import get_llm_debug_log_content
 
-    # ---------- HTTP 层 ----------
+        if get_llm_debug_log_content():
+            return (content or "")[:2000]
+        return None
 
-    def _headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        return headers
+    def _loggable_request(self, request: dict) -> dict:
+        """构造日志用请求摘要（不含完整 prompt；LLM_DEBUG_LOG_CONTENT 时保留消息）。"""
+        from services.api.logging_config import get_llm_debug_log_content
 
-    def _chat_raw(self, request: dict) -> str:
-        """发送 Chat Completions 请求，返回 message.content；失败抛 LLMAPIError。"""
+        if get_llm_debug_log_content():
+            return request
+        return {
+            "model": request.get("model"),
+            "messages_count": len(request.get("messages", [])),
+            "temperature": request.get("temperature"),
+            "debug_content_disabled": True,
+        }
+
+    def _loggable_response(self, content: str) -> dict | None:
+        """构造日志用响应摘要（默认不含原文；LLM_DEBUG_LOG_CONTENT 时保留前 2000 字符）。"""
+        from services.api.logging_config import get_llm_debug_log_content
+
+        if get_llm_debug_log_content():
+            return {"content": (content or "")[:2000]}
+        return {"content_chars": len(content or ""), "debug_content_disabled": True}
+
+    def _chat_raw_with_status(self, request: dict) -> tuple[str, int | None]:
+        """发送请求并返回 (content, http_status)；失败抛 LLMAPIError。"""
         try:
             with httpx.Client(timeout=self.timeout, transport=self._transport) as client:
                 resp = client.post(
@@ -242,7 +293,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 )
                 resp.raise_for_status()
                 data = resp.json()
-            return data["choices"][0]["message"]["content"]
+            return data["choices"][0]["message"]["content"], resp.status_code
         except httpx.HTTPStatusError as exc:
             raise LLMAPIError(
                 f"{self.display_name} API 请求失败（HTTP {exc.response.status_code}）："
@@ -259,6 +310,23 @@ class OpenAICompatibleProvider(LLMProvider):
             raise LLMAPIError(f"{self.display_name} API 网络错误：{exc}") from exc
         except (KeyError, IndexError, ValueError) as exc:
             raise LLMAPIError(f"{self.display_name} API 返回格式异常（invalid response）：{exc}") from exc
+
+    def _request_extra(self) -> dict:
+        """请求体额外字段（子类可覆盖，如 response_format）。"""
+        return {}
+
+    # ---------- HTTP 层 ----------
+
+    def _headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+
+    def _chat_raw(self, request: dict) -> str:
+        """发送 Chat Completions 请求，返回 message.content；失败抛 LLMAPIError。"""
+        content, _ = self._chat_raw_with_status(request)
+        return content
 
     def fetch_models(self) -> list[str]:
         """调用 {base_url}/models（如服务支持）返回模型 id 列表；失败抛 LLMAPIError。"""

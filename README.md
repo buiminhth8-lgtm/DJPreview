@@ -24,6 +24,8 @@
 - Quality Report（结构 / 轨道 / 音域 / 密度 / 和声 / 混音诊断，评分 0-100）
 - 自动优化编曲（保守规则优化，创建新版本）
 - 风格模板库（8 个内置模板）
+- 生成链路可观测性（T35）：request_id 中间件、统一错误结构（code/stage）、
+  后端阶段日志、LLM 调用日志增强（含 request_id）、前端生成调试面板
 - 模板真实影响作曲：instrument / pattern / harmony / seed / melody density / drums / bass groove 均随模板变化；
   同 prompt 切换 lo-fi / game battle / rock / ambient / cinematic 会生成明显不同的 MusicSpec 与 MIDI，
   MockProvider 下即可验证（无需 DeepSeek）。
@@ -284,6 +286,53 @@ http://127.0.0.1:5173
 .\scripts\start-backend-lmstudio.ps1 -Port 8010
 .\scripts\start-backend-mock.ps1 -NoReload
 ```
+
+## 生成链路调试与可观测性（T35）
+
+生成 MusicSpec 时，前端会显示调试信息面板，后端日志可用 `request_id` 追踪同一次请求。
+
+### 核心能力
+
+1. **request_id**：每个请求生成 `request_id`（优先复用 `X-Request-ID` 请求头），
+   写入响应头 `X-Request-ID` 与所有 JSON 响应体；错误响应也包含 `request_id`。
+2. **统一错误结构**：错误响应为
+   `{ success: false, request_id, error_code, message, details, error: { code, message, stage, provider, status_code, details } }`；
+   `error.stage` 支持 request_validation / provider_selection / llm_call /
+   llm_response_parse / json_repair / music_spec_validation 等。
+3. **后端阶段日志**：`[request_id=...]` 前缀输出 generate_music_spec.start /
+   llm.call.start / llm.call.success / json.parse.success / music_spec.validation.warning /
+   generate_music_spec.success 等阶段。
+4. **LLM 调用日志**：`data/llm_calls/` 继续复用，文件名含 provider + request_id；
+   默认不保存完整 prompt / response；`LLM_DEBUG_LOG_CONTENT=true` 时保留 raw response
+   preview（前 2000 字符）。
+5. **生成响应 debug 元数据**：`debug: { provider, model, llm_duration_ms, validation_warning_count, request_id }`；
+   `warnings: [{ code, message, stage, severity }]` 结构化输出。
+
+### 前端调试面板
+
+生成面板下方显示「生成调试」折叠区：
+
+- 默认折叠；出错时自动展开。
+- 展示 request_id（可复制）、provider、model、llm_duration_ms、validation warnings、
+  错误 code / stage / message、阶段日志与可展开的 raw preview。
+- 错误信息不再只是 `Failed to fetch`，会解析结构化 `error.code` / `error.stage`。
+- 不显示 API key / Authorization。
+
+### 后端日志排查
+
+```bash
+# 前端出错时复制 request_id，然后在后端日志中搜索：
+#   [request_id=<复制的内容>] ...
+LOG_LEVEL=INFO uvicorn services.api.main:app --reload
+```
+
+### 调试原始 LLM 输出
+
+```env
+LLM_DEBUG_LOG_CONTENT=true
+```
+
+> 建议仅在本地调试开启；生产环境保持 `false`，避免完整 prompt / response 落盘。
 
 ### 开发环境推荐默认
 
@@ -761,8 +810,8 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（596 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 439 passed（约 19s）
+后端测试：pytest -q passed（611 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 444 passed（约 24s）
 前端依赖：npm ci passed（vite 7.3.6）
 前端构建：npm run build passed（tsc + vite）
 前端安全：npm audit 0 vulnerabilities
