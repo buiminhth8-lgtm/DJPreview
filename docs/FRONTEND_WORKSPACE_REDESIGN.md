@@ -241,6 +241,32 @@ useAudioAssets/useVersions）均有 `if (!songId) return null` 守卫，**不会
 - 验收标准：基础组件可在任意面板复用；`npm run build` 通过。
 - 建议 commit message：`feat(frontend): add ui primitives and design variables`
 
+#### T38-B 已落地（完成）
+
+已新增 UI primitives（`apps/web/src/components/ui/`，不依赖业务数据，均可独立复用）：
+
+- `SectionCard.tsx` — 工作台模块统一卡片容器（title/description/eyebrow/badge/actions/compact/muted）
+- `PanelHeader.tsx` — 模块头部（title/description/eyebrow/badge/actions），可被 SectionCard 复用
+- `EmptyState.tsx` — 无数据占位（半透明内框 + 虚线边框 + 图标 + 可选 action）
+- `StatusBadge.tsx` — 状态徽章（neutral/success/warning/danger/info/primary）
+- `ActionButton.tsx` — 带 loading 与 disabledReason（title 提示）的按钮（primary/secondary/ghost/danger/success）
+- `ButtonRow.tsx` — 按钮排列（left/right/between + wrap）
+- `KeyValueGrid.tsx` — 键值网格（2/3/4 列，空值显示 fallback）
+- `InlineNotice.tsx` — 内联提示（info/success/warning/danger）
+- `LoadingState.tsx` — 加载占位（CSS spinner，无第三方库）
+- `ErrorState.tsx` — API 错误展示（title/message/code/requestId/action）
+- `index.ts` — barrel export 统一导出
+
+新增设计变量与样式：
+
+- `apps/web/src/styles/design-tokens.css` — `--workspace-*` 设计 token（背景/表面/文本/品牌色/
+  状态色/圆角/间距/阴影），与现有 `styles.css` 的 `:root` 变量不冲突
+- `apps/web/src/styles/workspace-ui.css` — 全部 `ui-*` 类名（section-card/panel-header/empty-state/
+  status-badge/action-button/button-row/key-value-grid/inline-notice/loading-state/error-state + 768px 响应式）
+- `main.tsx` 引入两个新 CSS 文件
+
+本阶段未接入现有页面（方案 A），后续 T38-C 将基于这些组件实现瀑布流骨架。
+
 ### T38-C：重构 Workspace 瀑布流骨架
 - 目标：把 `WorkspaceLayout` 从双列 grid 改为单列瀑布流（保留右侧分析聚合可选），
   所有段常驻渲染。

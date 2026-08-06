@@ -1,0 +1,45 @@
+/* T38-B：工作台设计变量（design tokens）。
+
+深色音乐工作台风格。使用 `--workspace-*` 前缀避免与现有 styles.css 变量冲突。
+所有组件类名使用 `.ui-*` 前缀，避免污染现有页面。 */
+:root {
+  /* 背景 / 表面 */
+  --workspace-bg: #0b1020;
+  --workspace-bg-soft: #101827;
+  --workspace-surface: rgba(255, 255, 255, 0.06);
+  --workspace-surface-strong: rgba(255, 255, 255, 0.1);
+  --workspace-border: rgba(255, 255, 255, 0.12);
+  --workspace-border-strong: rgba(255, 255, 255, 0.2);
+
+  /* 文本 */
+  --workspace-text: #f8fafc;
+  --workspace-text-muted: #94a3b8;
+  --workspace-text-dim: #64748b;
+
+  /* 品牌色 */
+  --workspace-primary: #8b5cf6;
+  --workspace-primary-strong: #7c3aed;
+  --workspace-accent: #06b6d4;
+
+  /* 状态色 */
+  --workspace-success: #22c55e;
+  --workspace-warning: #f59e0b;
+  --workspace-danger: #ef4444;
+  --workspace-info: #38bdf8;
+
+  /* 圆角 */
+  --workspace-radius-sm: 8px;
+  --workspace-radius-md: 12px;
+  --workspace-radius-lg: 18px;
+  --workspace-radius-xl: 24px;
+
+  /* 间距 */
+  --workspace-gap-xs: 6px;
+  --workspace-gap-sm: 10px;
+  --workspace-gap-md: 16px;
+  --workspace-gap-lg: 24px;
+  --workspace-gap-xl: 32px;
+
+  /* 阴影 */
+  --workspace-shadow-card: 0 16px 40px rgba(0, 0, 0, 0.25);
+}

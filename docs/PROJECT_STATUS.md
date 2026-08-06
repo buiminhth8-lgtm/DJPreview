@@ -109,7 +109,13 @@
   - T38-A completed：前端结构审计与改版方案（新增 `docs/FRONTEND_WORKSPACE_REDESIGN.md`：
     入口/组件/hooks/API/条件渲染审计、目标瀑布流布局、Empty State / Disabled State 规划、
     数据依赖矩阵、T38-B ~ T38-J 切片、风险与缓解）
-  - T38-B next：UI 基础组件与设计变量
+  - T38-B completed：UI primitives 与工作台设计变量（新增 `apps/web/src/components/ui/`：
+    SectionCard / PanelHeader / EmptyState / StatusBadge / ActionButton / ButtonRow /
+    KeyValueGrid / InlineNotice / LoadingState / ErrorState + index barrel；新增
+    `apps/web/src/styles/design-tokens.css`（`--workspace-*` tokens）与
+    `apps/web/src/styles/workspace-ui.css`（`ui-*` 类名，含 768px 响应式）；
+    组件不依赖业务数据、未接入现有页面）
+  - T38-C next：持久化瀑布流工作台骨架
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
