@@ -4,6 +4,7 @@ export { default as WorkspaceLayout } from "./WorkspaceLayout";
 export { default as WorkspaceDashboard } from "./WorkspaceDashboard";
 export { default as WorkspaceHeader } from "./WorkspaceHeader";
 export { default as GeneratePanel } from "./GeneratePanel";
+export { GenerateConsole } from "./GenerateConsole";
 export { default as PlayerPanel } from "./PlayerPanel";
 export { default as EditPanel } from "./EditPanel";
 export { default as VersionPanel } from "./VersionPanel";

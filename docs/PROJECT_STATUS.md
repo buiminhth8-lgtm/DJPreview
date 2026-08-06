@@ -121,7 +121,12 @@
     `ProjectOverviewPanel`（轻量工程概览，纯 props）；改造 `WorkspaceHeader`（AI Music Studio
     + Provider/Model/状态 badges）；新增 `styles/workspace-layout.css`（瀑布流 + 响应式）；
     `App.tsx` 改渲染 WorkspaceDashboard，保留全部 hooks/handlers）
-  - T38-D next：生成控制台与项目概览集成
+  - T38-D completed：生成控制台与项目概览（新增 `GenerateConsole`：prompt 输入、Provider/Model/
+    response_format 徽章、生成 MusicSpec / MIDI / WAV / 完整歌曲按钮（带 disabled 原因）、
+    风格模板保留、错误 InlineNotice；升级 `ProjectOverviewPanel`：标题/风格/BPM/调性/拍号/长度/
+    段落数/轨道数/Warnings/song_id/版本/MIDI/WAV/request_id，安全读取字段；`workspace-hero-grid`
+    双列 1.35fr/0.65fr，900px 单列；生成 MusicSpec 功能保留）
+  - T38-E next：播放、下载、MusicSpec、warnings、debug 面板
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /

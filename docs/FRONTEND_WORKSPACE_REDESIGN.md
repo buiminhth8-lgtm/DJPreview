@@ -312,6 +312,24 @@ RenderTasksPanel / RegenerationPanel / ReferencePanel / EvaluationPanel。
 - 验收标准：无工程时 Generate 禁用并提示；生成后概览更新。
 - 建议 commit message：`feat(frontend): persistent generate console and project overview`
 
+#### T38-D 已落地（完成）
+
+- 新增 `apps/web/src/components/workspace/GenerateConsole.tsx`：生成控制台
+  - prompt 输入区（多行 textarea，placeholder 示例）
+  - Provider / Model / response_format 状态徽章（前端暂不感知 provider/model，显示「未知」）
+  - 按钮：生成 MusicSpec（真实）、生成 MIDI（真实，无 MusicSpec 时禁用）、渲染 WAV（真实，无 MIDI 时禁用）、生成完整歌曲（可选预留）
+  - 每个按钮带 disabledReason（如「请输入音乐描述」「请先生成 MusicSpec」「请先生成 MIDI」）
+  - 保留风格模板选择（StyleTemplatePanel，可选 props 接入）
+  - 错误时 InlineNotice 显示「生成失败」摘要
+- 升级 `apps/web/src/components/workspace/ProjectOverviewPanel.tsx`：工程概览
+  - 无 MusicSpec：Empty State「尚未生成工程」
+  - 有 MusicSpec：标题 / 风格 / BPM / 调性 / 拍号 / 长度 / 段落数 / 轨道数 / Warnings / song_id / 当前版本 / MIDI 状态 / WAV 状态 / 最近 request_id（KeyValueGrid + StatusBadge）
+  - 安全读取 musicSpec 字段，缺失显示 —，不崩溃
+- `WorkspaceDashboard` 首屏接入：`workspace-hero-grid` 左侧 `GenerateConsole`（1.35fr）、右侧 `ProjectOverviewPanel`（0.65fr），900px 以下单列
+- CSS：`workspace-layout.css` 增加 `.generate-console` 系列（textarea / provider / status / actions）与 hero 列宽
+
+后续 T38-E 将基于这些组件接入播放/下载/MusicSpec/Debug 段。
+
 ### T38-E：播放、下载、MusicSpec、Warnings、Debug 常驻化
 - 目标：PlayerPanel / MusicSummary / GenerationDebugPanel 常驻；Stems/SoundFont/异步任务
   拆出独立段（或保留 details 折叠但标题常驻）。

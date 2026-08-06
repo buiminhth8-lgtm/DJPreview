@@ -7,13 +7,56 @@
   padding: 24px 20px 80px;
 }
 
-/* 顶部生成区域：桌面双列 */
+/* 顶部生成区域：桌面双列（生成控制台更宽） */
 .workspace-hero-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
   gap: var(--workspace-gap-lg, 24px);
-  align-items: start;
+  align-items: stretch;
   margin-bottom: var(--workspace-gap-lg, 24px);
+}
+
+/* 生成控制台内部 */
+.generate-console {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-md, 16px);
+}
+
+.generate-console__label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--workspace-text-dim, #64748b);
+}
+
+.generate-console__textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--workspace-radius-sm, 8px);
+  color: var(--workspace-text, #f8fafc);
+  padding: var(--workspace-gap-sm, 10px) var(--workspace-gap-md, 16px);
+  font: inherit;
+  line-height: 1.5;
+}
+
+.generate-console__textarea:focus {
+  outline: none;
+  border-color: var(--workspace-primary, #8b5cf6);
+}
+
+.generate-console__provider,
+.generate-console__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--workspace-gap-sm, 10px);
+}
+
+.generate-console__actions {
+  flex-wrap: wrap;
 }
 
 /* 瀑布流：单列纵向排列 */
@@ -57,6 +100,12 @@
 }
 
 /* 移动端：全部单列 */
+@media (max-width: 900px) {
+  .workspace-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .workspace-hero-grid {
     grid-template-columns: 1fr;

@@ -20,7 +20,7 @@ import RegenerationPanel from "../RegenerationPanel";
 import AnalysisPanel from "./AnalysisPanel";
 import EditPanel from "./EditPanel";
 import EvaluationPanel from "./EvaluationPanel";
-import GeneratePanel from "./GeneratePanel";
+import { GenerateConsole } from "./GenerateConsole";
 import GenerationDebugPanel from "./GenerationDebugPanel";
 import MixerPanel from "./MixerPanel";
 import PlayerPanel from "./PlayerPanel";
@@ -91,24 +91,41 @@ export default function WorkspaceDashboard({
 
       {/* 顶部生成区域：生成控制台 + 当前工程概览 */}
       <div className="workspace-hero-grid">
-        <GeneratePanel
+        <GenerateConsole
           prompt={songProject.prompt}
-          loading={songProject.loadingSpec}
+          onPromptChange={songProject.setPrompt}
+          provider={songProject.generationDebug?.provider ?? songProject.generationErrorInfo?.provider}
+          model={songProject.generationDebug?.model}
+          reasoningEffort={null}
+          responseFormatEnabled={null}
+          isGeneratingSpec={songProject.loadingSpec}
+          isGeneratingMidi={audioAssets.loadingMidi}
+          isRenderingAudio={audioAssets.loadingAudio}
+          hasMusicSpec={Boolean(spec)}
+          hasMidi={Boolean(audioAssets.assets?.has_midi)}
+          hasAudio={Boolean(audioAssets.assets?.has_audio)}
+          hasSong={Boolean(songId)}
+          onGenerateSpec={onGenerate}
+          onGenerateMidi={onGenerateMidi}
+          onRenderAudio={onRenderAudio}
+          lastRequestId={songProject.generationRequestId}
+          errorMessage={songProject.error}
           styleId={styles.selectedStyleId}
           styleStrength={styleStrength}
-          validation={songProject.validation}
-          onPromptChange={songProject.setPrompt}
           onStyleChange={(id, strength) => {
             styles.setSelectedStyleId(id);
             setStyleStrength(strength);
           }}
           onError={songProject.setError}
-          onGenerate={onGenerate}
         />
         <ProjectOverviewPanel
           songId={songId}
+          currentVersionId={versions.currentVersionId}
           musicSpec={spec}
           warningCount={songProject.validation?.warnings.length ?? 0}
+          hasMidi={Boolean(audioAssets.assets?.has_midi)}
+          hasAudio={Boolean(audioAssets.assets?.has_audio)}
+          lastRequestId={songProject.generationRequestId}
         />
       </div>
 
