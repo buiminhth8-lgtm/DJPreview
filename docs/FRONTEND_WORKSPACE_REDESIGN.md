@@ -487,11 +487,58 @@ provider / raw path）职责分离，不重复。
 后续 T38-J 将进行前端回归测试与文档同步。
 
 ### T38-J：前端回归测试与文档同步
-- 目标：Playwright E2E 覆盖常驻空态/禁用态；同步 README / PROJECT_STATUS。
+- 目标：验证 T38-A~I 前端改版结果；补充 QA 文档；同步 README / PROJECT_STATUS。
 - 修改范围：`apps/web/e2e/`、`README.md`、`docs/PROJECT_STATUS.md`。
 - 风险点：E2E 需后端 mock 运行。
 - 验收标准：关键链路回归通过；文档与实现一致。
 - 建议 commit message：`test(frontend): e2e for persistent workspace + docs sync`
+
+#### T38-J 已落地（完成）
+
+已完成回归审计与文档同步：
+
+- **条件渲染审计**：确认 `WorkspaceDashboard` 中 17 个核心模块全部为顶层常驻渲染
+  （WorkspaceHeader / GenerateConsole / ProjectOverviewPanel / PlaybackDownloadPanel /
+  MusicSpecPanel / WarningsPanel / GenerationDebugPanel / FormHarmonyPanel /
+  TrackInstrumentPanel / PianoRollPanel / MixerPanel / StemsPanel / VersionPanel /
+  EditSongPanel / SoundfontPanel / ProjectImportExportPanel / RenderTasksPanel）。
+  仅「编曲质量」「局部重生成」为条件渲染且带 Empty State 回退（合理）。
+- **低风险修复**：移除 T38-C 遗留的「更多操作」重复区块（其内部 PlayerPanel 的 MIDI/WAV/
+  分轨/音源/任务内容已由持久化面板覆盖），避免重复生成/下载按钮。
+- **无效 API 请求审计**：确认 hooks 均有 `if (!songId)` guard（useAudioAssets/useVersions/
+  useMixer/useQuality/useSoundfonts/useRenderTasks）；PianoRollPanel 仅 `songId && hasMidi`
+  时挂载真实组件；RenderTasksPanel 无 songId 不请求；SoundFont 扫描/工程导入无工程可用；
+  应用 SoundFont/导出/任务列表需 song_id。无 `/songs/null`、`/songs/undefined`、
+  `/api/v1/songs//` 风险。
+- **disabledReason 审计**：生成/下载/导出/应用/恢复等关键按钮均有原因。
+- **Empty / Loading / Error State 审计**：各模块无数据时显示 Empty State（非空白）。
+- **响应式与溢出审计**：`workspace-responsive.css` 覆盖表格/JSON/任务/PianoRoll/mixer 溢出，
+  无全局横向滚动。
+- **QA 文档**：新增 `docs/FRONTEND_WORKSPACE_QA.md`（手工 QA checklist，覆盖 First Load /
+  Generation / MIDI-WAV / Editing / Utilities / Network Safety / Responsive / 回归确认）。
+  因项目无 Vitest/RTL（仅 Playwright E2E），未新增自动测试框架。
+
+## T38 阶段状态汇总
+
+```text
+T38-A completed   结构审计与方案
+T38-B completed   UI primitives 与设计变量
+T38-C completed   瀑布流骨架
+T38-D completed   生成控制台与项目概览
+T38-E completed   播放 / 下载 / MusicSpec / Warnings / Debug
+T38-F completed   曲式和声 / 轨道乐器 / Piano Roll
+T38-G completed   混音 / Stems / 版本 / 自然语言编辑
+T38-H completed   SoundFont / 导入导出 / 任务日志
+T38-I completed   UI 美化与响应式
+T38-J completed   回归测试与文档同步
+```
+
+## 下一阶段建议
+
+T38 系列核心目标已达成（常驻瀑布流 + Empty State + disabled 引导 + 响应式）。后续可选：
+- 真实 LLM（Gemini / DeepSeek）接入后的端到端体验验证。
+- 音乐质量迭代（旋律/和声/鼓/贝斯/弦乐更精细）。
+- 用户研究 / A/B 测试决定下一轮 UI 优化方向。
 
 ## 9. Risks and Mitigations
 

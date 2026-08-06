@@ -28,7 +28,6 @@ import { MixerPanel } from "./MixerPanel";
 import { MusicSpecPanel } from "./MusicSpecPanel";
 import { PianoRollPanel } from "./PianoRollPanel";
 import { PlaybackDownloadPanel } from "./PlaybackDownloadPanel";
-import PlayerPanel from "./PlayerPanel";
 import { ProjectImportExportPanel } from "./ProjectImportExportPanel";
 import { ProjectOverviewPanel } from "./ProjectOverviewPanel";
 import ReferencePanel from "./ReferencePanel";
@@ -141,7 +140,7 @@ export default function WorkspaceDashboard({
 
       {/* 瀑布流：所有核心模块常驻 */}
       <div className="workspace-waterfall">
-        {/* 播放与下载（含分轨 / 音源 / 异步任务，位于 PlayerPanel 内） */}
+        {/* 播放与下载（分轨 / 音源 / 任务由下方独立段覆盖） */}
         <PlaybackDownloadPanel
           songId={songId}
           midiUrl={hasSong ? audioAssets.midiUrl : null}
@@ -160,24 +159,6 @@ export default function WorkspaceDashboard({
             if (audioAssets.audioDownloadUrl) window.open(audioAssets.audioDownloadUrl, "_blank");
           }}
         />
-        {hasSong && songId && (
-          <SectionCard title="更多操作" description="分轨 / 音源 / 异步任务">
-            <PlayerPanel
-              songId={songId}
-              midiResult={audioAssets.midiResult}
-              audioResult={audioAssets.audioResult}
-              audioStreamUrl={audioAssets.audioStreamUrl}
-              midiDownloadUrl={audioAssets.midiDownloadUrl}
-              audioDownloadUrl={audioAssets.audioDownloadUrl}
-              loadingMidi={audioAssets.loadingMidi}
-              loadingAudio={audioAssets.loadingAudio}
-              onGenerateMidi={onGenerateMidi}
-              onRenderAudio={onRenderAudio}
-              onAssetsChanged={() => void audioAssets.refreshAssets()}
-              onError={songProject.setError}
-            />
-          </SectionCard>
-        )}
 
         {/* MusicSpec / Warnings / Debug */}
         <MusicSpecPanel musicSpec={spec} requestId={songProject.generationRequestId} />

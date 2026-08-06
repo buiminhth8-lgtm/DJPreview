@@ -154,7 +154,12 @@
     居中 1280px；Header 桌面横向/移动堆叠 + 渐变标题 + aria；SectionCard 玻璃拟态；
     新增 `workspace-responsive.css`：表格/JSON/Debug/任务/Piano Roll 溢出处理 + 760/600/480
     断点；WorkspaceDashboard 外层结构调整；未改 hooks/API/后端）
-  - T38-J next：前端回归测试与文档同步
+  - T38-J completed：前端回归测试与文档同步（条件渲染审计：17 个核心模块顶层常驻；
+    移除 T38-C 遗留「更多操作」重复区块（PlayerPanel 已被持久化面板覆盖）；无效 API 请求
+    审计：hooks 均带 song_id guard、无 `/songs/null|undefined|//` 风险；disabledReason /
+    Empty / Loading / Error State 审计通过；新增 `docs/FRONTEND_WORKSPACE_QA.md` 手工 QA
+    清单（项目无 Vitest/RTL，仅 Playwright E2E，未新增测试框架））
+  - T38 系列状态：T38-A ~ T38-J 全部 completed（前端工作台常驻瀑布流改版完成）
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
