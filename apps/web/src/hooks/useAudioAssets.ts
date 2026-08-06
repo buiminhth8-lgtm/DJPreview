@@ -11,8 +11,21 @@ import {
   renderAudio as renderAudioApi,
 } from "../api/audioApi";
 import { resolveUrl } from "../api/client";
-import type { AssetsResponse, GenerateMidiResponse, RenderAudioResponse } from "../api/types";
+import type { AssetsResponse, AudioMetadata, AudioRenderMetadata, GenerateMidiResponse, RenderAudioResponse } from "../api/types";
 import { getErrorMessage } from "./error";
+
+function toAudioRenderMetadata(metadata: AudioMetadata | null | undefined): AudioRenderMetadata | null {
+  if (!metadata) return null;
+  return {
+    renderer: metadata.renderer ?? null,
+    rendererLabel: metadata.renderer_label ?? null,
+    quality: metadata.quality ?? null,
+    soundfontId: metadata.soundfont_id ?? null,
+    soundfontName: metadata.soundfont_name ?? null,
+    soundfontPath: metadata.soundfont_path ?? null,
+    warnings: metadata.renderer_warnings ?? [],
+  };
+}
 
 function audioResultFromAssets(songId: string, assets: AssetsResponse): RenderAudioResponse | null {
   if (!assets.audio) return null;
@@ -117,10 +130,15 @@ export function useAudioAssets(songId: string | null | undefined) {
     setAudioStreamUrl(null);
   }, []);
 
+  const audioRenderMetadata = toAudioRenderMetadata(
+    audioResult?.metadata ?? assets?.audio?.metadata ?? null,
+  );
+
   return {
     assets,
     midiResult,
     audioResult,
+    audioRenderMetadata,
     audioStreamUrl,
     midiDownloadUrl: midiResult ? resolveUrl(midiResult.download_url) : null,
     audioDownloadUrl: audioResult ? resolveUrl(audioResult.download_url) : null,

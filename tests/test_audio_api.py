@@ -101,3 +101,40 @@ def test_generate_with_audio_endpoint():
     assert data["midi"]["midi_file"] == "output.mid"
     assert data["audio"]["audio_file"] == "output.wav"
     assert data["audio"]["metadata"]["renderer"] == "fallback"
+
+
+def test_audio_metadata_renderer_quality_fields():
+    """fallback 渲染应写入 quality=preview 与 FALLBACK_RENDERER_QUALITY 警告。"""
+    song_id = _create_song()
+    resp = client.post(f"/api/v1/songs/{song_id}/audio/render")
+    assert resp.status_code == 200
+    meta = resp.json()["metadata"]
+    assert meta["renderer"] == "fallback"
+    assert meta["quality"] == "preview"
+    assert meta["renderer_label"] == "Fallback Preview Renderer"
+    assert meta["soundfont_id"] is None
+    assert meta["soundfont_name"] is None
+    codes = [w["code"] for w in meta["renderer_warnings"]]
+    assert "FALLBACK_RENDERER_QUALITY" in codes
+    assert any("bass" in w["message"] or "fallback" in w["message"] for w in meta["renderer_warnings"])
+
+    assets = client.get(f"/api/v1/songs/{song_id}/assets").json()
+    assert assets["audio"]["metadata"]["quality"] == "preview"
+    assert assets["audio"]["metadata"]["soundfont_name"] is None
+
+
+def test_audio_metadata_old_missing_fields_compatible():
+    """旧 metadata 缺 renderer_label/quality 时，AudioMetadata 校验仍兼容（有默认值）。"""
+    from services.api.schemas.api_models import AudioMetadata
+
+    legacy = {
+        "audio_file": "output.wav",
+        "renderer": "fallback",
+        "sample_rate": 44100,
+        "duration_seconds": 10.0,
+        "file_size": 882000,
+    }
+    model = AudioMetadata.model_validate(legacy)
+    assert model.quality is None
+    assert model.renderer_label is None
+    assert model.renderer_warnings == []

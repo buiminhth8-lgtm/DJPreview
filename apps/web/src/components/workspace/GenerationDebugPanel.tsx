@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { GenerationDebug, WarningItem } from "../../api/types";
+import type { AudioRenderMetadata, GenerationDebug, WarningItem } from "../../api/types";
 import type { GenerationErrorInfo, GenerationLogEntry, GenerationStatus } from "../../hooks/useSongProject";
 import { EmptyState, SectionCard } from "../ui";
 
@@ -15,6 +15,7 @@ export interface GenerationDebugPanelProps {
   debug: GenerationDebug | null;
   warnings: WarningItem[];
   errorInfo: GenerationErrorInfo | null;
+  audioRenderMetadata?: AudioRenderMetadata | null;
 }
 
 const STATUS_LABEL: Record<GenerationStatus, string> = {
@@ -31,6 +32,7 @@ export default function GenerationDebugPanel({
   debug,
   warnings,
   errorInfo,
+  audioRenderMetadata,
 }: GenerationDebugPanelProps) {
   const [expanded, setExpanded] = useState(false);
   const [rawPreviewOpen, setRawPreviewOpen] = useState(false);
@@ -119,6 +121,51 @@ export default function GenerationDebugPanel({
               <span className="debug-label">validation_warnings</span>
               <code className="debug-value">{debug.validation_warning_count ?? 0}</code>
             </div>
+          </div>
+        )}
+
+        {audioRenderMetadata && (
+          <div className="debug-meta">
+            <div className="debug-row">
+              <span className="debug-label">audio.renderer</span>
+              <code className="debug-value">
+                {audioRenderMetadata.renderer ?? "-"}
+              </code>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">audio.renderer_label</span>
+              <code className="debug-value">
+                {audioRenderMetadata.rendererLabel ?? "-"}
+              </code>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">audio.quality</span>
+              <code className="debug-value">{audioRenderMetadata.quality ?? "-"}</code>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">audio.soundfont_name</span>
+              <code className="debug-value">
+                {audioRenderMetadata.soundfontName ?? "-"}
+              </code>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">audio.soundfont_path</span>
+              <code className="debug-value">
+                {audioRenderMetadata.soundfontPath ?? "-"}
+              </code>
+            </div>
+            {(audioRenderMetadata.warnings ?? []).length > 0 && (
+              <div className="debug-row">
+                <span className="debug-label">audio.renderer_warnings</span>
+                <div className="debug-value">
+                  {(audioRenderMetadata.warnings ?? []).map((w, i) => (
+                    <div key={i} className="debug-path">
+                      [{w.code ?? "?"}] {w.message ?? "-"}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

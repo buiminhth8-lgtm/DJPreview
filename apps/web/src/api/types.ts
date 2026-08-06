@@ -163,15 +163,38 @@ export interface GenerateMidiResponse {
   summary: MidiSummary;
 }
 
+export type AudioRenderQuality = "preview" | "basic" | "soundfont" | "unknown";
+
+export interface RendererWarning {
+  code?: string;
+  message?: string;
+}
+
+export interface AudioRenderMetadata {
+  renderer?: string | null;
+  rendererLabel?: string | null;
+  quality?: AudioRenderQuality | null;
+  soundfontId?: string | null;
+  soundfontName?: string | null;
+  soundfontPath?: string | null;
+  warnings?: Array<{ code?: string; message?: string }>;
+}
+
 export interface AudioMetadata {
   audio_file: string;
   renderer: string;
+  renderer_label?: string | null;
+  quality?: AudioRenderQuality | null;
   sample_rate: number;
   duration_seconds: number | null;
   file_size: number;
   generated_at: string | null;
   generator_version: string | null;
   warnings: string[];
+  renderer_warnings?: RendererWarning[];
+  soundfont_id?: string | null;
+  soundfont_name?: string | null;
+  soundfont_path?: string | null;
 }
 
 export interface RenderAudioResponse {

@@ -51,6 +51,7 @@ from packages.music_core.styles.style_models import StyleTemplateSpec
 from packages.music_core.validation.spec_validator import validate_music_spec_semantics
 from packages.music_core.versioning.version_assets import mirror_stems_to_root
 from packages.renderer.factory import get_audio_renderer
+from packages.renderer.renderer_metadata import build_renderer_metadata
 from packages.renderer.stem_renderer import export_stems as export_stems_impl
 from services.api.dependencies.config import get_settings
 from services.api.tasks.render_task_service import song_render_lock
@@ -277,6 +278,12 @@ def _render_audio_for(song_id: str) -> RenderAudioResponse:
             gain=settings.audio_gain,
             soundfont_path=soundfont.path if soundfont else None,
         )
+        renderer_meta = build_renderer_metadata(
+            renderer=result.renderer,
+            soundfont_id=soundfont.id if soundfont else None,
+            soundfont_name=soundfont.name if soundfont else None,
+            soundfont_path=Path(soundfont.path).name if soundfont else None,
+        )
         metadata = {
             "audio_file": AUDIO_FILENAME,
             "renderer": result.renderer,
@@ -289,6 +296,7 @@ def _render_audio_for(song_id: str) -> RenderAudioResponse:
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "generator_version": AUDIO_GENERATOR_VERSION,
             "warnings": [*result.warnings, *soundfont_warnings],
+            **renderer_meta,
         }
         save_audio_metadata(song_id, metadata)
         return RenderAudioResponse(

@@ -540,6 +540,17 @@ T38 系列核心目标已达成（常驻瀑布流 + Empty State + disabled 引�
 - 音乐质量迭代（旋律/和声/鼓/贝斯/弦乐更精细）。
 - 用户研究 / A/B 测试决定下一轮 UI 优化方向。
 
+## T39-A 补充：渲染器状态显示（已完成）
+
+播放与下载模块新增「渲染器状态」子卡片（`RendererStatusCard`）：
+
+- WAV 渲染后显示当前 renderer / 音色质量 / SoundFont。
+- fallback / preview 音色明确提示：bass、drums、pad 可能不真实，建议选择 SoundFont 后重新渲染。
+- FluidSynth + SoundFont 显示音源名称。
+- 项目概览增加 Renderer / Quality / SoundFont 摘要；调试日志显示 renderer 明细。
+- 数据来源：`GET /api/v1/songs/{id}/assets` → `audio.metadata`（renderer_label / quality / renderer_warnings / soundfont_*）。
+- 旧工程无 metadata 时不白屏，显示「暂无渲染器信息」。
+
 ## 9. Risks and Mitigations
 
 1. **App.tsx 状态过重**：直接大改可能破坏生成链路 → T38-C 只改布局骨架，App.tsx 保留为组合层。

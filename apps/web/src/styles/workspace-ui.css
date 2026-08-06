@@ -478,3 +478,18 @@
     gap: var(--workspace-gap-sm, 10px);
   }
 }
+
+/* ---------- RendererStatusCard（T39-A） ---------- */
+.renderer-status__warnings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-sm, 10px);
+  margin-top: var(--workspace-gap-md, 16px);
+}
+
+.renderer-status__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--workspace-gap-sm, 10px);
+  margin-top: var(--workspace-gap-md, 16px);
+}

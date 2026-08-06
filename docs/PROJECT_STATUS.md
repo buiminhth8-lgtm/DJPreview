@@ -160,6 +160,17 @@
     Empty / Loading / Error State 审计通过；新增 `docs/FRONTEND_WORKSPACE_QA.md` 手工 QA
     清单（项目无 Vitest/RTL，仅 Playwright E2E，未新增测试框架））
   - T38 系列状态：T38-A ~ T38-J 全部 completed（前端工作台常驻瀑布流改版完成）
+- T39-A completed：渲染器状态显示与音色质量提示。后端 `AudioMetadata` schema 扩展
+  `renderer_label` / `quality`（preview/basic/soundfont/unknown）/ `renderer_warnings`（结构化：
+  FALLBACK_RENDERER_QUALITY / SOUNDFONT_NOT_SELECTED / RENDERER_UNKNOWN）/ `soundfont_id` /
+  `soundfont_name` / `soundfont_path`；渲染时按 renderer+soundfont 写入（fallback→quality=preview +
+  FALLBACK_RENDERER_QUALITY 警告，fluidsynth+soundfont→quality=soundfont）。新增
+  `packages/renderer/renderer_metadata.py`。前端新增 `RendererStatusCard` 组件并在
+  PlaybackDownloadPanel（WAV 渲染后显示渲染器/音质/SoundFont + fallback 提示）、
+  ProjectOverviewPanel（Renderer/Quality/SoundFont 摘要）、GenerationDebugPanel（renderer 明细）
+  展示；`useAudioAssets` 暴露 `audioRenderMetadata`；类型 `AudioRenderMetadata` 新增。
+  后端测试：`tests/test_audio_api.py` 新增 metadata 质量字段与旧 metadata 兼容测试（通过）。
+  未改渲染核心逻辑 / MIDI composer / MusicSpec schema；未提交真实 SoundFont。
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
@@ -171,7 +182,8 @@
 
 ## Partially Completed / Needs Verification（部分完成或需验证）
 
-- 音频渲染质量：fallback 渲染器为开发兜底（正弦/三角波），音色保真有限；真实音源依赖用户自备 SoundFont + FluidSynth。
+- 音频渲染质量：fallback 渲染器为开发兜底（三角波合成），音色保真有限；真实音源依赖用户自备 SoundFont + FluidSynth。
+  前端「渲染器状态」已明确提示当前是否为预览级音色并引导选择 SoundFont（T39-A）。
 - 音乐分析指标（旋律 / 和声 / 节奏 / 编曲）为轻量辅助，未并入 QualityReport 评分模型。
 - Evaluation trait 打分语义仍较粗（如 `has_track_role2` 与 `has_track_role` 有重复），后续可细化。
 - MIDI Parser 对文件末尾仍未关闭的 `note_on` 按“丢弃”处理，未做按轨道末 tick 收尾。

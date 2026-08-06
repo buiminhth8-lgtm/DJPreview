@@ -2,7 +2,7 @@
 // 纯 props，不发请求；安全读取 musicSpec，字段缺失显示 —。
 // 无工程时显示 Empty State。
 
-import type { MusicSpec } from "../../api/types";
+import type { AudioRenderMetadata, MusicSpec } from "../../api/types";
 import { EmptyState, KeyValueGrid, SectionCard, StatusBadge } from "../ui";
 
 export interface ProjectOverviewPanelProps {
@@ -13,9 +13,17 @@ export interface ProjectOverviewPanelProps {
   hasMidi?: boolean;
   hasAudio?: boolean;
   lastRequestId?: string | null;
+  audioRenderMetadata?: AudioRenderMetadata | null;
 }
 
 const DASH = "—";
+
+const QUALITY_LABEL: Record<string, string> = {
+  preview: "预览级",
+  basic: "基础",
+  soundfont: "采样音源",
+  unknown: "未知",
+};
 
 export function ProjectOverviewPanel({
   songId,
@@ -25,6 +33,7 @@ export function ProjectOverviewPanel({
   hasMidi = false,
   hasAudio = false,
   lastRequestId,
+  audioRenderMetadata = null,
 }: ProjectOverviewPanelProps) {
   if (!musicSpec) {
     return (
@@ -41,6 +50,11 @@ export function ProjectOverviewPanel({
   const mode = musicSpec.tonality?.mode ?? DASH;
   const meterNum = musicSpec.meter?.numerator;
   const meterDen = musicSpec.meter?.denominator;
+
+  const rendererName = audioRenderMetadata?.rendererLabel ?? audioRenderMetadata?.renderer ?? null;
+  const quality = audioRenderMetadata?.quality ?? null;
+  const soundfontName = audioRenderMetadata?.soundfontName ?? null;
+  const hasRendererMeta = Boolean(rendererName || quality || soundfontName);
 
   const items = [
     { label: "标题", value: musicSpec.title || DASH },
@@ -69,6 +83,13 @@ export function ProjectOverviewPanel({
       value: hasAudio ? "ready" : "No Audio",
     },
     { label: "最近 request_id", value: lastRequestId ? lastRequestId.slice(0, 8) + "…" : DASH },
+    ...(hasRendererMeta
+      ? [
+          { label: "Renderer", value: rendererName ?? DASH },
+          { label: "Quality", value: quality ? (QUALITY_LABEL[quality] ?? quality) : DASH },
+          { label: "SoundFont", value: soundfontName ? soundfontName : "none" },
+        ]
+      : []),
   ];
 
   const assetBadge = hasAudio ? (

@@ -107,3 +107,16 @@ uvicorn services.api.main:app --port 8000
   （queued → running → succeeded/failed/cancelled），前端 API 不变。
 - 需要多实例部署时，把任务存储迁移到共享存储（如 Redis），并把 API 与 worker 指向同一 broker。
 - 默认不安装 celery/redis 依赖；未配置 `TASK_BACKEND=celery` 时完全不影响现有功能。
+
+## 渲染结果 metadata（T39-A）
+
+ender-audio 任务成功后，	ask.result.audio_metadata 与
+GET /api/v1/songs/{id}/assets 的 udio.metadata 会包含：
+
+- enderer：实际使用的渲染器（fallback / fluidsynth）
+- enderer_label：人类可读名称
+- quality：preview（fallback）/ basic / soundfont（FluidSynth+音源）/ unknown
+- soundfont_name / soundfont_path：使用的音源（无则为 null）
+- enderer_warnings：结构化警告（FALLBACK_RENDERER_QUALITY / SOUNDFONT_NOT_SELECTED / RENDERER_UNKNOWN）
+
+前端「播放与下载」在渲染 WAV 后展示这些信息；fallback 预览音色会提示选择 SoundFont 后重新渲染。

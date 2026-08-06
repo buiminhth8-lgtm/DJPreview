@@ -102,15 +102,28 @@ class GenerateWithMidiResponse(BaseModel):
     validation: ValidationResult | None = None
 
 
+class RendererWarning(BaseModel):
+    """渲染器质量/状态警告（结构化，前端可读）。"""
+
+    code: str
+    message: str
+
+
 class AudioMetadata(BaseModel):
     audio_file: str = "output.wav"
     renderer: str
+    renderer_label: str | None = None
+    quality: str | None = None
     sample_rate: int
     duration_seconds: float | None = None
     file_size: int
     generated_at: str | None = None
     generator_version: str | None = None
     warnings: list[str] = Field(default_factory=list)
+    renderer_warnings: list[RendererWarning] = Field(default_factory=list)
+    soundfont_id: str | None = None
+    soundfont_name: str | None = None
+    soundfont_path: str | None = None
 
 
 class RenderAudioResponse(BaseModel):

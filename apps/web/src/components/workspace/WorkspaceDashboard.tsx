@@ -135,6 +135,7 @@ export default function WorkspaceDashboard({
           hasMidi={Boolean(audioAssets.assets?.has_midi)}
           hasAudio={Boolean(audioAssets.assets?.has_audio)}
           lastRequestId={songProject.generationRequestId}
+          audioRenderMetadata={audioAssets.audioRenderMetadata}
         />
       </div>
 
@@ -150,6 +151,7 @@ export default function WorkspaceDashboard({
           isRenderingAudio={audioAssets.loadingAudio}
           isGeneratingMidi={audioAssets.loadingMidi}
           hasMusicSpec={Boolean(spec)}
+          audioRenderMetadata={audioAssets.audioRenderMetadata}
           onGenerateMidi={onGenerateMidi}
           onRenderAudio={onRenderAudio}
           onDownloadMidi={() => {
@@ -173,6 +175,7 @@ export default function WorkspaceDashboard({
           debug={songProject.generationDebug}
           warnings={songProject.generationWarnings}
           errorInfo={songProject.generationErrorInfo}
+          audioRenderMetadata={audioAssets.audioRenderMetadata}
         />
 
         {/* 曲式与和声 */}

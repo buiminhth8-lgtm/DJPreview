@@ -15,6 +15,8 @@
 - GeminiProvider（Gemini OpenAI-compatible 线上模型，支持 response_format fallback / models list / retrieve）
 - MusicSpec 生成多轨标准 MIDI（旋律 / 和弦伴奏 / 贝斯 / 鼓组 / Pad）
 - MIDI 渲染 WAV（FluidSynth；无 FluidSynth 时 fallback 合成）
+  - ⚠ fallback 为预览级音色（bass / drums / pad 可能不真实），真实音色请使用 SoundFont 后重新渲染；
+    前端「渲染器状态」会显示当前 renderer / 音质 / SoundFont。
 - 前端试听与下载 MIDI / WAV
 - 自然语言修改音乐（MusicEditSpec 真正执行）
 - 版本管理（v1 自动初始化、每次修改建版本、恢复、版本详情与 diff）

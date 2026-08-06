@@ -2,7 +2,9 @@
 // 无资产时 Empty State；有 WAV 时播放器；下载按钮无资产时 disabled 并显示原因。
 // 不直接发无效请求；songId 为空时不生成 URL。
 
+import type { AudioRenderMetadata } from "../../api/types";
 import { ActionButton, ButtonRow, EmptyState, InlineNotice, SectionCard, StatusBadge } from "../ui";
+import { RendererStatusCard } from "./RendererStatusCard";
 
 export interface PlaybackDownloadPanelProps {
   songId?: string | null;
@@ -13,6 +15,7 @@ export interface PlaybackDownloadPanelProps {
   isRenderingAudio?: boolean;
   isGeneratingMidi?: boolean;
   hasMusicSpec?: boolean;
+  audioRenderMetadata?: AudioRenderMetadata | null;
   onGenerateMidi?: () => void;
   onRenderAudio?: () => void;
   onDownloadMidi?: () => void;
@@ -28,6 +31,7 @@ export function PlaybackDownloadPanel({
   isRenderingAudio = false,
   isGeneratingMidi = false,
   hasMusicSpec = false,
+  audioRenderMetadata = null,
   onGenerateMidi,
   onRenderAudio,
   onDownloadMidi,
@@ -62,6 +66,11 @@ export function PlaybackDownloadPanel({
         <InlineNotice variant="success" title="音频已渲染">
           可以播放试听或下载 WAV。
         </InlineNotice>
+        {audioRenderMetadata ? (
+          <RendererStatusCard metadata={audioRenderMetadata} compact />
+        ) : (
+          <EmptyState title="暂无渲染器信息" description="渲染 WAV 后将在这里显示当前使用的 renderer 和音源质量。" />
+        )}
       </div>
     ) : (
       <EmptyState title="音频已渲染" description="WAV 地址暂不可用，请尝试重新渲染。" />

@@ -105,3 +105,29 @@ PUT /api/v1/songs/{song_id}/soundfont
 ```
 
 恢复版本不会覆盖项目级音源设置。
+
+## 10. 渲染器状态与音质提示（T39-A）
+
+前端「渲染器状态」模块会显示当前 WAV 使用的渲染器 / 音质 / SoundFont：
+
+- **fallback**：quality=preview，显示「当前使用简易 fallback renderer，音色为预览级合成，bass、drums、pad 可能不真实。请选择 SoundFont 并重新渲染 WAV」。
+- **FluidSynth + SoundFont**：quality=soundfont，显示 SoundFont 名称与采样音源。
+- **FluidSynth 无 SoundFont**：quality=basic，提示选择 SoundFont。
+- **未知**：quality=unknown。
+
+metadata 字段（udio_metadata.json / GET /api/v1/songs/{id}/assets 的 udio.metadata）：
+
+`json
+{
+  "renderer": "fallback",
+  "renderer_label": "Fallback Preview Renderer",
+  "quality": "preview",
+  "soundfont_id": null,
+  "soundfont_name": null,
+  "soundfont_path": null,
+  "renderer_warnings": [{"code": "FALLBACK_RENDERER_QUALITY", "message": "..."}]
+}
+`
+
+如果听起来像电子蜂鸣音，优先检查前端是否显示 fallback / preview：那是预览级音色，
+选择 SoundFont 后需**重新渲染 WAV** 才会生效。
