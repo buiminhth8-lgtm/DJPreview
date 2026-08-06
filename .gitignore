@@ -5,6 +5,15 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.*
+.mock.env
+.lmstudio.env
+.deepseek.env
+*.local.env
+!.env.example
+!.mock.env.example
+!.lmstudio.env.example
+!.deepseek.env.example
 .pytest_cache/
 .pytest-tmp/
 runtime-data/

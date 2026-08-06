@@ -324,6 +324,30 @@
   `test_provider_factory.py` / `test_llm_provider_script.py`，更新 `test_llm_json_utils.py`；
   全量 pytest 550 passed（fast 393 / slow 157）
 
+## T33 多 LLM 环境配置文件按需加载 ✅
+
+- 目标：按需加载不同 LLM Provider 配置，方便在 MockProvider / LM Studio / DeepSeek 之间切换
+- 优先级：P1
+- 依赖：T32
+- 实现：
+  - `packages/music_core/config/env_loader.py`：统一 env loader，加载优先级
+    `.env`（通用默认）→ profile file（.mock.env / .lmstudio.env / .deepseek.env）→
+    `LLM_ENV_FILE`（优先于 profile file）→ 系统环境变量（最高，不被覆盖）；
+    未知 profile 抛清晰错误、缺失文件 warning、.env 缺失不崩溃、日志不输出 API Key
+  - `services/api/main.py`：启动时调用 `load_env`，打印 profile 与加载文件摘要（无 key）
+  - `scripts/run_with_env.py`：`--profile <name> -- <command>` passthrough 执行，
+    `--print-env` 只打印加载后的环境（敏感值打码）
+  - `scripts/test_llm_provider.py`：新增 `--profile` 支持
+  - 新增 `.mock.env.example` / `.lmstudio.env.example` / `.deepseek.env.example`；
+    更新 `.env.example`（说明通用配置与 profile 关系）
+  - `.gitignore`：忽略 `.env` / `.env.*` / `.mock.env` / `.lmstudio.env` / `.deepseek.env` /
+    `*.local.env`，保留 example 可提交
+- 验收：`.env` 兼容保留；`.mock.env` / `.lmstudio.env` / `.deepseek.env` 可加载；
+  `LLM_ENV_PROFILE` / `LLM_ENV_FILE` 生效；系统环境变量最高优先级；真实 env 不进入 Git、
+  example 可提交；MockProvider 默认可用；DeepSeek 仅显式 profile 使用
+- 测试：新增 `test_env_loader.py`、`test_run_with_env.py`，更新 `test_provider_factory.py` /
+  `test_llm_provider_script.py`；全量 pytest 572 passed（fast 415 / slow 157）
+
 ## 下一轮建议
 
 1. 文档 / 测试分层：拆分慢速集成测试（如音频渲染 / 全链路 API），缩短全量回归时间。

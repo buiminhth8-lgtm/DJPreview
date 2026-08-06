@@ -1,17 +1,22 @@
 """AI Music MVP 后端入口。"""
 
-from dotenv import load_dotenv
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from packages.music_core.config.env_loader import load_env
 from services.api.dependencies.config import get_settings
 from services.api.routes.render_tasks import router as render_tasks_router
 from services.api.routes.soundfonts import router as soundfonts_router
 from services.api.routes.songs import router as songs_router
 
-load_dotenv()
+# 尽早加载 env：.env -> profile（.mock.env/.lmstudio.env/.deepseek.env）-> LLM_ENV_FILE
+# 系统环境变量最高优先级，不会被文件覆盖。
+env_info = load_env(env_dir=Path(__file__).resolve().parents[2])
+print(env_info.summary())
 
 settings = get_settings()
 settings.projects_dir.mkdir(parents=True, exist_ok=True)

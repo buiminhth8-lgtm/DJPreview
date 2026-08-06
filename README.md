@@ -106,7 +106,57 @@ lmstudio：本地 OpenAI-compatible 服务，用于真实 LLM 本地链路测试
 deepseek：线上 DeepSeek，用于最终质量测试
 ```
 
-开发环境推荐默认：
+### T33：多 LLM 环境配置文件按需加载
+
+通过 `LLM_ENV_PROFILE` 或 `LLM_ENV_FILE` 按需加载不同 Provider 配置，切换 mock / lmstudio / deepseek：
+
+```text
+mock      -> .mock.env
+lmstudio  -> .lmstudio.env
+deepseek  -> .deepseek.env
+LLM_ENV_FILE -> .custom.env（优先于 profile file）
+```
+
+推荐工作流：
+
+```text
+1. 复制 .mock.env.example 为 .mock.env，使用 mock 跑稳定回归
+2. 复制 .lmstudio.env.example 为 .lmstudio.env，启动 LM Studio server 后跑本地真实 LLM 测试
+3. 复制 .deepseek.env.example 为 .deepseek.env，最后显式切换 deepseek 测试线上模型
+```
+
+PowerShell：
+
+```powershell
+Copy-Item .lmstudio.env.example .lmstudio.env
+$env:LLM_ENV_PROFILE="lmstudio"
+uvicorn services.api.main:app --reload
+```
+
+cmd / bash：
+
+```cmd
+set LLM_ENV_PROFILE=lmstudio
+uvicorn services.api.main:app --reload
+```
+
+```bash
+LLM_ENV_PROFILE=lmstudio uvicorn services.api.main:app --reload
+```
+
+或用 `run_with_env.py`（推荐）：
+
+```bash
+python scripts/run_with_env.py --profile mock -- python -m pytest tests/ -q
+python scripts/run_with_env.py --profile lmstudio -- python scripts/test_llm_provider.py --generate-spec
+python scripts/run_with_env.py --profile deepseek -- python scripts/test_llm_provider.py --generate-spec
+```
+
+加载优先级：`.env`（通用默认）→ profile env file → `LLM_ENV_FILE` → 系统环境变量（最高，不被覆盖）。
+`services/api/main.py` 启动时自动加载；`scripts/test_llm_provider.py` 支持 `--profile`。
+安全：真实 `.env*` 文件不提交 Git（`.gitignore`），example 文件可提交；日志不输出完整 API Key。
+
+### 开发环境推荐默认
 
 ```env
 LLM_PROVIDER=mock
@@ -582,8 +632,8 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（550 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 393 passed（约 11s）
+后端测试：pytest -q passed（572 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 415 passed（约 25s）
 前端依赖：npm ci passed（vite 7.3.6）
 前端构建：npm run build passed（tsc + vite）
 前端安全：npm audit 0 vulnerabilities

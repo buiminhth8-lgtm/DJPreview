@@ -51,6 +51,13 @@
   lmstudio / openai_compatible，默认 mock；JSON 工具增强：markdown 代码块 / 前后文本 /
   JSONC 注释与尾随逗号清洗 / BOM；`scripts/test_llm_provider.py` 本地健康检查脚本；
   `demo_t28_smoke.py` 支持 `--provider`）
+- T33：多 LLM 环境配置文件按需加载
+  （新增 `packages/music_core/config/env_loader.py`：`.env` → profile（.mock.env / .lmstudio.env /
+  .deepseek.env）→ `LLM_ENV_FILE` → 系统环境变量（最高优先级）；未知 profile 报错、缺失文件
+  warning、API Key 不进入日志；`services/api/main.py` 启动时加载；新增 `scripts/run_with_env.py`
+  （passthrough 命令执行 + `--print-env` 打码展示）；`scripts/test_llm_provider.py` 支持 `--profile`；
+  新增 `.mock.env.example` / `.lmstudio.env.example` / `.deepseek.env.example`；`.gitignore`
+  忽略真实 env、保留 example）
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
@@ -98,8 +105,8 @@
 ## 当前测试与构建结果（2026-08-06 实测）
 
 ```text
-后端：pytest -q → 550 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 393 passed（约 11s）
+后端：pytest -q → 572 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 415 passed（约 25s）
 慢速集成：pytest -m slow → 157 passed
 前端：npm ci → passed（vite 7.3.6）
 前端：npm run build → passed（tsc 无错误）

@@ -1,4 +1,4 @@
-# LLM Provider 配置指南（T32）
+# LLM Provider 配置指南（T32 / T33）
 
 本工程支持三档 LLM Provider，按测试阶段使用：
 
@@ -7,6 +7,77 @@ mock：默认，稳定回归，不调用外部服务
 lmstudio：本地 OpenAI-compatible 服务，用于真实 LLM 本地链路测试
 deepseek：线上 DeepSeek，用于最终质量测试
 ```
+
+## 多环境配置文件按需加载（T33）
+
+支持通过 `LLM_ENV_PROFILE` 选择不同 Provider 配置文件，或通过 `LLM_ENV_FILE` 指定自定义文件：
+
+```text
+mock      -> .mock.env
+lmstudio  -> .lmstudio.env
+deepseek  -> .deepseek.env
+LLM_ENV_FILE -> .custom.env（优先于 profile file）
+```
+
+### 推荐工作流
+
+```text
+1. 复制 .mock.env.example 为 .mock.env
+2. 使用 mock 跑稳定回归
+3. 复制 .lmstudio.env.example 为 .lmstudio.env
+4. 启动 LM Studio server
+5. 用 lmstudio 跑本地真实 LLM 测试
+6. 复制 .deepseek.env.example 为 .deepseek.env
+7. 最后显式切换 deepseek 测试线上模型
+```
+
+### 启动方式
+
+PowerShell：
+
+```powershell
+Copy-Item .lmstudio.env.example .lmstudio.env
+$env:LLM_ENV_PROFILE="lmstudio"
+uvicorn services.api.main:app --reload
+```
+
+cmd：
+
+```cmd
+set LLM_ENV_PROFILE=lmstudio
+uvicorn services.api.main:app --reload
+```
+
+bash：
+
+```bash
+LLM_ENV_PROFILE=lmstudio uvicorn services.api.main:app --reload
+```
+
+使用 `run_with_env.py`（推荐，避免手动设置环境变量）：
+
+```bash
+python scripts/run_with_env.py --profile mock -- python -m pytest tests/ -q
+python scripts/run_with_env.py --profile lmstudio -- python scripts/test_llm_provider.py --generate-spec
+python scripts/run_with_env.py --profile deepseek -- python scripts/test_llm_provider.py --generate-spec
+python scripts/run_with_env.py --profile lmstudio --print-env   # 只打印加载后的环境（敏感值打码）
+```
+
+### 加载优先级
+
+```text
+1. .env                      通用默认配置
+2. profile env file          .mock.env / .lmstudio.env / .deepseek.env
+3. LLM_ENV_FILE 指定文件      如果设置，优先于 profile file
+4. 系统环境变量               最高优先级，不被文件覆盖
+```
+
+### 安全规则
+
+1. 不提交真实 `.env` 文件（`.gitignore` 已忽略 `.env` / `.env.*` / `.mock.env` / `.lmstudio.env` / `.deepseek.env`）。
+2. `.deepseek.env` 包含真实 key，只保留本地；example 文件可提交。
+3. 日志不会输出完整 key（`load_env` 只打印文件名；脚本只显示掩码）。
+4. DeepSeek 只有显式选择 profile 时才使用。
 
 ## 架构
 

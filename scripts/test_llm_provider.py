@@ -77,8 +77,13 @@ def main(argv: list[str] | None = None) -> int:
         description="本地 LLM Provider 健康检查（默认 mock；真实服务可用 lmstudio / deepseek / openai_compatible）",
     )
     parser.add_argument(
+        "--profile",
+        default=None,
+        help="LLM env profile：mock / lmstudio / deepseek（加载对应 .mock.env / .lmstudio.env / .deepseek.env）",
+    )
+    parser.add_argument(
         "--provider",
-        default=os.getenv("LLM_PROVIDER", "") or "mock",
+        default=None,
         help="provider 名称：mock / lmstudio / deepseek / openai_compatible（默认取 LLM_PROVIDER 或 mock）",
     )
     parser.add_argument("--base-url", default=None, help="OpenAI-compatible base url（如 http://localhost:1234/v1）")
@@ -92,7 +97,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--song-prompt", default="生成一首雨夜电影感钢琴曲", help="generate_music_spec 用的歌曲提示词")
     args = parser.parse_args(argv)
 
-    provider_name = args.provider.strip().lower()
+    # 优先按 profile 加载 env（.mock.env / .lmstudio.env / .deepseek.env）
+    if args.profile:
+        from packages.music_core.config.env_loader import load_env
+
+        info = load_env(profile=args.profile, env_dir=PROJECT_ROOT)
+        print(info.summary())
+
+    provider_name = (args.provider or os.getenv("LLM_PROVIDER", "") or "mock").strip().lower()
     print(f"[provider] {provider_name}")
 
     if provider_name == "mock":
