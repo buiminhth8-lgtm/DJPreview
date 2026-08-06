@@ -5,7 +5,7 @@
 // - 无 song / spec 时，各模块显示 Empty State 占位。
 // - 有 song / spec 时，接入现有真实面板（保留全部既有功能，面板仅在安全条件下渲染）。
 // - 不直接发 API 请求；请求由各 hook / 面板内部在 songId 可用时发起。
-// - 曲式/轨道/Piano Roll 当前聚合在「编曲检查」AnalysisPanel 中，T38-F 拆分为独立段。
+// - 曲式/轨道/Piano Roll 已拆分为独立段（T38-F）。
 
 import type { useAudioAssets, useSongProject, useStyles, useVersions } from "../../hooks";
 import type {
@@ -16,20 +16,23 @@ import type {
   RegenerationResult,
 } from "../../api/types";
 import { SectionCard } from "../ui";
+import QualityReportPanel from "../QualityReport";
 import RegenerationPanel from "../RegenerationPanel";
-import AnalysisPanel from "./AnalysisPanel";
 import EditPanel from "./EditPanel";
 import EvaluationPanel from "./EvaluationPanel";
+import { FormHarmonyPanel } from "./FormHarmonyPanel";
 import { GenerateConsole } from "./GenerateConsole";
 import GenerationDebugPanel from "./GenerationDebugPanel";
 import MixerPanel from "./MixerPanel";
 import { MusicSpecPanel } from "./MusicSpecPanel";
+import { PianoRollPanel } from "./PianoRollPanel";
 import { PlaybackDownloadPanel } from "./PlaybackDownloadPanel";
 import PlayerPanel from "./PlayerPanel";
 import { ProjectOverviewPanel } from "./ProjectOverviewPanel";
 import ProjectPanel from "./ProjectPanel";
 import ReferencePanel from "./ReferencePanel";
 import RenderTasksPanel from "./RenderTasksPanel";
+import { TrackInstrumentPanel } from "./TrackInstrumentPanel";
 import VersionPanel from "./VersionPanel";
 import { WarningsPanel } from "./WarningsPanel";
 import WorkspaceHeader from "./WorkspaceHeader";
@@ -187,23 +190,42 @@ export default function WorkspaceDashboard({
           errorInfo={songProject.generationErrorInfo}
         />
 
-        {/* 编曲检查：曲式与和声 / 轨道与乐器 / Piano Roll / 质量（T38-F 拆分为独立段） */}
+        {/* 曲式与和声 */}
+        <FormHarmonyPanel musicSpec={spec} warnings={songProject.generationWarnings} />
+
+        {/* 轨道与乐器 */}
+        <TrackInstrumentPanel
+          musicSpec={spec}
+          warnings={songProject.generationWarnings}
+          debug={songProject.generationDebug}
+        />
+
+        {/* Piano Roll */}
+        <PianoRollPanel
+          songId={songId}
+          hasMidi={Boolean(audioAssets.assets?.has_midi) || Boolean(audioAssets.midiResult)}
+          hasMusicSpec={Boolean(spec)}
+          isGeneratingMidi={audioAssets.loadingMidi}
+          refreshKey={pianoRefreshKey}
+          onGenerateMidi={onGenerateMidi}
+          onError={songProject.setError}
+        />
+
+        {/* 编曲质量 */}
         {hasSong && songId && spec ? (
-          <SectionCard title="编曲检查" description="曲式 / 轨道 / Piano Roll / 质量">
-            <AnalysisPanel
+          <SectionCard title="编曲质量" description="质量报告与自动优化">
+            <QualityReportPanel
               songId={songId}
-              spec={spec}
-              refreshKey={pianoRefreshKey}
               onOptimized={onOptimized}
               onError={songProject.setError}
             />
           </SectionCard>
         ) : (
           <WorkspaceSectionPlaceholder
-            title="编曲检查（曲式 / 轨道 / Piano Roll / 质量）"
-            description="段落、起止小节、和弦、编曲轨道、音符分布"
-            emptyTitle="暂无编曲数据"
-            emptyDescription="生成 MusicSpec 后将显示曲式、轨道、Piano Roll 与质量报告。"
+            title="编曲质量"
+            description="质量报告与自动优化"
+            emptyTitle="暂无质量报告"
+            emptyDescription="生成工程后可检查编曲质量并自动优化。"
           />
         )}
 

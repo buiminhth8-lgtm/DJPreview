@@ -366,6 +366,30 @@ RenderTasksPanel / RegenerationPanel / ReferencePanel / EvaluationPanel。
 - 验收标准：无 spec 时显示 Empty State；有 spec 后显示段落/轨道。
 - 建议 commit message：`feat(frontend): persistent form/track/piano-roll sections`
 
+#### T38-F 已落地（完成）
+
+已新增音乐结构查看区常驻组件：
+
+- `SectionTimeline.tsx`（workspace 版）— 曲式段落时间线：section id / name / start_bar / bars /
+  energy（百分比 bar + 数值），安全读取 unknown。
+- `HarmonyProgressionView.tsx` — 和弦进行视图：按 section 分组、chord chips 可换行、
+  空 progression、section 级 warning。
+- `FormHarmonyPanel.tsx` — 曲式与和声常驻：无 MusicSpec 时 Empty State；有数据时显示 form
+  timeline + harmony progression；orphan harmony（引用不存在段落）显示 warning 不白屏。
+- `TrackInstrumentPanel.tsx` — 轨道与乐器常驻：无 tracks 时 Empty State；有数据时轨道表
+  （Track ID / Role / Instrument / Pattern / Register / Velocity / Enabled Sections）；
+  匹配 track_id 相关 warning 逐条显示；instrument normalization 建议（来自 UNKNOWN_INSTRUMENT_ALIAS
+  的「建议使用」提示）以 InlineNotice 展示。
+- `PianoRollPanel.tsx` — Piano Roll 常驻：无 songId / 无 MIDI 时 Empty State（含「生成 MIDI」
+  按钮，disabled 原因「请先生成 MusicSpec」），**绝不请求 piano-roll endpoint**；
+  有 MIDI 时才挂载真实 `PianoRoll` 组件。
+- `styles/workspace-structure.css` — 结构区样式（timeline / chord chips / track table 横向滚动 /
+  piano roll 最小高度 / 移动端）。
+- `WorkspaceDashboard` 接入：曲式与和声 / 轨道与乐器 / Piano Roll 三段独立常驻；
+  原 AnalysisPanel 中的「编曲质量」保留为独立「编曲质量」段（QualityReportPanel + 自动优化）。
+
+后续 T38-G 将接入混音器 / Stems / 版本管理 / 自然语言修改。
+
 ### T38-G：混音器、Stems、版本管理、自然语言修改常驻化
 - 目标：Mixer / StemExport / VersionPanel / EditPanel / Reference / Evaluation 常驻。
 - 修改范围：对应 panel 组件 + hooks 空态支持。

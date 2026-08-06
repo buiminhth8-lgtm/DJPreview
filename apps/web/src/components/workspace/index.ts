@@ -21,3 +21,8 @@ export { JsonPreview } from "./JsonPreview";
 export { MusicSpecPanel } from "./MusicSpecPanel";
 export { WarningsPanel } from "./WarningsPanel";
 export { PlaybackDownloadPanel } from "./PlaybackDownloadPanel";
+export { SectionTimeline } from "./SectionTimeline";
+export { HarmonyProgressionView } from "./HarmonyProgressionView";
+export { FormHarmonyPanel } from "./FormHarmonyPanel";
+export { TrackInstrumentPanel } from "./TrackInstrumentPanel";
+export { PianoRollPanel } from "./PianoRollPanel";

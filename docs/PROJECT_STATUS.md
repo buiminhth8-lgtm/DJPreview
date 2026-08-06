@@ -131,7 +131,13 @@
     （字符串+结构化 warning）、`JsonPreview`（滚动+复制）；升级 `GenerationDebugPanel` 常驻显示
     （空态/request_id/provider/model/error/raw path）；`styles/workspace-results.css`；下载按钮无资产
     disabled 并提示；无 song_id/asset 不触发无效请求）
-  - T38-F next：曲式/和声、轨道/乐器、Piano Roll 面板
+  - T38-F completed：曲式/和声、轨道/乐器、Piano Roll 面板常驻化（新增 `FormHarmonyPanel`
+    （form timeline + harmony progression + orphan warning）、`SectionTimeline`（workspace 版）、
+    `HarmonyProgressionView`（chord chips + section warnings）、`TrackInstrumentPanel`（轨道表 +
+    track warnings + instrument normalization 建议）、`PianoRollPanel`（无 songId/无 MIDI 时 Empty State
+    且不请求 piano-roll endpoint，有 MIDI 才挂载真实 PianoRoll）；「编曲质量」保留为独立段
+    （QualityReportPanel + 自动优化）；`styles/workspace-structure.css`）
+  - T38-G next：混音器、Stems、版本管理、自然语言修改面板
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /

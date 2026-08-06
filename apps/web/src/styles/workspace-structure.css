@@ -1,0 +1,187 @@
+/* T38-F：曲式与和声 / 轨道与乐器 / Piano Roll 结构区样式。
+使用 `workspace-*` 前缀，避免与现有样式冲突。 */
+
+/* ---------- 曲式 timeline ---------- */
+.workspace-section-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-sm, 10px);
+  margin-bottom: var(--workspace-gap-md, 16px);
+}
+
+.workspace-section-timeline__card {
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  padding: var(--workspace-gap-sm, 10px) var(--workspace-gap-md, 16px);
+}
+
+.workspace-section-timeline__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--workspace-gap-sm, 10px);
+}
+
+.workspace-section-timeline__name {
+  font-weight: 600;
+  color: var(--workspace-text, #f8fafc);
+}
+
+.workspace-section-timeline__id {
+  font-size: 12px;
+  color: var(--workspace-text-dim, #64748b);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.workspace-section-timeline__detail {
+  font-size: 12.5px;
+  color: var(--workspace-text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+.workspace-section-timeline__energy {
+  display: flex;
+  align-items: center;
+  gap: var(--workspace-gap-xs, 6px);
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.workspace-section-timeline__energy-label {
+  color: var(--workspace-text-dim, #64748b);
+}
+
+.workspace-section-timeline__energy-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--workspace-surface-strong, rgba(255, 255, 255, 0.1));
+  overflow: hidden;
+}
+
+.workspace-section-timeline__energy-fill {
+  display: block;
+  height: 100%;
+  background: var(--workspace-primary, #8b5cf6);
+  border-radius: 3px;
+}
+
+.workspace-section-timeline__energy-value {
+  color: var(--workspace-text-muted, #94a3b8);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 和声 progression ---------- */
+.workspace-harmony-progression {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-md, 16px);
+}
+
+.workspace-harmony-progression__section {
+  border-top: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.08));
+  padding-top: var(--workspace-gap-sm, 10px);
+}
+
+.workspace-harmony-progression__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--workspace-gap-sm, 10px);
+  margin-bottom: 6px;
+}
+
+.workspace-harmony-progression__section-name {
+  font-weight: 600;
+  color: var(--workspace-text, #f8fafc);
+}
+
+.workspace-harmony-progression__warning-count {
+  font-size: 11px;
+  color: var(--workspace-warning, #f59e0b);
+}
+
+.workspace-harmony-progression__chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workspace-chord-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid var(--workspace-border-strong, rgba(255, 255, 255, 0.2));
+  border-radius: 999px;
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  color: var(--workspace-accent, #06b6d4);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+.workspace-harmony-progression__warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.workspace-form-harmony__orphan {
+  margin-top: var(--workspace-gap-sm, 10px);
+}
+
+/* ---------- 轨道表 ---------- */
+.workspace-track-table-wrap {
+  overflow-x: auto;
+}
+
+.workspace-track-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.workspace-track-table th,
+.workspace-track-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.1));
+  white-space: nowrap;
+}
+
+.workspace-track-table th {
+  color: var(--workspace-text-dim, #64748b);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.workspace-track-table td {
+  color: var(--workspace-text, #f8fafc);
+}
+
+.workspace-track-normalization {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--workspace-gap-md, 16px);
+}
+
+.workspace-track-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--workspace-gap-md, 16px);
+}
+
+/* ---------- Piano Roll ---------- */
+.workspace-piano-roll {
+  min-height: 120px;
+}
+
+/* 移动端 */
+@media (max-width: 768px) {
+  .workspace-track-table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+}
