@@ -22,6 +22,7 @@ def test_smoke_script_help_runs():
     assert proc.returncode == 0
     assert "--base-url" in proc.stdout
     assert "--all" in proc.stdout
+    assert "--provider" in proc.stdout
 
 
 def test_smoke_script_importable():

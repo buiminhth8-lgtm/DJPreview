@@ -296,6 +296,34 @@
 - 测试：instrument registry（+1）、semantic validator（+5）、cadence engine（+3）；
   全量 pytest 510 passed；MockProvider 生成 API 各模板 0 warning
 
+## T32 LM Studio / OpenAI-compatible 本地 LLM Provider ✅
+
+- 目标：在真正调用 DeepSeek 之前，先支持 LM Studio 本地 OpenAI-compatible API 测试完整链路；
+  并抽象通用 `OpenAICompatibleProvider` 复用给 Ollama / vLLM / LocalAI 等
+- 优先级：P1
+- 依赖：T11
+- 实现：
+  - `packages/llm/openai_compatible_provider.py`：通用基类，统一 `POST {base_url}/chat/completions`
+    （base_url 去尾部 `/`、支持 `/v1` 结尾、API Key 允许占位、timeout 可配置、HTTP 错误转清晰
+    provider error、`/models` 检查），结构化输出 / 修复 / 重试 / 日志全部复用
+  - `packages/llm/deepseek_provider.py`：重构为继承 `OpenAICompatibleProvider`，`DEEPSEEK_*`
+    环境变量与默认值完全兼容（base_url / model / timeout / require_api_key）
+  - `packages/llm/lmstudio_provider.py`：新增 `LMStudioProvider`（`LMSTUDIO_BASE_URL` /
+    `LMSTUDIO_API_KEY`（默认占位 `lm-studio`）/ `LMSTUDIO_MODEL` / `LMSTUDIO_TIMEOUT_SECONDS`）
+  - `packages/llm/factory.py`：支持 mock / deepseek / lmstudio / openai_compatible，默认 mock
+  - `packages/llm/json_utils.py`：JSONC 行/块注释与尾随逗号清洗（字符串感知）、BOM 处理、
+    错误信息带原文片段；markdown 代码块 / 前后解释文本提取保留
+  - `scripts/test_llm_provider.py`：本地健康检查（配置摘要隐藏 API Key、/models、/chat/completions、
+    JSON 提取、可选 --generate-spec / --generate-midi / --render-audio；失败 exit 1）
+  - `scripts/demo_t28_smoke.py`：新增 `--provider`（默认 mock；lmstudio 跑 1 个案例；
+    deepseek 仅显式选择；不污染系统环境）
+- 验收：`LLM_PROVIDER=lmstudio` 可识别；factory 四档均返回正确 provider；未知 provider 报清晰错误；
+  DeepSeekProvider 不被破坏；MockProvider 默认行为不变；API Key 不进入日志；全部单测使用
+  mock httpx transport，不真实连接本地/线上服务
+- 测试：新增 `test_openai_compatible_provider.py` / `test_lmstudio_provider.py` /
+  `test_provider_factory.py` / `test_llm_provider_script.py`，更新 `test_llm_json_utils.py`；
+  全量 pytest 550 passed（fast 393 / slow 157）
+
 ## 下一轮建议
 
 1. 文档 / 测试分层：拆分慢速集成测试（如音频渲染 / 全链路 API），缩短全量回归时间。

@@ -112,15 +112,34 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--all", action="store_true", help="跑全部 8 个示例案例")
     parser.add_argument("--cases", type=int, default=2, help="默认跑的案例数（忽略 --all 时）")
     parser.add_argument("--prompts", default=str(DEFAULT_PROMPTS), help="demo_prompts.json 路径")
+    parser.add_argument(
+        "--provider",
+        default="mock",
+        choices=("mock", "lmstudio", "deepseek", "openai_compatible"),
+        help="本次运行针对的后端 LLM_PROVIDER（仅影响案例数与报告，不修改系统环境；"
+        "后端需以对应 LLM_PROVIDER 启动）。mock 默认；lmstudio 跑 1 个案例；deepseek 需显式选择",
+    )
     args = parser.parse_args(argv)
+
+    provider = args.provider.strip().lower()
+    is_real = provider != "mock"
+    # provider 参数只影响本次脚本的案例数与报告，不修改环境变量
+    if is_real and not args.all:
+        args.cases = 1
 
     prompts_path = Path(args.prompts)
     cases = load_prompts(prompts_path)
     selected = cases if args.all else cases[: max(1, min(args.cases, len(cases)))]
 
     print(f"[T28 smoke] 目标: {args.base_url}")
+    print(f"[T28 smoke] provider: {provider}（真实 LLM 调用: {'yes' if is_real else 'no'}）")
     print(f"[T28 smoke] 案例数: {len(selected)}（共 {len(cases)} 个示例）")
     print(f"[T28 smoke] prompts: {prompts_path}")
+    if is_real:
+        print(
+            f"[T28 smoke] 提示：请确认后端已以 LLM_PROVIDER={provider} 启动；"
+            "本脚本只做 HTTP 检查，不直接调用 LLM。"
+        )
     print("---")
 
     try:

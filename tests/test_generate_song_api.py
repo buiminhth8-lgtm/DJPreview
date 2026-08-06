@@ -2,9 +2,16 @@
 
 from fastapi.testclient import TestClient
 
+from packages.llm.factory import get_llm_provider
+from packages.llm.mock_provider import MockProvider
 from services.api.main import app
 
 client = TestClient(app)
+
+
+def test_default_provider_is_mock():
+    """未设置 LLM_PROVIDER 时默认 mock，确保回归不依赖外部服务。"""
+    assert isinstance(get_llm_provider(), MockProvider)
 
 
 def test_health():

@@ -1,6 +1,6 @@
 # 项目状态（Project Status）
 
-> 最近一次实测：2026-08-05（分支 `master`）。以下状态均以代码与测试实际结果为准，
+> 最近一次实测：2026-08-06（分支 `master`）。以下状态均以代码与测试实际结果为准，
 > 不保留已完成的“待办”描述。
 
 ## Completed（已完成）
@@ -44,6 +44,13 @@
 - T32：前端依赖安全收尾（vite 7.3.6、esbuild 0.28.1，`npm audit` 0 漏洞）
 - T33：彻底移除 Docker / GitHub Actions 相关文件；测试分层（slow marker + 快速回归脚本）；
   Playwright 前端 E2E；生产可选 Celery/Redis 任务后端；表达自动化（CC7/CC11）与弦乐 divisi 分部
+- T32：LM Studio / OpenAI-compatible 本地 LLM Provider
+  （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
+  `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
+  `DEEPSEEK_*` 兼容；新增 `LMStudioProvider`（`LMSTUDIO_*`）；工厂支持 mock / deepseek /
+  lmstudio / openai_compatible，默认 mock；JSON 工具增强：markdown 代码块 / 前后文本 /
+  JSONC 注释与尾随逗号清洗 / BOM；`scripts/test_llm_provider.py` 本地健康检查脚本；
+  `demo_t28_smoke.py` 支持 `--provider`）
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
@@ -88,12 +95,12 @@
 - 更细的弦乐真实分部、CC11/CC7 expression 自动化、混音母带实验。
 - 前端 Playwright 演示测试（当前只有后端 pytest 与前端 build 门禁）。
 
-## 当前测试与构建结果（2026-08-05 实测）
+## 当前测试与构建结果（2026-08-06 实测）
 
 ```text
-后端：pytest -q → 510 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 354 passed（约 11s）
-慢速集成：pytest -m slow → 156 passed
+后端：pytest -q → 550 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 393 passed（约 11s）
+慢速集成：pytest -m slow → 157 passed
 前端：npm ci → passed（vite 7.3.6）
 前端：npm run build → passed（tsc 无错误）
 前端：npm audit → 0 vulnerabilities
@@ -114,4 +121,4 @@
 
 ## 最近一次状态更新时间
 
-2026-08-05
+2026-08-06

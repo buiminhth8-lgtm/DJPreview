@@ -11,6 +11,7 @@
 - 自然语言生成 MusicSpec（一句话 → 结构化音乐方案）
 - MockProvider（无 API Key 即可跑通全流程）
 - DeepSeekProvider（OpenAI-compatible Chat Completions）
+- LM Studio / 通用 OpenAI-compatible Provider（本地真实 LLM 链路验证）
 - MusicSpec 生成多轨标准 MIDI（旋律 / 和弦伴奏 / 贝斯 / 鼓组 / Pad）
 - MIDI 渲染 WAV（FluidSynth；无 FluidSynth 时 fallback 合成）
 - 前端试听与下载 MIDI / WAV
@@ -95,13 +96,31 @@ npm run dev
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-## MockProvider 与 DeepSeekProvider
+## MockProvider / LM Studio / DeepSeekProvider
+
+本工程支持三档 LLM Provider，按测试阶段选择：
+
+```text
+mock：默认，稳定回归，不调用外部服务
+lmstudio：本地 OpenAI-compatible 服务，用于真实 LLM 本地链路测试
+deepseek：线上 DeepSeek，用于最终质量测试
+```
 
 开发环境推荐默认：
 
 ```env
 LLM_PROVIDER=mock
 AUDIO_RENDERER=fallback
+```
+
+LM Studio（本地 OpenAI-compatible）配置示例（无需真实 DeepSeek API Key）：
+
+```env
+LLM_PROVIDER=lmstudio
+LMSTUDIO_BASE_URL=http://localhost:1234/v1
+LMSTUDIO_API_KEY=lm-studio
+LMSTUDIO_MODEL=your-local-model
+LMSTUDIO_TIMEOUT_SECONDS=120
 ```
 
 DeepSeek 配置示例（不要提交真实 API Key）：
@@ -113,6 +132,34 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 DEEPSEEK_TIMEOUT_SECONDS=60
 ```
+
+通用 OpenAI-compatible（Ollama / vLLM / LocalAI 等）：
+
+```env
+LLM_PROVIDER=openai_compatible
+OPENAI_COMPATIBLE_BASE_URL=
+OPENAI_COMPATIBLE_API_KEY=
+OPENAI_COMPATIBLE_MODEL=
+OPENAI_COMPATIBLE_TIMEOUT_SECONDS=120
+```
+
+### T32：LM Studio / OpenAI-compatible Provider
+
+- 新增 `OpenAICompatibleProvider`（`packages/llm/openai_compatible_provider.py`）：
+  统一处理 OpenAI-compatible `/chat/completions`（base_url 去尾部 `/`、可带 `/v1`、
+  API Key 允许占位值、timeout 可配置、HTTP 错误转清晰 provider error、可调用 `/models`），
+  可复用于 LM Studio / DeepSeek / Ollama / vLLM / LocalAI。
+- `DeepSeekProvider` 重构为继承 `OpenAICompatibleProvider`，环境变量与默认值完全兼容。
+- 新增 `LMStudioProvider`（`LMSTUDIO_*` 环境变量，默认 `http://localhost:1234/v1`，模型名须与
+  LM Studio 已加载模型一致）。
+- Provider 工厂支持：`mock` / `deepseek` / `lmstudio` / `openai_compatible`；
+  未设置 `LLM_PROVIDER` 仍默认 `mock`，未知值报清晰错误。
+- JSON 稳定性增强（`json_utils.py`）：支持 markdown 代码块提取、前后解释文字中的第一个完整
+  JSON object、JSONC 行/块注释与尾随逗号清洗（字符串感知）、BOM 处理；失败错误信息带原文片段。
+- 新增 `scripts/test_llm_provider.py` 本地健康检查脚本（打印配置摘要并隐藏 API Key、
+  检查 `/models` 与 `/chat/completions`、JSON 提取、可选 `--generate-spec` / `--generate-midi` /
+  `--render-audio`）；`scripts/demo_t28_smoke.py` 支持 `--provider` 参数。
+- 详见 [docs/LLM_PROVIDERS.md](docs/LLM_PROVIDERS.md)。
 
 ### T11：LLM Provider 产品化
 
@@ -535,8 +582,8 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（510 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 354 passed（约 17s）
+后端测试：pytest -q passed（550 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 393 passed（约 11s）
 前端依赖：npm ci passed（vite 7.3.6）
 前端构建：npm run build passed（tsc + vite）
 前端安全：npm audit 0 vulnerabilities

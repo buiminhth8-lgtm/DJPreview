@@ -14,6 +14,14 @@ class Settings(BaseSettings):
     deepseek_api_key: str | None = None
     deepseek_base_url: str | None = None
     deepseek_model: str | None = None
+    lmstudio_base_url: str | None = None
+    lmstudio_api_key: str | None = None
+    lmstudio_model: str | None = None
+    lmstudio_timeout_seconds: float = 120.0
+    openai_compatible_base_url: str | None = None
+    openai_compatible_api_key: str | None = None
+    openai_compatible_model: str | None = None
+    openai_compatible_timeout_seconds: float = 120.0
     projects_dir: Path = Path("data/projects")
 
     # 音频渲染（第三阶段）
