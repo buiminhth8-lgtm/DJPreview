@@ -105,6 +105,11 @@
   `music_planner.generate_music_spec_from_prompt` 在 validate 前调用 normalize；
   validator 基于 canonical 判断 unknown，真正未知乐器仍 warning 且带建议；
   System prompt 更新为优先使用 canonical 乐器名）
+- T38 Frontend Workspace Redesign
+  - T38-A completed：前端结构审计与改版方案（新增 `docs/FRONTEND_WORKSPACE_REDESIGN.md`：
+    入口/组件/hooks/API/条件渲染审计、目标瀑布流布局、Empty State / Disabled State 规划、
+    数据依赖矩阵、T38-B ~ T38-J 切片、风险与缓解）
+  - T38-B next：UI 基础组件与设计变量
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
