@@ -1,4 +1,4 @@
-/* T38-B：工作台设计变量（design tokens）。
+/* T38-B / T38-I：工作台设计变量（design tokens）。
 
 深色音乐工作台风格。使用 `--workspace-*` 前缀避免与现有 styles.css 变量冲突。
 所有组件类名使用 `.ui-*` 前缀，避免污染现有页面。 */
@@ -6,8 +6,10 @@
   /* 背景 / 表面 */
   --workspace-bg: #0b1020;
   --workspace-bg-soft: #101827;
+  --workspace-bg-elevated: #111c33;
   --workspace-surface: rgba(255, 255, 255, 0.06);
-  --workspace-surface-strong: rgba(255, 255, 255, 0.1);
+  --workspace-surface-hover: rgba(255, 255, 255, 0.09);
+  --workspace-surface-strong: rgba(255, 255, 255, 0.12);
   --workspace-border: rgba(255, 255, 255, 0.12);
   --workspace-border-strong: rgba(255, 255, 255, 0.2);
 
@@ -19,7 +21,9 @@
   /* 品牌色 */
   --workspace-primary: #8b5cf6;
   --workspace-primary-strong: #7c3aed;
+  --workspace-primary-soft: rgba(139, 92, 246, 0.16);
   --workspace-accent: #06b6d4;
+  --workspace-accent-soft: rgba(6, 182, 212, 0.14);
 
   /* 状态色 */
   --workspace-success: #22c55e;

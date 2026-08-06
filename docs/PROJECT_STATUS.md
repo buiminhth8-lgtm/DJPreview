@@ -149,7 +149,12 @@
     导入失败提示；升级 `RenderTasksPanel`：无工程 Empty State、有工程才 listSongTasks、
     任务卡片（状态 badges/进度/错误/result JSON）、刷新按钮、`TaskStatusList` 只读列表；
     `styles/workspace-utilities.css`；与 GenerationDebugPanel（LLM 调试）职责区分）
-  - T38-I next：整体 UI 美化与响应式优化
+  - T38-I completed：整体 UI 美化与响应式优化（design-tokens 补充 elevated/surface-hover/
+    primary-soft/accent-soft；`workspace-dashboard` 全屏渐变背景 + `workspace-dashboard-inner`
+    居中 1280px；Header 桌面横向/移动堆叠 + 渐变标题 + aria；SectionCard 玻璃拟态；
+    新增 `workspace-responsive.css`：表格/JSON/Debug/任务/Piano Roll 溢出处理 + 760/600/480
+    断点；WorkspaceDashboard 外层结构调整；未改 hooks/API/后端）
+  - T38-J next：前端回归测试与文档同步
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /

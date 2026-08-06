@@ -89,7 +89,8 @@ export default function WorkspaceDashboard({
   const hasSong = Boolean(songId && spec);
 
   return (
-    <div className="container workspace workspace-dashboard">
+    <div className="workspace-dashboard">
+      <div className="workspace-dashboard-inner">
       <WorkspaceHeader
         songId={songId}
         currentVersionId={versions.currentVersionId}
@@ -341,6 +342,7 @@ export default function WorkspaceDashboard({
         <SectionCard title="批量评估" description="内置评估用例">
           <EvaluationPanel onError={songProject.setError} />
         </SectionCard>
+      </div>
       </div>
     </div>
   );

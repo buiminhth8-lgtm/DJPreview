@@ -1,0 +1,134 @@
+/* T38-I：响应式与溢出优化。
+补充 workspace-* 区域在桌面/平板/移动端的溢出处理，避免全局横向滚动。 */
+
+/* ---------- 表格滚动容器（Track / Stems / 版本） ---------- */
+.workspace-track-table-wrap,
+.workspace-stems__result,
+.workspace-versions__detail,
+.workspace-versions__diff {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.workspace-track-table {
+  min-width: 720px;
+}
+
+.workspace-stems__result table {
+  min-width: 420px;
+}
+
+/* ---------- JSON / Debug / 日志限高 ---------- */
+.workspace-json-preview__body {
+  max-height: 420px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.debug-raw-preview {
+  max-height: 240px;
+  overflow: auto;
+  word-break: break-word;
+}
+
+.workspace-task-card__result pre,
+.workspace-edit-song__diff pre {
+  max-height: 220px;
+  overflow: auto;
+  word-break: break-word;
+}
+
+/* 长 id / 路径 / request_id 换行 */
+.workspace-task-card__id,
+.workspace-soundfont-item__path,
+.debug-path,
+.workspace-version-item__time {
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Piano Roll 容器 ---------- */
+.workspace-piano-roll {
+  min-height: 120px;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---------- Mixer 滑动条不撑破 ---------- */
+.mixer-strips {
+  overflow-x: auto;
+}
+
+.mixer-control input[type="range"] {
+  min-width: 120px;
+  max-width: 100%;
+}
+
+/* ---------- Header 短版本 / 换行 ---------- */
+.workspace-header__badges {
+  flex-wrap: wrap;
+}
+
+/* ---------- 断点 ---------- */
+@media (max-width: 900px) {
+  .workspace-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace-dashboard-inner {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .ui-button-row {
+    flex-wrap: wrap;
+  }
+
+  .ui-section-card__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--workspace-gap-sm, 10px);
+  }
+
+  .ui-section-card__actions {
+    justify-content: flex-start;
+  }
+
+  .ui-key-value-grid,
+  .ui-key-value-grid--3,
+  .ui-key-value-grid--4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .workspace-waterfall {
+    gap: var(--workspace-gap-md, 16px);
+  }
+
+  .ui-section-card {
+    padding: var(--workspace-gap-md, 16px);
+    border-radius: var(--workspace-radius-lg, 18px);
+  }
+
+  .generate-console__textarea {
+    min-height: 100px;
+  }
+
+  .ui-action-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .workspace-dashboard-inner {
+    width: 100%;
+    padding: 12px 8px 28px;
+  }
+}

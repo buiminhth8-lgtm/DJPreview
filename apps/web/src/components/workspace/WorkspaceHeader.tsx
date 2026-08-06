@@ -26,7 +26,7 @@ export default function WorkspaceHeader({
         <p className="workspace-header__subtitle">自然语言生成、编辑、试听和导出音乐工程</p>
       </div>
 
-      <div className="workspace-header__badges">
+      <div className="workspace-header__badges" role="list" aria-label="工作台状态">
         <StatusBadge variant="primary" title="当前 LLM Provider">
           Provider：当前环境 / 未知
         </StatusBadge>

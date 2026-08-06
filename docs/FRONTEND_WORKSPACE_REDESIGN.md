@@ -459,6 +459,33 @@ provider / raw path）职责分离，不重复。
 - 验收标准：桌面/移动布局正确；`npm run build` 通过。
 - 建议 commit message：`style(frontend): polish flow layout and responsive`
 
+#### T38-I 已落地（完成）
+
+已完成工作台 UI 美化与响应式优化：
+
+- `design-tokens.css`：补充 `--workspace-bg-elevated` / `--workspace-surface-hover` /
+  `--workspace-primary-soft` / `--workspace-accent-soft` 设计变量。
+- `workspace-layout.css`：
+  - `workspace-dashboard` 改为全屏渐变背景（紫蓝径向渐变 + 深色底），内层
+    `workspace-dashboard-inner` 居中（max 1280px）。
+  - Header 桌面横向 / 移动端上下堆叠；标题渐变文字；badges 自动换行。
+  - 断点 900px（hero 单列）/ 768px / 600px（padding 收窄）。
+- `workspace-ui.css`：SectionCard 玻璃拟态（渐变背景 + backdrop-filter + 大圆角）；
+  textarea focus 增加柔光 ring；ActionButton hover 态补充。
+- `workspace-responsive.css`（新增）：
+  - 表格（track / stems / 版本）局部横向滚动，不撑破页面。
+  - JSON / Debug / 任务 result / diff 限高 + 滚动 + monospace。
+  - 长 id / 路径 / request_id 换行。
+  - Piano Roll 容器 overflow-x auto。
+  - Mixer slider 最小宽度 + 容器滚动。
+  - 断点 760px（表格/卡片/header 堆叠、KeyValueGrid 单列）/ 600px（按钮全宽、卡片 padding）/ 480px。
+- `WorkspaceDashboard`：外层改为 `workspace-dashboard` + `workspace-dashboard-inner` 结构。
+- `WorkspaceHeader`：增加 `role="list"` / `aria-label` 可访问性；badges 换行。
+
+未改 hooks / API client / 后端；T38-D~H 模块全部保留。
+
+后续 T38-J 将进行前端回归测试与文档同步。
+
 ### T38-J：前端回归测试与文档同步
 - 目标：Playwright E2E 覆盖常驻空态/禁用态；同步 README / PROJECT_STATUS。
 - 修改范围：`apps/web/e2e/`、`README.md`、`docs/PROJECT_STATUS.md`。

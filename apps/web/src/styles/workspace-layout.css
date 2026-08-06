@@ -1,10 +1,20 @@
-/* T38-C：工作台瀑布流布局。
+/* T38-C / T38-I：工作台瀑布流布局。
 使用 `workspace-*` 前缀，避免与现有 styles.css / workspace-ui.css 冲突。 */
 
+/* 外层：全屏渐变背景 + 内层居中容器 */
 .workspace-dashboard {
-  max-width: 1180px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(139, 92, 246, 0.18), transparent 32rem),
+    radial-gradient(circle at top right, rgba(6, 182, 212, 0.12), transparent 28rem),
+    var(--workspace-bg, #0b1020);
+  color: var(--workspace-text, #f8fafc);
+}
+
+.workspace-dashboard-inner {
+  width: min(1280px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: 24px 20px 80px;
+  padding: 32px 0 56px;
 }
 
 /* 顶部生成区域：桌面双列（生成控制台更宽） */
@@ -34,18 +44,20 @@
   width: 100%;
   min-height: 120px;
   resize: vertical;
-  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  background: rgba(2, 6, 23, 0.4);
   border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
-  border-radius: var(--workspace-radius-sm, 8px);
+  border-radius: var(--workspace-radius-md, 12px);
   color: var(--workspace-text, #f8fafc);
   padding: var(--workspace-gap-sm, 10px) var(--workspace-gap-md, 16px);
   font: inherit;
   line-height: 1.5;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .generate-console__textarea:focus {
   outline: none;
   border-color: var(--workspace-primary, #8b5cf6);
+  box-shadow: 0 0 0 3px var(--workspace-primary-soft, rgba(139, 92, 246, 0.16));
 }
 
 .generate-console__provider,
@@ -66,19 +78,29 @@
   gap: var(--workspace-gap-lg, 24px);
 }
 
+/* Header */
 .workspace-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--workspace-gap-md, 16px);
   margin-bottom: var(--workspace-gap-xl, 32px);
   padding: 8px 0;
 }
 
 .workspace-header__titles {
-  margin-bottom: var(--workspace-gap-md, 16px);
+  min-width: 0;
 }
 
 .workspace-header__title {
   margin: 0 0 4px;
   font-size: 28px;
   letter-spacing: 0.5px;
+  background: linear-gradient(90deg, var(--workspace-text, #f8fafc), var(--workspace-accent, #06b6d4));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .workspace-header__subtitle {
@@ -90,7 +112,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--workspace-gap-sm, 10px);
-  margin-bottom: var(--workspace-gap-md, 16px);
+  justify-content: flex-end;
+  max-width: 60%;
 }
 
 .workspace-section-note {
@@ -99,7 +122,14 @@
   margin-bottom: var(--workspace-gap-sm, 10px);
 }
 
-/* 移动端：全部单列 */
+/* 表格滚动容器 */
+.workspace-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 响应式断点 */
 @media (max-width: 900px) {
   .workspace-hero-grid {
     grid-template-columns: 1fr;
@@ -107,7 +137,25 @@
 }
 
 @media (max-width: 768px) {
-  .workspace-hero-grid {
-    grid-template-columns: 1fr;
+  .workspace-dashboard-inner {
+    width: min(100vw - 20px, 720px);
+    padding: 20px 0 40px;
+  }
+
+  .workspace-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .workspace-header__badges {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .workspace-dashboard-inner {
+    width: 100%;
+    padding: 16px 10px 32px;
   }
 }
