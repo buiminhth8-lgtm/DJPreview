@@ -246,7 +246,8 @@ class OpenAICompatibleProvider(LLMProvider):
         except httpx.HTTPStatusError as exc:
             raise LLMAPIError(
                 f"{self.display_name} API 请求失败（HTTP {exc.response.status_code}）："
-                f"{exc.response.text[:500]}"
+                f"{exc.response.text[:500]}",
+                status_code=exc.response.status_code,
             ) from exc
         except httpx.TimeoutException as exc:
             raise LLMAPIError(
@@ -283,3 +284,28 @@ class OpenAICompatibleProvider(LLMProvider):
             raise LLMAPIError(f"{self.display_name} /models 网络错误：{exc}") from exc
         except (KeyError, ValueError) as exc:
             raise LLMAPIError(f"{self.display_name} /models 返回格式异常：{exc}") from exc
+
+    def retrieve_model(self, model_id: str) -> dict:
+        """调用 {base_url}/models/{model_id}（如服务支持）返回模型详情；失败抛 LLMAPIError。"""
+        try:
+            with httpx.Client(timeout=self.timeout, transport=self._transport) as client:
+                resp = client.get(
+                    f"{self.base_url}/models/{model_id}", headers=self._headers()
+                )
+                resp.raise_for_status()
+                return resp.json()
+        except httpx.HTTPStatusError as exc:
+            raise LLMAPIError(
+                f"{self.display_name} /models/{model_id} 请求失败（HTTP {exc.response.status_code}）："
+                f"{exc.response.text[:500]}"
+            ) from exc
+        except httpx.TimeoutException as exc:
+            raise LLMAPIError(
+                f"{self.display_name} /models/{model_id} 请求超时（{self.timeout}s）。"
+            ) from exc
+        except httpx.ConnectError as exc:
+            raise LLMAPIError(f"{self.display_name} server not reachable：{exc}") from exc
+        except httpx.HTTPError as exc:
+            raise LLMAPIError(f"{self.display_name} /models/{model_id} 网络错误：{exc}") from exc
+        except ValueError as exc:
+            raise LLMAPIError(f"{self.display_name} /models/{model_id} 返回格式异常：{exc}") from exc

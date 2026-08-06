@@ -18,6 +18,10 @@ class LLMConfigurationError(ValueError):
 class LLMAPIError(RuntimeError):
     """LLM API 网络 / HTTP 调用失败。"""
 
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
 
 class LLMOutputError(ValueError):
     """模型输出无法解析或不符合 schema。"""

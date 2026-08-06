@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 """本地 LLM Provider 健康检查脚本。
 
-用于在真正接入线上服务（DeepSeek）前，先验证本地 OpenAI-compatible 服务
-（如 LM Studio）的完整链路：配置摘要 → /models → /chat/completions →
-JSON 提取 → MusicSpec 校验。
+用于在真正接入线上服务（DeepSeek / Gemini）前，先验证本地 OpenAI-compatible 服务
+（如 LM Studio）或线上 OpenAI-compatible 服务的完整链路：配置摘要 → /models →
+/chat/completions → JSON 提取 → MusicSpec 校验。
 
 用法示例：
     python scripts/test_llm_provider.py --help
     python scripts/test_llm_provider.py --provider mock
-    python scripts/test_llm_provider.py --provider lmstudio
-    python scripts/test_llm_provider.py --provider lmstudio \
-        --base-url http://localhost:1234/v1 --model local-model
-    python scripts/test_llm_provider.py --provider lmstudio \
-        --generate-spec --song-prompt "生成一首雨夜电影感钢琴曲"
+    python scripts/test_llm_provider.py --profile mock
+    python scripts/test_llm_provider.py --profile lmstudio
+    python scripts/test_llm_provider.py --profile gemini --list-models
+    python scripts/test_llm_provider.py --profile gemini --retrieve-model gemini-3.5-flash
+    python scripts/test_llm_provider.py --profile gemini --generate-spec \
+        --song-prompt "生成一首雨夜电影感钢琴曲"
+    python scripts/test_llm_provider.py --profile deepseek --generate-spec
 
-环境变量：LLM_PROVIDER / LMSTUDIO_* / OPENAI_COMPATIBLE_* / DEEPSEEK_*
+环境变量：LLM_PROVIDER / LMSTUDIO_* / GEMINI_* / OPENAI_COMPATIBLE_* / DEEPSEEK_*
 脚本只在显式传入 --generate-midi / --render-audio 时写入文件（data/tmp_llm_provider_test/），
 默认不生成任何 MIDI / WAV。
 """
@@ -79,17 +81,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--profile",
         default=None,
-        help="LLM env profile：mock / lmstudio / deepseek（加载对应 .mock.env / .lmstudio.env / .deepseek.env）",
+        help="LLM env profile：mock / lmstudio / gemini / deepseek（加载对应 .*.env）",
     )
     parser.add_argument(
         "--provider",
         default=None,
-        help="provider 名称：mock / lmstudio / deepseek / openai_compatible（默认取 LLM_PROVIDER 或 mock）",
+        help="provider 名称：mock / lmstudio / gemini / deepseek / openai_compatible（默认取 LLM_PROVIDER 或 mock）",
     )
     parser.add_argument("--base-url", default=None, help="OpenAI-compatible base url（如 http://localhost:1234/v1）")
     parser.add_argument("--model", default=None, help="模型名")
     parser.add_argument("--api-key", default=None, help="API key（本地服务可用占位值；缺省读取环境变量）")
     parser.add_argument("--timeout", type=float, default=None, help="HTTP 超时秒数")
+    parser.add_argument("--list-models", action="store_true", help="调用 /models 列出模型")
+    parser.add_argument("--retrieve-model", default=None, metavar="MODEL_ID", help="调用 /models/{model} 查询单个模型")
     parser.add_argument("--prompt", default="只输出一个 JSON：{\"ok\": true}", help="最小 chat 提示词")
     parser.add_argument("--generate-spec", action="store_true", help="执行一次 generate_music_spec 全链路")
     parser.add_argument("--generate-midi", action="store_true", help="生成 MIDI 到临时数据目录")
@@ -97,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--song-prompt", default="生成一首雨夜电影感钢琴曲", help="generate_music_spec 用的歌曲提示词")
     args = parser.parse_args(argv)
 
-    # 优先按 profile 加载 env（.mock.env / .lmstudio.env / .deepseek.env）
+    # 优先按 profile 加载 env（.mock.env / .lmstudio.env / .gemini.env / .deepseek.env）
     if args.profile:
         from packages.music_core.config.env_loader import load_env
 
@@ -133,14 +137,27 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[config] model={provider.model or '<未设置>'}")
     print(f"[config] timeout={provider.timeout}")
     print(f"[config] api_key={_mask_key(provider.api_key)}")
+    if provider_name == "gemini":
+        print(f"[config] reasoning_effort={getattr(provider, 'reasoning_effort', '') or '<unset>'}")
+        print(
+            f"[config] response_format="
+            f"{'enabled' if getattr(provider, 'use_response_format', False) else 'disabled'}"
+        )
 
-    # 1) /models（服务支持才可用，失败不阻断）
-    models: list[str] | None = None
+    # 1) /models 或 /models/{id}（服务支持才可用，失败不阻断）
     try:
-        models = provider.fetch_models()
-        print(f"[models] reachable，返回 {len(models)} 个模型：{', '.join(models[:10]) or '(空)'}")
+        if args.retrieve_model:
+            detail = provider.retrieve_model(args.retrieve_model)
+            model_id = detail.get("id") if isinstance(detail, dict) else None
+            print(f"[retrieve_model] ok -> {model_id or args.retrieve_model}")
+        else:
+            models = provider.fetch_models()
+            print(f"[models] reachable，返回 {len(models)} 个模型：{', '.join(models[:10]) or '(空)'}")
     except LLMAPIError as exc:
         print(f"[models] skipped：{exc}")
+
+    if args.list_models:
+        return 0
 
     # 2) /chat/completions + JSON 提取（走统一结构化调用）
     try:
@@ -211,11 +228,15 @@ def _construct_provider(name: str, kwargs: dict):
         from packages.llm.deepseek_provider import DeepSeekProvider
 
         return DeepSeekProvider(**kwargs)
+    if name == "gemini":
+        from packages.llm.gemini_provider import GeminiProvider
+
+        return GeminiProvider(**kwargs)
     if name in ("openai_compatible", "openai-compatible", "openai"):
         from packages.llm.openai_compatible_provider import OpenAICompatibleProvider
 
         return OpenAICompatibleProvider(**kwargs)
-    raise ValueError(f"未知的 provider：{name!r}（支持：mock、lmstudio、deepseek、openai_compatible）")
+    raise ValueError(f"未知的 provider：{name!r}（支持：mock、lmstudio、gemini、deepseek、openai_compatible）")
 
 
 if __name__ == "__main__":

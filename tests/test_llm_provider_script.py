@@ -38,6 +38,14 @@ def test_help_runs():
     assert "--provider" in proc.stdout
     assert "--base-url" in proc.stdout
     assert "--profile" in proc.stdout
+    assert "--list-models" in proc.stdout
+    assert "--retrieve-model" in proc.stdout
+
+
+def test_profile_gemini_help_runs():
+    proc = _run("--profile", "gemini", "--help")
+    assert proc.returncode == 0
+    assert "--list-models" in proc.stdout
 
 
 def test_unknown_provider_fails():

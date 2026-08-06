@@ -17,6 +17,8 @@ def test_smoke_script_help_runs():
         [sys.executable, str(SMOKE_SCRIPT), "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=30,
     )
     assert proc.returncode == 0

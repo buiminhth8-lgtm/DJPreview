@@ -1,17 +1,18 @@
 """多 LLM 环境配置文件按需加载。
 
-在真正调用 DeepSeek 之前，可在以下模式之间按需切换：
+可在以下模式之间按需切换：
     MockProvider          -> .mock.env
     LM Studio 本地服务     -> .lmstudio.env
+    Gemini 线上服务        -> .gemini.env
     DeepSeek 线上服务      -> .deepseek.env
 
 支持两种选择方式（可同时使用，LLM_ENV_FILE 优先）：
-    LLM_ENV_PROFILE=mock|lmstudio|deepseek
+    LLM_ENV_PROFILE=mock|lmstudio|gemini|deepseek
     LLM_ENV_FILE=.custom.env
 
 加载优先级（低 -> 高，系统环境变量最高，永不被文件覆盖）：
     1. .env                      通用默认配置
-    2. profile env file          .mock.env / .lmstudio.env / .deepseek.env
+    2. profile env file          .mock.env / .lmstudio.env / .gemini.env / .deepseek.env
     3. LLM_ENV_FILE 指定文件      如果设置，优先于 profile file
     4. 系统环境变量               最高优先级
 
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 PROFILE_FILES = {
     "mock": ".mock.env",
     "lmstudio": ".lmstudio.env",
+    "gemini": ".gemini.env",
     "deepseek": ".deepseek.env",
 }
 
@@ -112,7 +114,7 @@ def load_env(
     """按优先级加载 env 文件到 os.environ。
 
     参数：
-        profile:  指定 profile（mock / lmstudio / deepseek）；缺省读 LLM_ENV_PROFILE。
+        profile:  指定 profile（mock / lmstudio / gemini / deepseek）；缺省读 LLM_ENV_PROFILE。
         env_file: 指定自定义 env 文件（.custom.env）；缺省读 LLM_ENV_FILE。
         env_dir:  项目根目录（env 文件的基准目录）；缺省为当前工作目录。
         override: 是否覆盖已存在的系统环境变量；默认 False（系统变量最高优先级）。

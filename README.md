@@ -12,6 +12,7 @@
 - MockProvider（无 API Key 即可跑通全流程）
 - DeepSeekProvider（OpenAI-compatible Chat Completions）
 - LM Studio / 通用 OpenAI-compatible Provider（本地真实 LLM 链路验证）
+- GeminiProvider（Gemini OpenAI-compatible 线上模型，支持 response_format fallback / models list / retrieve）
 - MusicSpec 生成多轨标准 MIDI（旋律 / 和弦伴奏 / 贝斯 / 鼓组 / Pad）
 - MIDI 渲染 WAV（FluidSynth；无 FluidSynth 时 fallback 合成）
 - 前端试听与下载 MIDI / WAV
@@ -96,23 +97,27 @@ npm run dev
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-## MockProvider / LM Studio / DeepSeekProvider
+## MockProvider / LM Studio / Gemini / DeepSeekProvider
 
-本工程支持三档 LLM Provider，按测试阶段选择：
+本工程支持多档 LLM Provider，按测试阶段选择：
 
 ```text
-mock：默认，稳定回归，不调用外部服务
-lmstudio：本地 OpenAI-compatible 服务，用于真实 LLM 本地链路测试
-deepseek：线上 DeepSeek，用于最终质量测试
+mock：稳定回归，不调用外部模型
+lmstudio：本地真实 LLM 测试，不消耗线上 API
+gemini：Gemini OpenAI-compatible 线上模型测试
+deepseek：DeepSeek 线上模型测试
 ```
+
+Provider 流程建议：`mock -> lmstudio -> gemini -> deepseek`。
 
 ### T33：多 LLM 环境配置文件按需加载
 
-通过 `LLM_ENV_PROFILE` 或 `LLM_ENV_FILE` 按需加载不同 Provider 配置，切换 mock / lmstudio / deepseek：
+通过 `LLM_ENV_PROFILE` 或 `LLM_ENV_FILE` 按需加载不同 Provider 配置，切换 mock / lmstudio / gemini / deepseek：
 
 ```text
 mock      -> .mock.env
 lmstudio  -> .lmstudio.env
+gemini    -> .gemini.env
 deepseek  -> .deepseek.env
 LLM_ENV_FILE -> .custom.env（优先于 profile file）
 ```
@@ -122,7 +127,8 @@ LLM_ENV_FILE -> .custom.env（优先于 profile file）
 ```text
 1. 复制 .mock.env.example 为 .mock.env，使用 mock 跑稳定回归
 2. 复制 .lmstudio.env.example 为 .lmstudio.env，启动 LM Studio server 后跑本地真实 LLM 测试
-3. 复制 .deepseek.env.example 为 .deepseek.env，最后显式切换 deepseek 测试线上模型
+3. 复制 .gemini.env.example 为 .gemini.env，跑 Gemini OpenAI-compatible 线上模型测试
+4. 复制 .deepseek.env.example 为 .deepseek.env，最后显式切换 deepseek 测试线上模型
 ```
 
 PowerShell：
@@ -158,7 +164,7 @@ python scripts/run_with_env.py --profile deepseek -- python scripts/test_llm_pro
 
 ## 按需启动 LLM Provider
 
-提供三个 PowerShell 启动脚本，分别对应 mock / lmstudio / deepseek，自动激活 `.venv`、
+提供 PowerShell 启动脚本，分别对应 mock / lmstudio / gemini / deepseek，自动激活 `.venv`、
 清理 provider 环境变量并设置正确的 `LLM_ENV_PROFILE`。
 
 ### 环境文件准备
@@ -166,6 +172,7 @@ python scripts/run_with_env.py --profile deepseek -- python scripts/test_llm_pro
 ```powershell
 Copy-Item .mock.env.example .mock.env
 Copy-Item .lmstudio.env.example .lmstudio.env
+Copy-Item .gemini.env.example .gemini.env
 Copy-Item .deepseek.env.example .deepseek.env
 ```
 
@@ -199,6 +206,42 @@ LMSTUDIO_MODEL=your-local-model
 ```
 
 脚本不会强制检查 LM Studio 是否可访问，仅提示。
+
+### 启动 Gemini 后端
+
+```powershell
+Copy-Item .gemini.env.example .gemini.env
+.\scripts\start-backend-gemini.ps1
+```
+
+在 `.gemini.env` 中配置：
+
+```env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+GEMINI_MODEL=gemini-3.5-flash
+GEMINI_TIMEOUT_SECONDS=120
+GEMINI_TEMPERATURE=0.2
+GEMINI_MAX_TOKENS=1800
+GEMINI_REASONING_EFFORT=low
+GEMINI_USE_RESPONSE_FORMAT=true
+```
+
+说明：
+
+```text
+Gemini OpenAI compatibility 仍处 Beta；仅显式选择 gemini profile 才调用线上 API。
+系统会尝试发送 response_format 结构化输出；若不受支持则 fallback 到普通
+chat completions + JSON extract / repair / MusicSpec validation。
+```
+
+脚本测试：
+
+```powershell
+python scripts/test_llm_provider.py --profile gemini --list-models
+python scripts/test_llm_provider.py --profile gemini --generate-spec --song-prompt "生成一首雨夜电影感钢琴曲"
+```
 
 ### 启动 DeepSeek 后端
 
@@ -718,8 +761,8 @@ python scripts/demo_t30_frontend_smoke.py --check-frontend
 ## 当前项目状态
 
 ```text
-后端测试：pytest -q passed（572 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 415 passed（约 25s）
+后端测试：pytest -q passed（596 passed，2026-08-06 实测，LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 439 passed（约 19s）
 前端依赖：npm ci passed（vite 7.3.6）
 前端构建：npm run build passed（tsc + vite）
 前端安全：npm audit 0 vulnerabilities

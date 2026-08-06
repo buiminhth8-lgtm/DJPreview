@@ -176,6 +176,39 @@ def test_fetch_models_http_error(tmp_path):
         provider.fetch_models()
 
 
+def test_retrieve_model_returns_detail(tmp_path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"id": "model-a", "object": "model"})
+
+    provider = _provider(tmp_path, handler)
+    detail = provider.retrieve_model("model-a")
+    assert detail["id"] == "model-a"
+
+
+def test_retrieve_model_http_error(tmp_path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, text="model not found")
+
+    provider = _provider(tmp_path, handler)
+    with pytest.raises(LLMAPIError, match="404"):
+        provider.retrieve_model("nope")
+
+
+def test_api_error_carries_status_code(tmp_path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(422, text="bad param")
+
+    provider = _provider(tmp_path, handler)
+    with pytest.raises(LLMAPIError) as excinfo:
+        provider.generate_structured(
+            system_prompt="s",
+            user_prompt="u",
+            response_model=MusicSpec,
+            task_name="generate_music_spec",
+        )
+    assert excinfo.value.status_code == 422
+
+
 def test_invalid_json_never_crashes_service(tmp_path):
     calls = {"n": 0}
 

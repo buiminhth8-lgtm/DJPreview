@@ -348,6 +348,33 @@
 - 测试：新增 `test_env_loader.py`、`test_run_with_env.py`，更新 `test_provider_factory.py` /
   `test_llm_provider_script.py`；全量 pytest 572 passed（fast 415 / slow 157）
 
+## T34 Gemini OpenAI-compatible Provider ✅
+
+- 目标：通过 Gemini OpenAI-compatible endpoint 调用 Gemini API；优先复用 `OpenAICompatibleProvider`
+- 优先级：P1
+- 依赖：T32 / T33
+- 实现：
+  - `packages/llm/gemini_provider.py`：`GeminiProvider(OpenAICompatibleProvider)`，读取 `GEMINI_API_KEY` /
+    `GEMINI_BASE_URL`（默认 `https://generativelanguage.googleapis.com/v1beta/openai/`）/
+    `GEMINI_MODEL`（默认 `gemini-3.5-flash`）/ `GEMINI_TIMEOUT_SECONDS` / `GEMINI_TEMPERATURE` /
+    `GEMINI_MAX_TOKENS` / `GEMINI_REASONING_EFFORT`（none/minimal/low/medium/high，空则不发送）/
+    `GEMINI_USE_RESPONSE_FORMAT`（默认 true）
+  - 请求：`POST {base_url}/chat/completions`，base_url 去尾部斜杠避免双斜杠；
+    `Authorization: Bearer GEMINI_API_KEY`；body 含 temperature / max_tokens / reasoning_effort / response_format
+  - response_format fallback：服务返回 HTTP 400/422/404 时自动去掉 response_format 重试，
+    再走现有 JSON extract / repair / MusicSpec validation；`LLMAPIError` 增加 `status_code`
+  - 基类 `OpenAICompatibleProvider` 新增 `retrieve_model`（`GET /models/{model}`）
+  - `factory` 支持 gemini；`env_loader` 新增 `gemini -> .gemini.env`；
+    新增 `.gemini.env.example`；`.gitignore` 忽略 `.gemini.env`、保留 example
+  - `scripts/test_llm_provider.py` 支持 `--profile gemini` / `--list-models` / `--retrieve-model`
+  - 新增 `scripts/start-backend-gemini.ps1`
+- 验收：`LLM_PROVIDER=gemini` 可用；`.gemini.env` 可加载；base_url 无双斜杠；
+  Bearer 鉴权；reasoning_effort 可配置；response_format 可配置且失败可 fallback；
+  Gemini 输出仍经过 JSON extract / repair / validation；支持 models list / retrieve；
+  API Key 不进入日志；Mock / LM Studio / DeepSeek 不被破坏
+- 测试：新增 `test_gemini_provider.py`，更新 factory / env_loader / script / openai_compatible 测试；
+  全量 pytest 596 passed（fast 439 / slow 157）
+
 ## 下一轮建议
 
 1. 文档 / 测试分层：拆分慢速集成测试（如音频渲染 / 全链路 API），缩短全量回归时间。

@@ -58,6 +58,16 @@
   （passthrough 命令执行 + `--print-env` 打码展示）；`scripts/test_llm_provider.py` 支持 `--profile`；
   新增 `.mock.env.example` / `.lmstudio.env.example` / `.deepseek.env.example`；`.gitignore`
   忽略真实 env、保留 example）
+- T34：Gemini OpenAI-compatible Provider
+  （新增 `GeminiProvider`（`packages/llm/gemini_provider.py`），复用 `OpenAICompatibleProvider` 基类：
+  `GEMINI_*` 环境变量（API_KEY / BASE_URL / MODEL / TIMEOUT / TEMPERATURE / MAX_TOKENS /
+  REASONING_EFFORT / USE_RESPONSE_FORMAT）；base_url 尾部斜杠拼接去重避免双斜杠；
+  请求含 `Authorization: Bearer`、`reasoning_effort`（空则不发）、`response_format`（可配置）；
+  response_format 被拒（HTTP 400/422/404）自动 fallback 到普通 chat completions；
+  `LLMAPIError` 增加 `status_code`；基类新增 `retrieve_model`；factory 支持 gemini；
+  env_loader 新增 `gemini -> .gemini.env`；新增 `.gemini.env.example`、`.gitignore` 忽略
+  `.gemini.env`；`scripts/test_llm_provider.py` 支持 `--profile gemini` / `--list-models` /
+  `--retrieve-model`；新增 `scripts/start-backend-gemini.ps1`）
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
@@ -105,8 +115,8 @@
 ## 当前测试与构建结果（2026-08-06 实测）
 
 ```text
-后端：pytest -q → 572 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 415 passed（约 25s）
+后端：pytest -q → 596 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
+快速回归：pytest -m "not slow" → 439 passed（约 19s）
 慢速集成：pytest -m slow → 157 passed
 前端：npm ci → passed（vite 7.3.6）
 前端：npm run build → passed（tsc 无错误）

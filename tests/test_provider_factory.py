@@ -1,4 +1,4 @@
-"""T32/T33：LLM Provider 工厂测试。"""
+"""T32/T33/T34：LLM Provider 工厂测试。"""
 
 import os
 
@@ -7,6 +7,7 @@ import pytest
 from packages.llm.base import LLMProvider
 from packages.llm.deepseek_provider import DeepSeekProvider
 from packages.llm.factory import get_llm_provider
+from packages.llm.gemini_provider import GeminiProvider
 from packages.llm.lmstudio_provider import LMStudioProvider
 from packages.llm.mock_provider import MockProvider
 from packages.llm.openai_compatible_provider import OpenAICompatibleProvider
@@ -35,6 +36,19 @@ def test_mock_explicit():
 def test_deepseek_returns_provider(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
     assert isinstance(get_llm_provider("deepseek"), DeepSeekProvider)
+
+
+def test_gemini_returns_provider(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "sk-test")
+    provider = get_llm_provider("gemini")
+    assert isinstance(provider, GeminiProvider)
+    assert isinstance(provider, LLMProvider)
+
+
+def test_gemini_missing_key_raises(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="GEMINI_API_KEY"):
+        get_llm_provider("gemini")
 
 
 def test_lmstudio_returns_provider():
@@ -77,3 +91,15 @@ def test_deepseek_profile_loads_deepseek_provider(tmp_path):
     _write(tmp_path, ".deepseek.env", "LLM_PROVIDER=deepseek\nDEEPSEEK_API_KEY=sk-placeholder\n")
     load_env(profile="deepseek", env_dir=tmp_path)
     assert isinstance(get_llm_provider(), DeepSeekProvider)
+
+
+def test_gemini_profile_loads_gemini_provider(tmp_path):
+    _write(
+        tmp_path,
+        ".gemini.env",
+        "LLM_PROVIDER=gemini\nGEMINI_API_KEY=sk-placeholder\nGEMINI_MODEL=gemini-3.5-flash\n",
+    )
+    load_env(profile="gemini", env_dir=tmp_path)
+    provider = get_llm_provider()
+    assert isinstance(provider, GeminiProvider)
+    assert provider.model == "gemini-3.5-flash"

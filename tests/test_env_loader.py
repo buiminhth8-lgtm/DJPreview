@@ -63,6 +63,20 @@ def test_env_profile_var_selects_deepseek(tmp_path, monkeypatch):
     assert info.profile == "deepseek"
 
 
+def test_env_profile_var_selects_gemini(tmp_path, monkeypatch):
+    _write(tmp_path, ".gemini.env", "LLM_PROVIDER=gemini\nGEMINI_API_KEY=sk-test\nGEMINI_MODEL=gemini-3.5-flash\n")
+    monkeypatch.setenv("LLM_ENV_PROFILE", "gemini")
+    info = load_env(env_dir=tmp_path)
+    assert os.environ["LLM_PROVIDER"] == "gemini"
+    assert os.environ["GEMINI_MODEL"] == "gemini-3.5-flash"
+    assert info.profile == "gemini"
+
+
+def test_gemini_env_missing_no_crash(tmp_path):
+    info = load_env(profile="gemini", env_dir=tmp_path)  # 无 .gemini.env
+    assert any(p.name == ".gemini.env" for p in info.missing_files)
+
+
 def test_env_file_overrides_profile(tmp_path, monkeypatch):
     _write(tmp_path, ".env", "LLM_PROVIDER=mock\n")
     _write(tmp_path, ".mock.env", "LLM_PROVIDER=mock\n")

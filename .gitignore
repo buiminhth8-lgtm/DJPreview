@@ -8,11 +8,13 @@ venv/
 .env.*
 .mock.env
 .lmstudio.env
+.gemini.env
 .deepseek.env
 *.local.env
 !.env.example
 !.mock.env.example
 !.lmstudio.env.example
+!.gemini.env.example
 !.deepseek.env.example
 .pytest_cache/
 .pytest-tmp/
