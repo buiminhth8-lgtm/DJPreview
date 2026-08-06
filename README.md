@@ -156,6 +156,92 @@ python scripts/run_with_env.py --profile deepseek -- python scripts/test_llm_pro
 `services/api/main.py` 启动时自动加载；`scripts/test_llm_provider.py` 支持 `--profile`。
 安全：真实 `.env*` 文件不提交 Git（`.gitignore`），example 文件可提交；日志不输出完整 API Key。
 
+## 按需启动 LLM Provider
+
+提供三个 PowerShell 启动脚本，分别对应 mock / lmstudio / deepseek，自动激活 `.venv`、
+清理 provider 环境变量并设置正确的 `LLM_ENV_PROFILE`。
+
+### 环境文件准备
+
+```powershell
+Copy-Item .mock.env.example .mock.env
+Copy-Item .lmstudio.env.example .lmstudio.env
+Copy-Item .deepseek.env.example .deepseek.env
+```
+
+真实 `.env` 文件只保留在本地，不要提交 Git。
+
+### 启动 Mock 后端
+
+```powershell
+.\scripts\start-backend-mock.ps1
+```
+
+适用场景：
+
+```text
+稳定回归测试，不调用外部模型。
+```
+
+### 启动 LM Studio 后端
+
+```powershell
+.\scripts\start-backend-lmstudio.ps1
+```
+
+启动前需先打开 LM Studio local server，并在 `.lmstudio.env` 中配置：
+
+```env
+LLM_PROVIDER=lmstudio
+LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
+LMSTUDIO_API_KEY=lm-studio
+LMSTUDIO_MODEL=your-local-model
+```
+
+脚本不会强制检查 LM Studio 是否可访问，仅提示。
+
+### 启动 DeepSeek 后端
+
+```powershell
+.\scripts\start-backend-deepseek.ps1
+```
+
+说明：
+
+```text
+DeepSeek 会调用线上 API，需配置真实 DEEPSEEK_API_KEY。
+```
+
+### 启动前端页面
+
+```powershell
+cd apps\web
+$env:VITE_API_BASE_URL="http://127.0.0.1:8000"
+npm run dev
+```
+
+访问：
+
+```text
+http://127.0.0.1:5173
+```
+
+### 切换 Provider
+
+```text
+切换 mock / lmstudio / deepseek 时，需要停止并重启后端。
+前端通常不需要重启，除非修改了 VITE_API_BASE_URL。
+```
+
+### 可选端口
+
+脚本支持 `-HostAddress` / `-Port` / `-NoReload`：
+
+```powershell
+.\scripts\start-backend-lmstudio.ps1 -Port 8010
+.\scripts\start-backend-mock.ps1 -NoReload
+```
+
 ### 开发环境推荐默认
 
 ```env
