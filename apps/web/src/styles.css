@@ -11,6 +11,30 @@
   --ok: #2f9e6e;
 }
 
+/* 深色主题原生 select 可读性（T33-UI1-Fix1）：
+   关闭状态与展开 popup 均使用深色背景 + 浅色文字，所有原生 <select> 共享。 */
+select {
+  color-scheme: dark;
+  background-color: var(--panel, #1a2130);
+  color: var(--text, #e6e9f0);
+  border: 1px solid var(--border, #2b3448);
+}
+
+select option,
+select optgroup {
+  background-color: var(--panel, #1a2130);
+  color: var(--text, #e6e9f0);
+}
+
+select option:disabled {
+  color: var(--muted, #8b94a8);
+}
+
+select:focus {
+  outline: 2px solid var(--accent, #6c8cff);
+  outline-offset: 1px;
+}
+
 * {
   box-sizing: border-box;
 }
