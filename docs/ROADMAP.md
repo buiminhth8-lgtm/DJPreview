@@ -525,4 +525,6 @@
 - T33-R4 completed：真实 SoundFont / FluidSynth 渲染链路 **PASS**（FluidSynth 2.4.7 + GeneralUser-GS.sf2；
   renderer=fluidsynth / is_fallback=false / soundfont_name=GeneralUser-GS；同步+异步任务 succeeded；
   前端无 fallback warning、刷新保持；后端 46 passed）。T33-R2/R3 待办。
+- T33-R3 completed：前端关键状态自动化测试 **PASS**（Vitest 13 passed：fallback 语义 / selected≠rendered /
+  audio stale / 删除防重复 / Blob revoke / songId 隔离；build 通过）。T33-R2 待办。
 - T33.9：回归收尾（待办，见 T33-R1）

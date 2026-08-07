@@ -61,6 +61,9 @@
 - T33-R4（真实渲染验收）：FluidSynth 2.4.7 + GeneralUser-GS.sf2 真实链路 **PASS**
   （renderer=fluidsynth、is_fallback=false、soundfont_name=GeneralUser-GS；同步与异步任务均 succeeded；
   Workspace 无 fallback warning、刷新保持；后端 46 passed）。详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
+- T33-R3（前端自动化测试）：Vitest + Testing Library 引入，**13 个关键状态用例 PASS**
+  （fallback 语义、selected≠rendered、audio stale、删除防重复、Blob revoke、songId 隔离）；
+  修复 downloadBlob 异常路径未 revoke 的小 bug。详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

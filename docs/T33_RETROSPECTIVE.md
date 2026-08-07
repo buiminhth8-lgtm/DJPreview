@@ -6,6 +6,28 @@
 
 > 更新（T33-R1 Browser Verification，2026-08-07）：真实浏览器回归完成。
 > 更新（T33-R4 Real FluidSynth Verification，2026-08-07）：真实 SoundFont 渲染链路验收完成。
+> 更新（T33-R3 Frontend Automated Tests，2026-08-07）：前端关键状态自动化测试完成。
+
+## T33-R3 Frontend Automated Tests
+
+- 框架：**Vitest + jsdom + @testing-library/react + @testing-library/jest-dom + user-event**
+  （最小依赖，未引入第二套框架；Playwright E2E 保持独立）。
+- 配置：`apps/web/vitest.config.ts`（jsdom、globals、setupFiles）、`src/test/setup.ts`（jest-dom + cleanup）、
+  `package.json` scripts：`test` / `test:watch`。
+- 测试文件（colocated）：
+  - `features/audio/RendererStatusCard.test.tsx`（4：fallback 语义）
+  - `hooks/useAudioAssets.test.ts`（2：stale 标记/清除、selected≠rendered）
+  - `features/projects/DeleteProjectDialog.test.tsx`（4：取消/确认/防重复/关闭）
+  - `shared/utils/download.test.ts`（2：Blob URL 创建与 revoke、click 抛异常仍 revoke）
+  - `features/projects/useProject.test.ts`（1：songId 切换旧请求不能覆盖新状态）
+- 结果：**13 passed**；`npm run build` 通过。
+- 覆盖的 T33 核心规则：fallback 仅以 `is_fallback` 为准（不按 renderer 名推断）、无 WAV 不显示 fallback、
+  selected ≠ rendered、audioNeedsRender 置位/清除、删除防重复提交、downloadBlob revoke 不遗漏、
+  songId 切换 AbortController 隔离。
+- 发现并修复的 bug：`downloadBlob` 在 `anchor.click()` 抛异常时未执行 `revokeObjectURL`
+  （改为 try/finally，保证 Blob URL 始终释放）。
+- 仍未覆盖：Render Task polling 细节（生产面板为拉取式、无长轮询定时器）、
+  Workspace 删除成功导航（由 T33-R1 浏览器 E2E 覆盖）、SoundFont 多音源切换（环境限制）。
 
 ## T33-R4 Real FluidSynth Verification
 
