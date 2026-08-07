@@ -400,6 +400,24 @@ LLM_PROVIDER=mock
 AUDIO_RENDERER=fallback
 ```
 
+### 下载 GeneralUser GS SoundFont
+
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\download_generaluser_gs.ps1 -AcceptLicense
+```
+
+下载完成后，启动后端前设置：
+
+```powershell
+$env:AUDIO_RENDERER="auto"
+$env:SOUNDFONT_DIR="D:\project\DJPreview\ai-music-mvp\data\soundfonts"
+$env:SOUNDFONT_PATH="D:\project\DJPreview\ai-music-mvp\data\soundfonts\GeneralUser-GS.sf2"
+```
+
+然后在前端 SoundFont 面板点击扫描，选择 GeneralUser-GS.sf2，并重新渲染 WAV。
+
 LM Studio（本地 OpenAI-compatible）配置示例（无需真实 DeepSeek API Key）：
 
 ```env

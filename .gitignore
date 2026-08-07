@@ -31,9 +31,13 @@ data/evaluations/
 data/tasks/
 data/soundfonts/*
 !data/soundfonts/.gitkeep
+data/soundfonts/*.sf2
+data/soundfonts/*.sf3
+data/soundfonts/*.sfz
 assets/soundfonts/*.sf2
 assets/soundfonts/*.sf3
 assets/soundfonts/*.sfz
+!assets/soundfonts/.gitkeep
 *.mid
 *.midi
 *.wav

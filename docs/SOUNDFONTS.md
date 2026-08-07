@@ -25,6 +25,36 @@ assets/soundfonts/
 
 > 仓库只保留 `.gitkeep`，**不内置 / 不提交真实音源**。
 
+### 3.1 一键下载 GeneralUser GS SoundFont
+
+Windows PowerShell（从项目根目录执行）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\download_generaluser_gs.ps1 -AcceptLicense
+```
+
+脚本从 `mrbumpy409/GeneralUser-GS` 官方 GitHub 仓库下载并放置：
+
+```text
+data/soundfonts/GeneralUser-GS.sf2
+data/soundfonts/GeneralUser-GS-LICENSE.txt
+data/soundfonts/GeneralUser-GS-README.md
+```
+
+下载完成后，启动后端前设置：
+
+```powershell
+$env:AUDIO_RENDERER="auto"
+$env:SOUNDFONT_DIR="D:\project\DJPreview\ai-music-mvp\data\soundfonts"
+$env:SOUNDFONT_PATH="D:\project\DJPreview\ai-music-mvp\data\soundfonts\GeneralUser-GS.sf2"
+```
+
+然后在前端 SoundFont 面板点击扫描，选择 GeneralUser-GS.sf2，并重新渲染 WAV。
+
+> 支持参数：`-ProjectRoot` / `-TargetDir` / `-Force` / `-AcceptLicense`。
+> 不传 `-AcceptLicense` 时会交互确认许可（输入 `YES` 继续）。
+> 下载后自动校验：`.sf2` 文件头为 `RIFF` 且大于 1MB，并补充 `.gitignore` 忽略规则。
+
 ## 4. 环境变量
 
 ```env
