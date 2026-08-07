@@ -514,4 +514,6 @@
   修复 features 内全部 import 断链；build 通过，详见 FRONTEND_REFACTOR_T33.md）
 - T33.7 completed：SoundFont / Renderer 状态前端整合（selected vs rendered SoundFont 分离、
   WAV stale 标记、fallback 仅以 is_fallback 为准、diagnostics 与当前 WAV 解耦；build 通过）
-- T33.8-T33.9：导入导出/删除确认增强 → 回归收尾（待办）
+- T33.8 completed：导入导出 / 删除 / 二次确认流程整合（ExportMenu + downloadActions 统一导出下载；
+  Workspace 删除确认与导航；Library 与 Workspace 共用 DeleteProjectDialog；build 通过）
+- T33.9：回归收尾（待办）

@@ -11,6 +11,24 @@
 > 核心原则：`selected SoundFont ≠ rendered SoundFont`、`FluidSynth available ≠ 当前 WAV 使用 FluidSynth`、
 > `fallback 状态以后端 audio metadata（is_fallback）为准`。
 
+> 更新（T33.8 Completed）：工程导入导出 / 删除 / 二次确认流程整合完成。
+
+## 工程级操作边界（T33.8）
+
+- **导入**：`/projects` 的 `ImportProjectButton` 与 Workspace 的 `ProjectImportExportPanel`
+  均走 `projectApi.importProject(file)`；上传中禁用重复选择、失败保留页面并显示 backend message；
+  成功后使用后端真实 songId 跳转 `/projects/:songId`（不从文件名推导）。
+- **导出**：`features/export/ExportMenu.tsx` 统一入口（导出工程 / MIDI / WAV / Stems），
+  无对应资产时禁用；`features/export/downloadActions.ts` 统一 Blob 下载
+  （MIDI→midiApi、WAV→audioApi、Stems→downloadStems、工程→projectApi），文件名优先后端
+  Content-Disposition，否则 `{安全化标题}.ext`。
+- **删除**：`/projects`（ProjectCard）与 `/projects/:songId`（工程导入导出面板）共用
+  `DeleteProjectDialog` 二次确认；删除中禁用重复提交；失败保持 Dialog 并显示错误。
+- **删除后行为**：Workspace 删除成功 → 清理工作区状态（assets/versions/project）→
+  `navigate("/projects", { replace: true })`；Library 删除成功 → 从本地列表移除。
+- **Blob 下载**：统一 `shared/utils/download.ts` 的 `downloadBlob`
+  （createObjectURL → click → revokeObjectURL），无泄漏。
+
 ## SoundFont / Renderer 状态模型（T33.7）
 
 - **环境能力（A）**：`useSoundfonts` 的 diagnostics（FluidSynth 可用性 / 扫描结果）只回答“能不能”，

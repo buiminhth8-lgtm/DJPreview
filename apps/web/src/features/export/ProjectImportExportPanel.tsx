@@ -4,31 +4,30 @@
 import { useState } from "react";
 import { importProject } from "../../api/musicApi";
 import { ActionButton, ButtonRow, EmptyState, InlineNotice, SectionCard } from "../../components/ui";
+import { ExportMenu } from "./ExportMenu";
 
 export interface ProjectImportExportPanelProps {
   songId?: string | null;
+  projectTitle?: string | null;
   hasMidi?: boolean;
   hasAudio?: boolean;
   hasStems?: boolean;
-  isExportingStems?: boolean;
   onImported?: (songId: string) => void;
-  onExportProject?: () => void;
-  onDownloadMidi?: () => void;
-  onDownloadWav?: () => void;
   onExportStems?: () => void;
+  onDeleteProject?: () => void;
+  onError?: (message: string) => void;
 }
 
 export function ProjectImportExportPanel({
   songId,
+  projectTitle,
   hasMidi = false,
   hasAudio = false,
   hasStems = false,
-  isExportingStems = false,
   onImported,
-  onExportProject,
-  onDownloadMidi,
-  onDownloadWav,
   onExportStems,
+  onDeleteProject,
+  onError,
 }: ProjectImportExportPanelProps) {
   const [busy, setBusy] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -89,41 +88,27 @@ export function ProjectImportExportPanel({
 
         <ButtonRow className="workspace-import-export__actions">
           <ActionButton
-            variant="primary"
-            onClick={onExportProject}
+            variant="danger"
+            onClick={onDeleteProject}
             disabled={!hasSong}
             disabledReason={!hasSong ? "请先生成或导入工程" : undefined}
           >
-            导出当前工程
-          </ActionButton>
-          <ActionButton
-            variant="ghost"
-            onClick={onDownloadMidi}
-            disabled={!hasMidi}
-            disabledReason={!hasMidi ? "当前工程暂无 MIDI" : undefined}
-          >
-            下载 MIDI
-          </ActionButton>
-          <ActionButton
-            variant="ghost"
-            onClick={onDownloadWav}
-            disabled={!hasAudio}
-            disabledReason={!hasAudio ? "当前工程暂无 WAV 音频" : undefined}
-          >
-            下载 WAV
-          </ActionButton>
-          <ActionButton
-            variant="ghost"
-            onClick={onExportStems}
-            disabled={!hasSong || (!hasMidi && !hasAudio && !hasStems) || isExportingStems}
-            disabledReason={!hasSong ? "请先生成或导入工程" : !hasMidi && !hasAudio ? "请先生成 MIDI 并渲染 WAV" : isExportingStems ? "正在导出分轨" : undefined}
-            loading={isExportingStems}
-          >
-            {isExportingStems ? "导出中…" : "导出 Stems"}
+            删除当前工程
           </ActionButton>
         </ButtonRow>
       </div>
       {body}
+      {hasSong && (
+        <ExportMenu
+          songId={songId}
+          projectTitle={projectTitle}
+          hasMidi={hasMidi}
+          hasAudio={hasAudio}
+          hasStems={hasStems}
+          onStemsExported={onExportStems}
+          onError={onError}
+        />
+      )}
       <p className="muted-note">导入后会创建新的 song_id，不会覆盖现有项目。</p>
     </SectionCard>
   );

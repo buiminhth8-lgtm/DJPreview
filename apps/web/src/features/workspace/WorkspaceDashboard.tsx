@@ -9,7 +9,7 @@
 
 import type { useAudioAssets, useSongProject, useStyles, useVersions } from "../../hooks";
 import type { useSoundfonts } from "../../hooks";
-import { exportStems } from "../../api/audioApi";
+import { downloadMidiAsset, downloadWavAsset } from "../export/downloadActions";
 import type {
   AssetsResponse,
   DiffItem,
@@ -63,6 +63,7 @@ export interface WorkspaceDashboardProps {
   onGenerateFromReference: (result: GenerateFromReferenceResponse) => void;
   onImported: (songId: string) => void;
   onSoundFontChanged: () => void;
+  onDeleteProject: () => void;
 }
 
 export default function WorkspaceDashboard({
@@ -87,6 +88,7 @@ export default function WorkspaceDashboard({
   onGenerateFromReference,
   onImported,
   onSoundFontChanged,
+  onDeleteProject,
 }: WorkspaceDashboardProps) {
   const songId = songProject.songId;
   const spec = songProject.musicSpec;
@@ -162,10 +164,10 @@ export default function WorkspaceDashboard({
           onGenerateMidi={onGenerateMidi}
           onRenderAudio={onRenderAudio}
           onDownloadMidi={() => {
-            if (audioAssets.midiDownloadUrl) window.open(audioAssets.midiDownloadUrl, "_blank");
+            if (songId) void downloadMidiAsset(songId, spec?.title);
           }}
           onDownloadWav={() => {
-            if (audioAssets.audioDownloadUrl) window.open(audioAssets.audioDownloadUrl, "_blank");
+            if (songId) void downloadWavAsset(songId, spec?.title);
           }}
         />
 
@@ -280,25 +282,14 @@ export default function WorkspaceDashboard({
         {/* 工程导入导出 */}
         <ProjectImportExportPanel
           songId={songId}
+          projectTitle={spec?.title ?? null}
           hasMidi={Boolean(audioAssets.assets?.has_midi) || Boolean(audioAssets.midiResult)}
           hasAudio={Boolean(audioAssets.assets?.has_audio) || Boolean(audioAssets.audioResult)}
+          hasStems={Boolean(audioAssets.assets?.has_stems)}
           onImported={onImported}
-          onExportProject={() => {
-            if (songId) window.open(`/api/v1/songs/${songId}/project/export`, "_blank");
-          }}
-          onDownloadMidi={() => {
-            if (audioAssets.midiDownloadUrl) window.open(audioAssets.midiDownloadUrl, "_blank");
-          }}
-          onDownloadWav={() => {
-            if (audioAssets.audioDownloadUrl) window.open(audioAssets.audioDownloadUrl, "_blank");
-          }}
-          onExportStems={() => {
-            if (songId) {
-              exportStems(songId)
-                .then(() => audioAssets.refreshAssets())
-                .catch((e) => songProject.setError(e instanceof Error ? e.message : String(e)));
-            }
-          }}
+          onExportStems={() => void audioAssets.refreshAssets()}
+          onDeleteProject={onDeleteProject}
+          onError={songProject.setError}
         />
 
         {/* 任务与日志 */}

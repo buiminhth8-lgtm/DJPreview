@@ -3,9 +3,12 @@
 // 工作台数据经 useProjectWorkspace(songId) 协调（useProject + 业务 hooks）。
 
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useState } from "react";
 import { useProjectWorkspace } from "../features/workspace/useProjectWorkspace";
 import WorkspaceHeader from "../features/workspace/WorkspaceHeader";
 import WorkspaceDashboard from "../features/workspace/WorkspaceDashboard";
+import { DeleteProjectDialog } from "../features/projects/DeleteProjectDialog";
+import { deleteProject } from "../features/projects/projectApi";
 import { ErrorState, LoadingState } from "../components/ui";
 import type { AssetsResponse, DiffItem, GenerateFromReferenceResponse, OptimizeResponse, RegenerationResult } from "../api/types";
 
@@ -13,6 +16,39 @@ export default function ProjectWorkspacePage() {
   const { songId } = useParams<{ songId: string }>();
   const navigate = useNavigate();
   const ws = useProjectWorkspace(songId);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleRequestDelete = () => {
+    setDeleteOpen(true);
+    setDeleteError(null);
+    setIsDeleting(false);
+  };
+
+  const handleCancelDelete = () => {
+    if (isDeleting) return;
+    setDeleteOpen(false);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!songId || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteProject(songId);
+      // 清理当前 Workspace 状态（polling / 资产 / 版本）后离开
+      ws.songProject.resetProject();
+      ws.audioAssets.resetAssets();
+      ws.versions.resetVersions();
+      navigate("/projects", { replace: true });
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (!songId) {
     return (
@@ -179,6 +215,30 @@ export default function ProjectWorkspacePage() {
         onGenerateFromReference={handleGenerateFromReference}
         onImported={handleImported}
         onSoundFontChanged={ws.handleSoundFontChanged}
+        onDeleteProject={handleRequestDelete}
+      />
+      <DeleteProjectDialog
+        open={deleteOpen}
+        project={
+          songId
+            ? {
+                songId,
+                title: projectTitle ?? "未命名工程",
+                createdAt: null,
+                currentVersionId: versions.currentVersionId ?? null,
+                hasMidi: Boolean(audioAssets.assets?.has_midi),
+                hasAudio: Boolean(audioAssets.assets?.has_audio),
+                hasStems: Boolean(audioAssets.assets?.has_stems),
+                hasQualityReport: false,
+                renderer: rendererMeta?.renderer ?? null,
+                soundfontName: rendererMeta?.soundfontName ?? null,
+              }
+            : null
+        }
+        isDeleting={isDeleting}
+        error={deleteError}
+        onCancel={handleCancelDelete}
+        onConfirm={() => void handleConfirmDelete()}
       />
     </div>
   );

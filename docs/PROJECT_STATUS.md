@@ -50,6 +50,8 @@
 - T33.7：SoundFont / Renderer 状态前端整合（selected ≠ rendered SoundFont；fallback 仅以
   audio metadata `is_fallback` 为准；WAV stale 标记在 SoundFont/MIDI 变化后置位、渲染成功后清除；
   RendererStatusCard 不再用 renderer/quality 推断 fallback；FluidSynth diagnostics 与当前 WAV 解耦）
+- T33.8：工程导入导出 / 删除 / 二次确认流程整合（ExportMenu 统一导出、downloadBlob 统一下载、
+  Workspace 删除二次确认 + 成功后清理状态并回 /projects；Library 与 Workspace 删除共用同一 Dialog）
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
