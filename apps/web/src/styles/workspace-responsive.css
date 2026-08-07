@@ -82,8 +82,12 @@
 
 @media (max-width: 760px) {
   .workspace-dashboard-inner {
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .workspace-header {
+    padding: 16px 14px;
   }
 
   .ui-button-row {
@@ -129,6 +133,11 @@
 @media (max-width: 480px) {
   .workspace-dashboard-inner {
     width: 100%;
-    padding: 12px 8px 28px;
+    padding: 12px 12px 28px;
+  }
+
+  .workspace-header {
+    padding: 14px 12px;
+    gap: 16px;
   }
 }

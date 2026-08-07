@@ -2,6 +2,7 @@
 // 工作台顶部：返回工程库 + 工程标题 + 版本 + 资产状态。
 
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { StatusBadge } from "../../components/ui";
 
 export interface WorkspaceHeaderProps {
@@ -29,6 +30,19 @@ export default function WorkspaceHeader({
   soundfontName,
   error,
 }: WorkspaceHeaderProps) {
+  const [copied, setCopied] = useState(false);
+
+  const copySongId = async () => {
+    if (!songId) return;
+    try {
+      await navigator.clipboard.writeText(songId);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
+
   return (
     <header className="workspace-header">
       <div className="workspace-header__titles">
@@ -36,7 +50,21 @@ export default function WorkspaceHeader({
           ← 工程库
         </Link>
         <h1 className="workspace-header__title">{title || "AI Music Studio"}</h1>
-        {songId && <p className="workspace-header__subtitle">song_id：{songId.slice(0, 8)}…</p>}
+        {songId && (
+          <p className="workspace-header__subtitle">
+            <span className="workspace-header__song-id">
+              song_id：<code>{songId}</code>
+            </span>
+            <button
+              type="button"
+              className="workspace-header__copy"
+              onClick={() => void copySongId()}
+              aria-label="复制 song_id"
+            >
+              {copied ? "已复制" : "复制"}
+            </button>
+          </p>
+        )}
       </div>
 
       <div className="workspace-header__badges" role="list" aria-label="工作台状态">

@@ -70,6 +70,9 @@
 - T33-R-Final（最终复审）：**T33 前端改造整体 COMPLETED**（架构 Critical Gates 10/10、
   Goal 25/25、Flow A/B/C PASS、Playwright 12 passed、Vitest 13 passed、后端关键 76 passed、
   真实 FluidSynth 渲染 PASS）。详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
+- T33-UI1：工程库批量选择/删除（checkbox、全选当前结果、indeterminate、BatchDeleteDialog 二次确认、
+  Promise.allSettled 部分失败处理）；Workspace 完整 song_id + 复制；宽屏主体
+  `min(1680px, 100vw-48px)` 与统一 padding/gap；无重复 Header；build + 18 前端测试 + E2E 11 passed。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

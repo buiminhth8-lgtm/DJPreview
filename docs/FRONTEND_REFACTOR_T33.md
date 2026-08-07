@@ -17,6 +17,20 @@
 > 浏览器回归（Playwright 12 passed）/ 自动化测试（Vitest 13 passed）/ 真实 FluidSynth 渲染均已验收通过。
 > 详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)。
 
+> 更新（T33-UI1，2026-08-07）：工程库批量管理与 Workspace 布局优化完成。
+
+## T33-UI1（工程库批量管理 + Workspace 布局优化）
+
+- **工程库批量选择/删除**：`ProjectCard` 增加 checkbox（stopPropagation，不触发导航）、
+  `ProjectLibraryPanel` 增加全选当前筛选结果（含 indeterminate）、已选数量与批量操作区、
+  `BatchDeleteDialog` 二次确认（展示数量与前几项标题）、`Promise.allSettled` 批量删除
+  （部分失败保留失败项选中并显示结果）。
+- **Workspace 完整 song_id**：`WorkspaceHeader` 完整显示 song_id（monospace + word-break）并附复制按钮。
+- **宽屏布局**：`.page` / `.workspace-dashboard-inner` 由 `min(1280px, …)` 提升为
+  `min(1680px, calc(100vw - 48px))`；Header 增加 padding/边框；面板间距沿用 `--workspace-gap-*` token；
+  响应式断点保持（≤900px 单列、≤760px/480px 收缩 padding）。
+- **Header 重复确认**：组件树无重复 Header（AppShell 品牌 + 唯一 WorkspaceHeader），无需合并。
+
 ## 工程级操作边界（T33.8）
 
 - **导入**：`/projects` 的 `ImportProjectButton` 与 Workspace 的 `ProjectImportExportPanel`

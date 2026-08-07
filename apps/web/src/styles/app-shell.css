@@ -60,7 +60,7 @@
 }
 
 .page {
-  width: min(1280px, 100vw - 32px);
+  width: min(1680px, 100vw - 48px);
   margin: 0 auto;
   padding: 24px 0 56px;
 }
@@ -88,6 +88,50 @@
   flex-wrap: wrap;
   gap: var(--workspace-gap-sm, 10px);
   margin-bottom: var(--workspace-gap-md, 16px);
+}
+
+.project-library__selection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--workspace-gap-md, 16px);
+  padding: 10px 14px;
+  margin-bottom: var(--workspace-gap-md, 16px);
+  border: 1px solid var(--workspace-primary-soft, rgba(129, 140, 248, 0.35));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-primary-soft, rgba(129, 140, 248, 0.08));
+}
+
+.project-library__select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--workspace-text, #f8fafc);
+}
+
+.project-library__select-all input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--workspace-primary, #818cf8);
+}
+
+.project-library__selection-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--workspace-gap-md, 16px);
+  color: var(--workspace-text-dim, #94a3b8);
+}
+
+.project-library__batch-result {
+  margin-top: var(--workspace-gap-md, 16px);
+  padding: 10px 14px;
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.16));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  color: var(--workspace-text, #f8fafc);
 }
 
 .project-library__search {
@@ -123,6 +167,28 @@
   background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
   overflow: hidden;
   transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.project-card--selected {
+  border-color: var(--workspace-primary, #818cf8);
+  box-shadow: 0 0 0 1px var(--workspace-primary-soft, rgba(129, 140, 248, 0.4));
+}
+
+.project-card__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 0;
+  font-size: 0.8rem;
+  color: var(--workspace-text-dim, #94a3b8);
+  cursor: pointer;
+  user-select: none;
+}
+
+.project-card__checkbox input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--workspace-primary, #818cf8);
 }
 
 .project-card:hover {

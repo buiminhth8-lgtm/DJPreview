@@ -14,6 +14,11 @@ export interface ProjectLibraryPanelProps {
   onExport?: (project: ProjectSummary) => void;
   onRefresh: () => void;
   isRefreshing?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (songId: string) => void;
+  onSelectAll?: (ids: string[]) => void;
+  onClearSelection?: () => void;
+  onBatchDelete?: () => void;
 }
 
 const FILTER_OPTIONS: Array<{ value: ProjectStatusFilter; label: string }> = [
@@ -42,6 +47,11 @@ export function ProjectLibraryPanel({
   onExport,
   onRefresh,
   isRefreshing = false,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
+  onClearSelection,
+  onBatchDelete,
 }: ProjectLibraryPanelProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ProjectStatusFilter>("all");
@@ -57,6 +67,21 @@ export function ProjectLibraryPanel({
       );
     });
   }, [projects, search, filter]);
+
+  const selectionMode = Boolean(onToggleSelect && selectedIds);
+  const selectedCount = selectionMode ? selectedIds!.size : 0;
+  const allVisibleSelected =
+    visible.length > 0 && visible.every((p) => selectedIds!.has(p.songId));
+  const someVisibleSelected = visible.some((p) => selectedIds!.has(p.songId));
+
+  const handleSelectAllToggle = () => {
+    if (!onSelectAll || !onClearSelection) return;
+    if (allVisibleSelected) {
+      onClearSelection();
+    } else {
+      onSelectAll(visible.map((p) => p.songId));
+    }
+  };
 
   return (
     <div className="project-library">
@@ -85,6 +110,36 @@ export function ProjectLibraryPanel({
           刷新
         </ActionButton>
       </div>
+
+      {selectionMode && (
+        <div className="project-library__selection" role="toolbar" aria-label="批量选择工程">
+          <label className="project-library__select-all">
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              ref={(el) => {
+                if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected;
+              }}
+              onChange={handleSelectAllToggle}
+              aria-label="全选当前筛选结果"
+            />
+            <span>全选当前结果</span>
+          </label>
+          {selectedCount > 0 && (
+            <div className="project-library__selection-info">
+              <span>已选择 {selectedCount} 个工程</span>
+              <ButtonRow>
+                <ActionButton variant="ghost" onClick={onClearSelection}>
+                  取消选择
+                </ActionButton>
+                <ActionButton variant="danger" onClick={onBatchDelete}>
+                  删除所选工程
+                </ActionButton>
+              </ButtonRow>
+            </div>
+          )}
+        </div>
+      )}
 
       {visible.length === 0 ? (
         search.trim() || filter !== "all" ? (
@@ -116,6 +171,8 @@ export function ProjectLibraryPanel({
               project={project}
               onDelete={onDelete}
               onExport={onExport}
+              selected={selectedIds?.has(project.songId) ?? false}
+              onToggleSelect={onToggleSelect}
             />
           ))}
         </div>

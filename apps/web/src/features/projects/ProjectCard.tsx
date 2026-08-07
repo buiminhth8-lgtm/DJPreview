@@ -12,16 +12,39 @@ export interface ProjectCardProps {
   project: ProjectSummary;
   onDelete: (project: ProjectSummary) => void;
   onExport?: (project: ProjectSummary) => void;
+  selected?: boolean;
+  onToggleSelect?: (songId: string) => void;
 }
 
-export function ProjectCard({ project, onDelete, onExport }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  onDelete,
+  onExport,
+  selected = false,
+  onToggleSelect,
+}: ProjectCardProps) {
   const navigate = useNavigate();
   const open = () => {
     navigate(`/projects/${encodeURIComponent(project.songId)}`);
   };
 
   return (
-    <article className="project-card" data-song-id={project.songId}>
+    <article
+      className={`project-card${selected ? " project-card--selected" : ""}`}
+      data-song-id={project.songId}
+    >
+      {onToggleSelect && (
+        <label className="project-card__checkbox">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect(project.songId)}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`选择工程 ${project.title}`}
+          />
+          <span>选择</span>
+        </label>
+      )}
       <button type="button" className="project-card__open" onClick={open} aria-label={`打开工程 ${project.title}`}>
         <span className="project-card__title">{project.title || "未命名工程"}</span>
         <span className="project-card__meta">
