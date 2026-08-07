@@ -382,10 +382,30 @@ apps/web/src/
   `musicApi.ts` 空壳 re-export 待 T33.6 清理
 - 散落 fetch：无（全部经 api 层）
 
-### T33.3 工程库页 ProjectLibraryPage
-- 目标：实现 /projects：正式列表卡片、搜索、导入 UI、删除（删除需确认）
-- 输入：projectApi + useProjects()（T33.2 已就绪）；输出：工程库完整页面
-- 风险：删除需二次确认交互（T33.8 细化）；导入 UI 复用 ProjectImportExportPanel
+### T33.3 工程库页 ProjectLibraryPage（已完成）
+
+- 状态：**Completed**
+- 目标：把 /projects 从页面壳升级为正式工程库
+- 实际落地：
+  - 新增组件（`features/projects/`）：`ProjectCard`（标题/创建时间/版本/songId 截断/状态
+    badges/打开/导出/删除；点击打开工作台，SPA 导航）、`ProjectStatusBadges`（仅真实字段：
+    MIDI/WAV/质量/Fallback/FluidSynth/SF）、`DeleteProjectDialog`（role=dialog + aria-modal，
+    二次确认，删除中禁用，失败保持打开并显示错误）、`ImportProjectButton`（.zip/.aimusic.zip
+    + FormData 导入，idle/importing/error 状态）、`ProjectLibraryPanel`（客户端搜索 title/
+    songId + 状态筛选 全部/有WAV/有MIDI/Fallback + 刷新 + 过滤空态「清除搜索/清除筛选」）
+  - `ProjectLibraryPage` 重写：组合 useProjects + Panel + Dialog + Import；Header actions
+    （+新建音乐 /projects → /create、导入）；删除流程：点击删除 → Dialog 确认 →
+    `useProjects.removeProject` → 成功后本地移除并关闭；导入成功 → reload + navigate 新工程
+  - `shared/utils/date.ts`：`formatDateTime`（Intl，无 dayjs）
+  - `styles/app-shell.css`：grid（auto-fill minmax(280px,1fr)，窄屏 1 列）、toolbar、dialog
+  - 无 N+1：卡片只用 ProjectSummary 字段，无 per-card 请求
+- 后端：无修改（T33.2 的 list/delete 已就绪）；导入/导出 round-trip 实测通过
+  （export→import 得到新 songId）
+- 数据流：`ProjectLibraryPage → useProjects → projectApi → client → backend`；
+  删除：`DeleteProjectDialog → useProjects.removeProject → projectApi.deleteProject`；
+  导入：`ImportProjectButton → projectApi.importProject → navigate(/projects/:songId)`
+- 遗留：删除失败细分（404 视为已删除等）可后续优化；导出按钮已提供（T33.8 可增强）；
+  搜索/筛选为客户端实现，量大时再做服务端
 
 ### T33.4 创作页 CreatePage
 - 目标：实现 /create：prompt + 风格模板 + 生成后摘要 + 跳转工作台

@@ -224,8 +224,20 @@
   透传与 ABORTED code）；新增 `shared/utils/download.ts`（downloadBlob +
   filenameFromContentDisposition）。`ProjectLibraryPage` 最小列表接入 useProjects；
   `ProjectWorkspacePage` 保持 LegacyWorkspaceContent（避免重复请求）。全量 pytest 669 passed；
-  npm build 通过（136 modules）。遗留：旧 `api/projectApi.ts`（仅 import/export）与
+  npm build 通过（136 modules）。  遗留：旧 `api/projectApi.ts`（仅 import/export）与
   `musicApi.ts` 空壳待 T33.6 合并清理；正式工程库 UI（搜索/删除确认/导入）留 T33.3/T33.8。
+- T33.3 completed：工程库页 ProjectLibraryPage 正式版。/projects 升级为可用工程库：
+  新增 `features/projects/` 组件 `ProjectCard`（标题/时间/版本/songId/状态 badges/打开/导出/
+  删除）、`ProjectStatusBadges`（MIDI/WAV/质量/Fallback/FluidSynth/SF，仅真实字段）、
+  `DeleteProjectDialog`（role=dialog + aria-modal，二次确认，删除中禁用，失败保持打开）、
+  `ImportProjectButton`（.zip/.aimusic.zip + FormData，idle/importing/error）、
+  `ProjectLibraryPanel`（客户端搜索 title/songId + 状态筛选 全部/有WAV/有MIDI/Fallback +
+  刷新 + 过滤空态）；页面组合 useProjects + Dialog + Import，删除成功本地移除，
+  导入成功 reload + navigate 新工程；`shared/utils/date.ts`（formatDateTime，Intl）；
+  样式 grid auto-fill 280px / 窄屏 1 列 / dialog。无 N+1 请求；后端无修改
+  （T33.2 list/delete 已就绪）；导出/导入 round-trip 实测通过。npm build 通过
+  （142 modules）。遗留：删除失败细分、导出增强、服务端搜索留后续。
+
 
 
 ## Partially Completed / Needs Verification（部分完成或需验证）

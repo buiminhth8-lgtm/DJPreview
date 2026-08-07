@@ -494,5 +494,10 @@
     + AbortSignal）+ useProjects + useProject；shared/utils/download.ts；client.ts 支持 signal
   - ProjectLibraryPage 最小列表接入；全量 pytest 669 + npm build 通过
   - 遗留：旧 api/projectApi.ts / musicApi.ts 空壳待 T33.6 合并
-- T33.3-T33.9：工程库正式 UI（搜索/删除确认/导入）→ 创作页 feature 化 → 工作台 feature 化 →
-  SoundFont/Renderer 整合 → 导入导出/删除确认 → 回归收尾（详见 FRONTEND_REFACTOR_T33.md）
+- T33.3 completed：工程库页正式版（/projects）
+  - features/projects/：ProjectCard + ProjectStatusBadges + DeleteProjectDialog（二次确认）+
+    ImportProjectButton + ProjectLibraryPanel（搜索 title/songId + 状态筛选 + 刷新）
+  - 页面组合 useProjects + Dialog + Import；导入成功跳转新工程；无 N+1；后端无修改
+  - npm build 通过（142 modules）
+- T33.4-T33.9：创作页 feature 化 → 工作台 feature 化 → SoundFont/Renderer 整合 →
+  导入导出/删除确认增强 → 回归收尾（详见 FRONTEND_REFACTOR_T33.md）

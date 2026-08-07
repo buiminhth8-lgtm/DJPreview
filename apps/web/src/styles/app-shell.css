@@ -82,60 +82,144 @@
   min-height: 60vh;
 }
 
-/* 工程库最小列表（T33.2；正式卡片 UI 留 T33.3） */
+/* 工程库（T33.3 正式版） */
 .project-library__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--workspace-gap-sm, 10px);
   margin-bottom: var(--workspace-gap-md, 16px);
 }
 
-.project-library__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--workspace-gap-sm, 10px);
-}
-
-.project-library__item {
-  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+.project-library__search {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.16));
   border-radius: var(--workspace-radius-sm, 8px);
   background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
-  transition: background 0.15s ease;
+  color: var(--workspace-text, #f8fafc);
+  font-size: 0.9rem;
 }
 
-.project-library__item:hover {
-  background: var(--workspace-surface-hover, rgba(255, 255, 255, 0.09));
-}
-
-.project-library__link {
-  display: flex;
-  align-items: center;
-  gap: var(--workspace-gap-md, 16px);
-  padding: 12px var(--workspace-gap-md, 16px);
-  text-decoration: none;
+.project-library__filter {
+  padding: 8px 12px;
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.16));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
   color: var(--workspace-text, #f8fafc);
 }
 
-.project-library__title {
-  font-weight: 600;
-  flex: 1;
+.project-library__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--workspace-gap-md, 16px);
 }
 
-.project-library__meta {
-  color: var(--workspace-text-dim, #94a3b8);
-  font-size: 0.85rem;
-}
-
-.project-library__badges {
+.project-card {
   display: flex;
+  flex-direction: column;
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--workspace-radius-md, 12px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  overflow: hidden;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.project-card:hover {
+  background: var(--workspace-surface-hover, rgba(255, 255, 255, 0.09));
+  border-color: var(--workspace-border-strong, rgba(255, 255, 255, 0.24));
+}
+
+.project-card__open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--workspace-text, #f8fafc);
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.project-card__meta {
+  color: var(--workspace-text-dim, #94a3b8);
+  font-size: 0.8rem;
+}
+
+.project-card__song-id {
+  color: var(--workspace-text-dim, #64748b);
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.project-card__badges {
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
+.project-card__actions {
+  margin-top: auto;
+  padding: 10px 16px;
+  border-top: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.08));
+}
+
+.import-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Dialog */
+.ui-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.ui-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 24px;
+  border-radius: var(--workspace-radius-lg, 18px);
+  background: var(--workspace-bg-elevated, #101828);
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+.ui-dialog__title {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.ui-dialog__body {
+  margin: 0 0 16px;
+  color: var(--workspace-text-dim, #cbd5e1);
+  line-height: 1.6;
+}
+
+.ui-dialog__actions {
+  justify-content: flex-end;
+}
+
 @media (max-width: 600px) {
-  .project-library__link {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
+  .project-library__grid {
+    grid-template-columns: 1fr;
   }
 }
 
