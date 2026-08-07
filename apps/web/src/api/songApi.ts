@@ -13,11 +13,17 @@ export function generateMusicSpec(
   prompt: string,
   styleTemplateId?: string | null,
   styleStrength = 0.7,
+  signal?: AbortSignal,
 ): Promise<GenerateSongResponse> {
-  return requestJson("/api/v1/songs/generate", "POST", {
-    prompt,
-    ...(styleTemplateId ? { style_template_id: styleTemplateId, style_strength: styleStrength } : {}),
-  });
+  return requestJson(
+    "/api/v1/songs/generate",
+    "POST",
+    {
+      prompt,
+      ...(styleTemplateId ? { style_template_id: styleTemplateId, style_strength: styleStrength } : {}),
+    },
+    signal,
+  );
 }
 
 export function getSong(songId: string): Promise<{ song_id: string; music_spec: MusicSpec }> {

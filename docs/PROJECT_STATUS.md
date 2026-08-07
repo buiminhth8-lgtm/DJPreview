@@ -237,6 +237,17 @@
   样式 grid auto-fill 280px / 窄屏 1 列 / dialog。无 N+1 请求；后端无修改
   （T33.2 list/delete 已就绪）；导出/导入 round-trip 实测通过。npm build 通过
   （142 modules）。遗留：删除失败细分、导出增强、服务端搜索留后续。
+- T33.4 completed：创作页 CreatePage 独立化与生成流程收敛。新增 `features/generation/`：
+  `useGenerateSong.ts`（prompt/styleTemplateId/styleStrength 状态只属于 CreatePage；防重复提交；
+  AbortController 防 unmount 旧请求；失败保留表单；再次生成创建新工程）、`generationApi.ts`
+  （复用 songApi.generateMusicSpec，规范化 GeneratedProjectSummary）、`generationTypes.ts`、
+  `PromptGeneratePanel.tsx`、`StyleTemplateSelector.tsx`（模板加载失败不阻塞基础生成）、
+  `GeneratedProjectSummary.tsx`（BPM/调性/拍号/风格/段落/轨道/warnings + 进入工作台按钮）。
+  `CreatePage.tsx` 重写：组合 useGenerateSong + 摘要，生成成功后**不自动跳转**，用户确认后点击
+  进入 /projects/:songId；`songApi.generateMusicSpec` 增加 AbortSignal。T31 回归确认：
+  style_template_id / style_strength 经前端链路正确传后端（实测后端返回一致）。遗留：
+  LegacyCreateContent 无引用待 T33.6 删除；Workspace 内 GenerateConsole 保留（T33.6 再定）；
+  App.tsx create 状态随 LegacyCreateContent 停用。npm build 通过（146 modules）。
 
 
 

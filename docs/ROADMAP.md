@@ -499,5 +499,10 @@
     ImportProjectButton + ProjectLibraryPanel（搜索 title/songId + 状态筛选 + 刷新）
   - 页面组合 useProjects + Dialog + Import；导入成功跳转新工程；无 N+1；后端无修改
   - npm build 通过（142 modules）
-- T33.4-T33.9：创作页 feature 化 → 工作台 feature 化 → SoundFont/Renderer 整合 →
-  导入导出/删除确认增强 → 回归收尾（详见 FRONTEND_REFACTOR_T33.md）
+- T33.4 completed：创作页独立化（/create）
+  - features/generation/：useGenerateSong + generationApi + PromptGeneratePanel +
+    StyleTemplateSelector + GeneratedProjectSummary
+  - CreatePage 重写：生成成功不自动跳转，摘要确认后进入 /projects/:songId；T31
+    style_template_id/style_strength 链路回归确认；npm build 通过（146 modules）
+- T33.5-T33.9：工作台 feature 化 → SoundFont/Renderer 整合 → 导入导出/删除确认增强 →
+  回归收尾（详见 FRONTEND_REFACTOR_T33.md）

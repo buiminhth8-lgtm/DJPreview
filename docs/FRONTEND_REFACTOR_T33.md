@@ -407,10 +407,31 @@ apps/web/src/
 - 遗留：删除失败细分（404 视为已删除等）可后续优化；导出按钮已提供（T33.8 可增强）；
   搜索/筛选为客户端实现，量大时再做服务端
 
-### T33.4 创作页 CreatePage
-- 目标：实现 /create：prompt + 风格模板 + 生成后摘要 + 跳转工作台
-- 输入：GenerateConsole/StyleTemplatePanel 拆分 + useGenerateSong()；输出：独立创作页
-- 风险：生成调试面板（T35/T38-E）与生成页的归属需确认——保留在工作台或在创作页折叠
+### T33.4 创作页 CreatePage（已完成）
+
+- 状态：**Completed**
+- 目标：把「一句话生成音乐」流程从旧 App/Workspace 状态中独立出来，形成真正的 /create 创作页
+- 实际落地：
+  - 新增 `features/generation/`：`useGenerateSong.ts`（prompt/styleTemplateId/styleStrength 状态
+    只属于 CreatePage；防重复提交 inFlightRef；AbortController 防 unmount 旧请求；失败保留表单；
+    再次生成创建新工程）、`generationApi.ts`（复用 songApi.generateMusicSpec，把响应规范化为
+    `GeneratedProjectSummary`，页面不判断 snake_case）、`generationTypes.ts`（GenerateSongInput /
+    GeneratedProjectSummary）、`PromptGeneratePanel.tsx`（textarea + StyleTemplateSelector +
+    生成按钮 + loading/error）、`StyleTemplateSelector.tsx`（模板选择 + 强度滑杆，模板加载失败
+    不阻塞基础生成）、`GeneratedProjectSummary.tsx`（标题/songId/BPM/调性/拍号/风格/段落/轨道/
+    warnings + 「进入工程工作台」按钮）
+  - `CreatePage.tsx` 重写：组合 useGenerateSong + useStyles + PromptGeneratePanel +
+    GeneratedProjectSummary；**生成成功后不自动跳转**，用户确认摘要后点击进入工作台
+  - `songApi.generateMusicSpec` 增加 AbortSignal 透传
+  - `styles/app-shell.css`：创作页布局（最大 860px 居中、生成面板、响应式单列）
+  - T31 回归确认：payload 链路 `PromptGeneratePanel → useGenerateSong → generationApi →
+    songApi.generateMusicSpec(prompt, style_template_id, style_strength)` 实测通过
+    （后端返回 style_template.id 与请求一致）
+- 遗留 legacy：`components/legacy/LegacyCreateContent.tsx` 已无引用（仍保留文件，T33.6 删除）；
+  Workspace 内 GenerateConsole 仍存在（Workspace 保留生成能力，T33.6 再决定是否移除）；
+  App.tsx 的 create 状态已随 LegacyCreateContent 停用（T33.5 再清理 Workspace 侧）
+- 数据流：`CreatePage → useGenerateSong → generationApi → songApi → client → backend`；
+  进入工作台：`navigate(/projects/:songId)`（Workspace 通过 URL 自加载，不依赖 CreatePage 内存）
 
 ### T33.5 工程工作台页 ProjectWorkspacePage
 - 目标：实现 /projects/:songId，把 WorkspaceDashboard 挂到 URL 上下文，刷新可恢复

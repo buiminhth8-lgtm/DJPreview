@@ -217,6 +217,109 @@
   justify-content: flex-end;
 }
 
+/* 创作页（T33.4 独立版） */
+.page--create {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.create-page__header h1 {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+}
+
+.create-page__header p {
+  margin: 0 0 20px;
+  color: var(--workspace-text-dim, #94a3b8);
+}
+
+.generate-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-md, 16px);
+}
+
+.generate-panel__label {
+  font-size: 0.9rem;
+  color: var(--workspace-text-dim, #cbd5e1);
+}
+
+.generate-panel__textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px 14px;
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.16));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  color: var(--workspace-text, #f8fafc);
+  font: inherit;
+  resize: vertical;
+}
+
+.generate-panel__style {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.generate-panel__style select {
+  padding: 8px 12px;
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.16));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  color: var(--workspace-text, #f8fafc);
+}
+
+.generate-panel__style-detail {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--workspace-text-dim, #94a3b8);
+}
+
+.generate-panel__style-warning {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #fbbf24;
+}
+
+.generate-panel__strength {
+  font-size: 0.85rem;
+  color: var(--workspace-text-dim, #cbd5e1);
+}
+
+.generate-panel__strength + input[type="range"] {
+  width: 100%;
+}
+
+.generate-panel > .ui-action-button {
+  align-self: flex-start;
+  min-width: 160px;
+}
+
+.generate-result__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--workspace-gap-md, 16px);
+  margin-top: var(--workspace-gap-md, 16px);
+  flex-wrap: wrap;
+}
+
+.generate-result__hint {
+  font-size: 0.85rem;
+  color: var(--workspace-text-dim, #94a3b8);
+}
+
+@media (max-width: 600px) {
+  .page--create {
+    width: 100%;
+    padding: 16px 10px 32px;
+  }
+
+  .generate-panel > .ui-action-button {
+    width: 100%;
+  }
+}
+
 @media (max-width: 600px) {
   .project-library__grid {
     grid-template-columns: 1fr;
