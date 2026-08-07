@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import {
   regenerateSong,
-  type MusicSpec,
-  type RegenerationRequest,
-  type RegenerationResult,
-} from "../../api/musicApi";
+} from "../../api/songApi";
+import type { MusicSpec, RegenerationRequest, RegenerationResult } from "../../api/types";
 
 interface RegenerationPanelProps {
   songId: string;

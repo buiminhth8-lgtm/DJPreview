@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { listStyles, type StyleTemplateSpec } from "../../api/musicApi";
+import { listStyles } from "../../api/styleApi";
+import type { StyleTemplateSpec } from "../../api/types";
 
 interface StyleTemplatePanelProps {
   value: string;

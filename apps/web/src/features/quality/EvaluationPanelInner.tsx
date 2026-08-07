@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { listEvalCases, runEvaluation, type EvalCase, type EvalReport } from "../../api/musicApi";
+import { listEvalCases, runEvaluation } from "../../api/evaluationApi";
+import type { EvalCase, EvalReport } from "../../api/types";
 
 interface EvaluationPanelProps {
   onError: (message: string) => void;

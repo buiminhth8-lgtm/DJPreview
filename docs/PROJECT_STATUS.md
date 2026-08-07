@@ -64,6 +64,9 @@
 - T33-R3（前端自动化测试）：Vitest + Testing Library 引入，**13 个关键状态用例 PASS**
   （fallback 语义、selected≠rendered、audio stale、删除防重复、Blob revoke、songId 隔离）；
   修复 downloadBlob 异常路径未 revoke 的小 bug。详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
+- T33-R2（Legacy 清理）：删除 5 个无引用 hooks（useMixer/useQuality/useEvaluation/useReferenceMidi/
+  useRenderTasks）与 `api/musicApi.ts` 兼容壳（10 处 import 迁往领域 API）；
+  TrackMixerStrip 移至 features/audio；无循环依赖；build + 13 passed。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

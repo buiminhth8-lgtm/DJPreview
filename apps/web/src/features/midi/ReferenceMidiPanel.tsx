@@ -2,9 +2,8 @@ import { useRef, useState } from "react";
 import {
   analyzeReferenceMidi,
   generateFromReference,
-  type GenerateFromReferenceResponse,
-  type ReferenceMidiAnalysis,
-} from "../../api/musicApi";
+} from "../../api/referenceApi";
+import type { GenerateFromReferenceResponse, ReferenceMidiAnalysis } from "../../api/types";
 
 interface ReferenceMidiPanelProps {
   styleTemplateId?: string | null;

@@ -527,4 +527,7 @@
   前端无 fallback warning、刷新保持；后端 46 passed）。T33-R2/R3 待办。
 - T33-R3 completed：前端关键状态自动化测试 **PASS**（Vitest 13 passed：fallback 语义 / selected≠rendered /
   audio stale / 删除防重复 / Blob revoke / songId 隔离；build 通过）。T33-R2 待办。
+- T33-R2 completed：Legacy / Dead Code 清理 **PASS**（5 个 dead hooks + musicApi 兼容壳删除、
+  TrackMixerStrip 归位 features/audio、10 处 import 迁移领域 API、无循环依赖；
+  build 通过 + 13 passed）。T33 全部 R 切片完成。
 - T33.9：回归收尾（待办，见 T33-R1）

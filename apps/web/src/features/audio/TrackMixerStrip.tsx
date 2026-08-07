@@ -1,4 +1,4 @@
-import type { TrackMixSpec } from "../api/musicApi";
+import type { TrackMixSpec } from "../../api/types";
 
 interface TrackMixerStripProps {
   track: TrackMixSpec;

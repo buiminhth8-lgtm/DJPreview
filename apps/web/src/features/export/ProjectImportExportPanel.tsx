@@ -2,7 +2,7 @@
 // 导入 .aimusic.zip 始终可用；导出工程 / 下载 MIDI / WAV / Stems 无资产时 disabled。
 
 import { useState } from "react";
-import { importProject } from "../../api/musicApi";
+import { importProject } from "../projects/projectApi";
 import { ActionButton, ButtonRow, EmptyState, InlineNotice, SectionCard } from "../../components/ui";
 import { ExportMenu } from "./ExportMenu";
 
@@ -42,7 +42,7 @@ export function ProjectImportExportPanel({
     setFileName(file.name);
     try {
       const result = await importProject(file);
-      onImported?.(result.song_id);
+      onImported?.(result.songId);
     } catch (e) {
       setImportError(e instanceof Error ? e.message : String(e));
     } finally {

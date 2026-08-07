@@ -7,6 +7,27 @@
 > 更新（T33-R1 Browser Verification，2026-08-07）：真实浏览器回归完成。
 > 更新（T33-R4 Real FluidSynth Verification，2026-08-07）：真实 SoundFont 渲染链路验收完成。
 > 更新（T33-R3 Frontend Automated Tests，2026-08-07）：前端关键状态自动化测试完成。
+> 更新（T33-R2 Legacy Cleanup，2026-08-07）：Legacy / Dead Code 清理完成。
+
+## T33-R2 Legacy Cleanup
+
+- **删除的 hooks（确认无生产/测试引用）**：`useMixer.ts`、`useQuality.ts`、`useEvaluation.ts`、
+  `useReferenceMidi.ts`、`useRenderTasks.ts`（仅 `hooks/index.ts` re-export，无任何组件/页面调用；
+  RenderTasksPanel 为独立拉取实现，不依赖旧 useRenderTasks 轮询）。
+- **保留的 hooks 及原因**：`useSongProject` / `useAudioAssets` / `useVersions` / `useStyles` /
+  `useSoundfonts` 均为生产使用。
+- **musicApi.ts 删除**：是。10 处 import 全部迁移到领域 API
+  （mixApi / analysisApi / referenceApi / evaluationApi / styleApi / songApi / audioApi / projectApi），
+  类型统一改从 `api/types.ts` 导入；`musicApi.ts`（`export * from "./index"` 兼容壳）已删除。
+- **TrackMixerStrip 最终位置**：`features/audio/TrackMixerStrip.tsx`（git mv，import 同步更新）。
+- **残留 legacy**：无（`components/` 仅剩 `ui/` 通用 primitives）。
+- **依赖方向**：无反向/循环依赖（features 不依赖 page/shared）。
+- 验证：`npm run build` 通过；`npm test` 13 passed（T33-R3 关键用例未受影响）。
+
+### Goal G23 更新
+
+`G23 Legacy 明显收敛`：**PARTIAL → PASS**（5 个 dead hooks + musicApi 兼容壳删除、TrackMixerStrip 归位；
+components/ 仅剩 ui primitives）。
 
 ## T33-R3 Frontend Automated Tests
 

@@ -3,7 +3,8 @@
 // 有 songId 时复用真实 StemExportPanel（内部处理导出）。
 
 import { useState } from "react";
-import { exportStems, resolveUrl } from "../../api/musicApi";
+import { exportStems } from "../../api/audioApi";
+import { resolveUrl } from "../../api/client";
 import type { StemExportResponse } from "../../api/types";
 import { ActionButton, ButtonRow, EmptyState, SectionCard, StatusBadge } from "../../components/ui";
 

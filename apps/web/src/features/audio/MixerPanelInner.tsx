@@ -3,11 +3,9 @@ import {
   applyMix,
   getMix,
   updateMix,
-  type AssetsResponse,
-  type MixSpec,
-  type TrackMixSpec,
-} from "../../api/musicApi";
-import TrackMixerStrip from "../../components/TrackMixerStrip";
+} from "../../api/mixApi";
+import type { AssetsResponse, MixSpec, TrackMixSpec } from "../../api/types";
+import TrackMixerStrip from "./TrackMixerStrip";
 
 interface MixerPanelProps {
   songId: string;

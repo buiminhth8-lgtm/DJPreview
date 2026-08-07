@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { getPianoRoll, type PianoRollData } from "../../api/musicApi";
+import { getPianoRoll } from "../../api/analysisApi";
+import type { PianoRollData } from "../../api/types";
 
 interface PianoRollProps {
   songId: string;

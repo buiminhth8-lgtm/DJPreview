@@ -3,9 +3,8 @@ import {
   checkQuality,
   getQualityReport,
   optimizeArrangement,
-  type OptimizeResponse,
-  type QualityReport as QualityReportData,
-} from "../../api/musicApi";
+} from "../../api/analysisApi";
+import type { OptimizeResponse, QualityReport as QualityReportData } from "../../api/types";
 
 interface QualityReportProps {
   songId: string;
