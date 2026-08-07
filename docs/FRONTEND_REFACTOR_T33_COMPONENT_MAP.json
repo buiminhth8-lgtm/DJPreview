@@ -1,0 +1,370 @@
+[
+  {
+    "current_file": "apps/web/src/components/workspace/WorkspaceDashboard.tsx",
+    "current_role": "Waterfall workspace container composing all persistent panels",
+    "target_file": "apps/web/src/pages/ProjectWorkspacePage.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Split into page composition layer during T33.5"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/WorkspaceHeader.tsx",
+    "current_role": "Workspace title, provider/model badges, project status",
+    "target_file": "apps/web/src/features/workspace/WorkspaceHeader.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Keep backend API unchanged"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/GenerateConsole.tsx",
+    "current_role": "Prompt input, generate MusicSpec button, status badges",
+    "target_file": "apps/web/src/features/generation/PromptGeneratePanel.tsx",
+    "target_page": "/create",
+    "priority": "P0",
+    "notes": "Core creation entry; split from useSongProject in T33.4"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/ProjectOverviewPanel.tsx",
+    "current_role": "Project summary incl. renderer metadata rows",
+    "target_file": "apps/web/src/features/projects/ProjectOverviewCard.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Merge with MusicSpecPanel or keep separate"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/PlaybackDownloadPanel.tsx",
+    "current_role": "MIDI/WAV playback, download buttons, RendererStatusCard",
+    "target_file": "apps/web/src/features/audio/AudioPreviewPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Absorb RendererStatusCard and AudioPlayer"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/RendererStatusCard.tsx",
+    "current_role": "Renderer / quality / soundfont status card (T39)",
+    "target_file": "apps/web/src/features/audio/RendererStatusCard.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "QuickStatus variant reused on /create"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/MusicSpecPanel.tsx",
+    "current_role": "MusicSpec summary and JSON inspector",
+    "target_file": "apps/web/src/features/workspace/MusicSpecInspector.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Keep backend API unchanged"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/WarningsPanel.tsx",
+    "current_role": "Validation warnings display",
+    "target_file": "apps/web/src/features/workspace/WarningsPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P1",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/GenerationDebugPanel.tsx",
+    "current_role": "Generation debug log / request diagnostics (T35)",
+    "target_file": "apps/web/src/features/generation/GenerationDebugPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P1",
+    "notes": "Decide final home (create page vs workspace) in T33.4"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/FormHarmonyPanel.tsx",
+    "current_role": "Form / harmony timeline view",
+    "target_file": "apps/web/src/features/midi/FormHarmonyPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/TrackInstrumentPanel.tsx",
+    "current_role": "Track and instrument table",
+    "target_file": "apps/web/src/features/midi/TrackListPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Merge with TrackList"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/PianoRollPanel.tsx",
+    "current_role": "Piano roll container (mounts viewer only with MIDI)",
+    "target_file": "apps/web/src/features/midi/PianoRollPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Wrap PianoRoll.tsx viewer"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/MixerPanel.tsx",
+    "current_role": "Mixer with volume/pan/mute/solo strips",
+    "target_file": "apps/web/src/features/audio/MixerPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P1",
+    "notes": "Reuse TrackMixerStrip"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/StemsPanel.tsx",
+    "current_role": "Stems export panel",
+    "target_file": "apps/web/src/features/export/StemsPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P1",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/VersionPanel.tsx",
+    "current_role": "Version list / detail / diff / restore",
+    "target_file": "apps/web/src/features/versions/VersionPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Keep restore confirm dialog"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/EditSongPanel.tsx",
+    "current_role": "Natural language song editing",
+    "target_file": "apps/web/src/features/workspace/NaturalLanguageEditPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Keep autoRender toggle"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/SoundfontPanel.tsx",
+    "current_role": "SoundFont scan / select / apply + FluidSynth status (T39)",
+    "target_file": "apps/web/src/features/soundfonts/SoundfontPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Keep diagnostics display"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/ProjectImportExportPanel.tsx",
+    "current_role": "Project import (no song) and export (needs song)",
+    "target_file": "apps/web/src/features/export/ProjectImportExportPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Import button also surfaced on /projects"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/RenderTasksPanel.tsx",
+    "current_role": "Async render task list with progress",
+    "target_file": "apps/web/src/features/tasks/RenderTasksPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Reuse TaskStatusList"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/JsonPreview.tsx",
+    "current_role": "Generic JSON preview with limit",
+    "target_file": "apps/web/src/shared/components/JsonPreview.tsx",
+    "target_page": "shared",
+    "priority": "P2",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/SectionTimeline.tsx",
+    "current_role": "Song section timeline",
+    "target_file": "apps/web/src/features/midi/SectionTimeline.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P1",
+    "notes": "Dedupe with top-level SectionTimeline"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/HarmonyProgressionView.tsx",
+    "current_role": "Harmony progression view",
+    "target_file": "apps/web/src/features/midi/HarmonyProgressionView.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P2",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/StatusMessage.tsx",
+    "current_role": "Error / status message",
+    "target_file": "apps/web/src/shared/components/StatusMessage.tsx",
+    "target_page": "shared",
+    "priority": "P2",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/WorkspaceSectionPlaceholder.tsx",
+    "current_role": "Placeholder for conditional sections",
+    "target_file": "apps/web/src/shared/components/WorkspaceSectionPlaceholder.tsx",
+    "target_page": "shared",
+    "priority": "P2",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/ReferencePanel.tsx",
+    "current_role": "Reference MIDI analysis panel",
+    "target_file": "apps/web/src/features/midi/ReferencePanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P2",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/EvaluationPanel.tsx",
+    "current_role": "Batch evaluation panel",
+    "target_file": "apps/web/src/features/quality/EvaluationPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P2",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/GeneratePanel.tsx",
+    "current_role": "Legacy generate panel (dead code, WorkspaceLayout only)",
+    "target_file": "none",
+    "target_page": "deleted in T33.6",
+    "priority": "Keep",
+    "notes": "Remove with WorkspaceLayout cleanup"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/PlayerPanel.tsx",
+    "current_role": "Legacy player panel (dead code)",
+    "target_file": "none",
+    "target_page": "deleted in T33.6",
+    "priority": "Keep",
+    "notes": "Remove with WorkspaceLayout cleanup"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/EditPanel.tsx",
+    "current_role": "Legacy edit panel (dead code)",
+    "target_file": "none",
+    "target_page": "deleted in T33.6",
+    "priority": "Keep",
+    "notes": "Remove with WorkspaceLayout cleanup"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/AnalysisPanel.tsx",
+    "current_role": "Legacy analysis panel (dead code)",
+    "target_file": "none",
+    "target_page": "deleted in T33.6",
+    "priority": "Keep",
+    "notes": "Remove with WorkspaceLayout cleanup"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/ProjectPanel.tsx",
+    "current_role": "Legacy project panel (dead code)",
+    "target_file": "none",
+    "target_page": "deleted in T33.6",
+    "priority": "Keep",
+    "notes": "Remove with WorkspaceLayout cleanup"
+  },
+  {
+    "current_file": "apps/web/src/components/workspace/WorkspaceLayout.tsx",
+    "current_role": "Legacy workspace layout (dead code)",
+    "target_file": "none",
+    "target_page": "deleted in T33.6",
+    "priority": "Keep",
+    "notes": "Remove with WorkspaceLayout cleanup"
+  },
+  {
+    "current_file": "apps/web/src/components/AudioPlayer.tsx",
+    "current_role": "Audio playback element wrapper",
+    "target_file": "apps/web/src/features/audio/AudioPlayer.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P1",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/PianoRoll.tsx",
+    "current_role": "Piano roll viewer (fetches piano-roll endpoint)",
+    "target_file": "apps/web/src/features/midi/PianoRollViewer.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P0",
+    "notes": "Keep no-MIDI guard"
+  },
+  {
+    "current_file": "apps/web/src/components/TrackList.tsx",
+    "current_role": "Track list rendering",
+    "target_file": "apps/web/src/features/midi/TrackListPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P1",
+    "notes": "Merge with TrackInstrumentPanel"
+  },
+  {
+    "current_file": "apps/web/src/components/TrackMixerStrip.tsx",
+    "current_role": "Single track mixer strip",
+    "target_file": "apps/web/src/features/audio/TrackMixerStrip.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P1",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/MusicSummary.tsx",
+    "current_role": "MusicSpec summary",
+    "target_file": "apps/web/src/features/workspace/MusicSpecInspector.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P2",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/ArrangementInspector.tsx",
+    "current_role": "Arrangement inspection",
+    "target_file": "apps/web/src/features/midi/ArrangementInspector.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P2",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/QualityReport.tsx",
+    "current_role": "Quality report and optimization",
+    "target_file": "apps/web/src/features/quality/QualityReportPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P1",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/ReferenceMidiPanel.tsx",
+    "current_role": "Reference MIDI panel",
+    "target_file": "apps/web/src/features/midi/ReferencePanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P2",
+    "notes": "Dedupe with workspace/ReferencePanel"
+  },
+  {
+    "current_file": "apps/web/src/components/RegenerationPanel.tsx",
+    "current_role": "Section/track regeneration",
+    "target_file": "apps/web/src/features/generation/RegenerationPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P1",
+    "notes": ""
+  },
+  {
+    "current_file": "apps/web/src/components/StyleTemplatePanel.tsx",
+    "current_role": "Style template selector",
+    "target_file": "apps/web/src/features/generation/StyleTemplateSelector.tsx",
+    "target_page": "/create",
+    "priority": "P0",
+    "notes": "Create page core"
+  },
+  {
+    "current_file": "apps/web/src/components/StemExportPanel.tsx",
+    "current_role": "Stems export (legacy duplicate)",
+    "target_file": "apps/web/src/features/export/StemsPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P2",
+    "notes": "Dedupe with workspace/StemsPanel"
+  },
+  {
+    "current_file": "apps/web/src/components/ProjectIOPanel.tsx",
+    "current_role": "Project import/export (legacy)",
+    "target_file": "apps/web/src/features/export/ProjectImportExportPanel.tsx",
+    "target_page": "/projects",
+    "priority": "P2",
+    "notes": "Dedupe with workspace/ProjectImportExportPanel"
+  },
+  {
+    "current_file": "apps/web/src/components/EvaluationPanel.tsx",
+    "current_role": "Evaluation (legacy duplicate)",
+    "target_file": "apps/web/src/features/quality/EvaluationPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P2",
+    "notes": "Dedupe with workspace/EvaluationPanel"
+  },
+  {
+    "current_file": "apps/web/src/components/MixerPanel.tsx",
+    "current_role": "Mixer (legacy duplicate)",
+    "target_file": "apps/web/src/features/audio/MixerPanel.tsx",
+    "target_page": "/projects/:songId",
+    "priority": "P2",
+    "notes": "Dedupe with workspace/MixerPanel"
+  }
+]
