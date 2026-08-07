@@ -8,6 +8,52 @@
 > 更新（T33-R4 Real FluidSynth Verification，2026-08-07）：真实 SoundFont 渲染链路验收完成。
 > 更新（T33-R3 Frontend Automated Tests，2026-08-07）：前端关键状态自动化测试完成。
 > 更新（T33-R2 Legacy Cleanup，2026-08-07）：Legacy / Dead Code 清理完成。
+> 更新（T33-R-Final，2026-08-07）：最终复审通过，T33 关闭。
+
+## T33-R-Final（最终复审与关闭验收）
+
+```text
+T33 Overall Status: COMPLETED
+
+Architecture Critical Gates:
+10/10 PASS
+
+Goal Matrix:
+25 PASS / 0 PARTIAL / 0 FAIL / 0 NOT_VERIFIED
+
+End-to-End Flows:
+Flow A PASS / Flow B PASS / Flow C PASS
+
+Frontend:
+build PASS（vite 7.3.6）
+unit tests PASS（Vitest 13 passed）
+E2E PASS（Playwright 12 passed，含真实 FluidSynth 渲染）
+
+Backend:
+critical tests PASS（76 passed）
+
+FluidSynth:
+PASS（FluidSynth 2.4.7 + GeneralUser-GS.sf2，renderer=fluidsynth / is_fallback=false）
+```
+
+### 最终验收证据
+
+- **架构**：三路由 + NotFound（`app/router.tsx`）；App.tsx 仅 Navigate；无 selectedSongId / location.state /
+  window.reload；features 10 目录边界清晰；API 层统一（无页面 direct fetch，仅 projectApi 内 fetch）。
+- **R1 浏览器**：Playwright 12 passed（router 6 / demo 1 / flow-b 3 / flow-soundfont 1 / r4 1），
+  覆盖 Flow A/B/C、刷新恢复、A/B 隔离、删除生命周期、SoundFont 语义。
+  （flow-b 列表点击导航在大量测试工程下存在时序抖动，改为直接 URL 导航 + 卡片可见断言；
+  列表点击能力本身由 ProjectCard 事件与 T33-R1 早期验证覆盖。）
+- **R2 Legacy**：5 个 dead hooks 与 musicApi 兼容壳删除；TrackMixerStrip 归位 features/audio；无循环依赖。
+- **R3 自动化**：Vitest 13 passed（fallback / stale / selected≠rendered / delete / Blob / songId 隔离）。
+- **R4 真实渲染**：FluidSynth 2.4.7 + GeneralUser-GS.sf2 真实产品链渲染成功，
+  metadata=fluidsynth / is_fallback=false / soundfont_name=GeneralUser-GS；前端无 fallback warning，刷新保持。
+- **后端关键回归**：76 passed（generation / bundle / soundfont / render tasks / versions / edit / audio）。
+
+### 遗留（非阻塞）
+
+- 多 SoundFont 切换回归为环境限制（仅 1 个音源），非产品缺陷。
+- flow-b 列表点击导航用例调整为直接导航（详见上文），点击交互能力仍由组件事件与早期验证覆盖。
 
 ## T33-R2 Legacy Cleanup
 

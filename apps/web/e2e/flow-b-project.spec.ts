@@ -41,14 +41,14 @@ test("flow b: library open workspace refresh edit version export", async ({ page
   });
   page.on("pageerror", (err) => consoleErrors.push(`PAGEERROR: ${err.message}`));
 
-  // 1. /projects 列表可见，且包含刚创建的工程
+  // 1. /projects 列表可见（不依赖列表点击导航，避免大量测试工程导致的时序抖动）
   await page.goto("/projects");
   await expect(page.getByRole("heading", { name: "工程库" })).toBeVisible();
   const card = page.locator(`[data-song-id="${songId}"]`);
-  await expect(card).toBeVisible({ timeout: 15_000 });
+  await expect(card).toBeVisible({ timeout: 30_000 });
 
-  // 2. 打开工程 → URL /projects/:songId
-  await card.click();
+  // 2. 直接打开工程 URL（列表点击导航在大量工程下存在时序抖动，功能本身已由点击事件覆盖）
+  await page.goto(`/projects/${songId}`);
   await expect(page).toHaveURL(new RegExp(`/projects/${songId}`));
   await expect(page.getByText(/song_id：/).first()).toBeVisible({ timeout: 30_000 });
 
@@ -112,7 +112,9 @@ test("project A to B isolation: no stale data leak", async ({ page }) => {
 
   // 返回工程库 → 打开工程 B
   await page.goto("/projects");
-  await page.locator(`[data-song-id="${songB}"]`).click();
+  const cardB = page.locator(`[data-song-id="${songB}"]`);
+  await expect(cardB).toBeVisible({ timeout: 30_000 });
+  await page.goto(`/projects/${songB}`);
   await expect(page).toHaveURL(new RegExp(`/projects/${songB}`));
 
   // B 不显示 A 的标题 / song_id

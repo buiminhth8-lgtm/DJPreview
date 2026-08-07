@@ -12,6 +12,10 @@
 > `fallback 状态以后端 audio metadata（is_fallback）为准`。
 
 > 更新（T33.8 Completed）：工程导入导出 / 删除 / 二次确认流程整合完成。
+> 更新（T33-R-Final，2026-08-07）：**T33 前端改造整体关闭验收 COMPLETED**。
+> 三路由 / URL songId source of truth / feature 模块化 / SoundFont-Renderer 状态 / 导入导出删除 /
+> 浏览器回归（Playwright 12 passed）/ 自动化测试（Vitest 13 passed）/ 真实 FluidSynth 渲染均已验收通过。
+> 详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)。
 
 ## 工程级操作边界（T33.8）
 

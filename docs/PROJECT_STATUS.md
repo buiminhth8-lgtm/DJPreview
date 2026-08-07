@@ -67,6 +67,9 @@
 - T33-R2（Legacy 清理）：删除 5 个无引用 hooks（useMixer/useQuality/useEvaluation/useReferenceMidi/
   useRenderTasks）与 `api/musicApi.ts` 兼容壳（10 处 import 迁往领域 API）；
   TrackMixerStrip 移至 features/audio；无循环依赖；build + 13 passed。
+- T33-R-Final（最终复审）：**T33 前端改造整体 COMPLETED**（架构 Critical Gates 10/10、
+  Goal 25/25、Flow A/B/C PASS、Playwright 12 passed、Vitest 13 passed、后端关键 76 passed、
+  真实 FluidSynth 渲染 PASS）。详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
