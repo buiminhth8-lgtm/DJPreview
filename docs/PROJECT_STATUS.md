@@ -58,6 +58,9 @@
 - T33-R1（浏览器回归）：三条主流程真实浏览器验证 **PASS**（Playwright 11 passed；含路由、刷新恢复、
   A/B 隔离、编辑/版本、删除生命周期、SoundFont UI 语义）；修复自然语言编辑失效的 P1 bug
   （handleApplyEdit 异步 state 读取问题）。详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
+- T33-R4（真实渲染验收）：FluidSynth 2.4.7 + GeneralUser-GS.sf2 真实链路 **PASS**
+  （renderer=fluidsynth、is_fallback=false、soundfont_name=GeneralUser-GS；同步与异步任务均 succeeded；
+  Workspace 无 fallback warning、刷新保持；后端 46 passed）。详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

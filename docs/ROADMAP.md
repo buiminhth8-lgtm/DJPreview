@@ -522,4 +522,7 @@
   详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
 - T33-R1 completed：浏览器三条主流程真实回归 **PASS**（Playwright 11 passed：路由/刷新恢复/A-B 隔离/
   编辑版本/删除生命周期/SoundFont 语义）；修复自然语言编辑 P1 bug。T33-R2/R3/R4 待办。
+- T33-R4 completed：真实 SoundFont / FluidSynth 渲染链路 **PASS**（FluidSynth 2.4.7 + GeneralUser-GS.sf2；
+  renderer=fluidsynth / is_fallback=false / soundfont_name=GeneralUser-GS；同步+异步任务 succeeded；
+  前端无 fallback warning、刷新保持；后端 46 passed）。T33-R2/R3 待办。
 - T33.9：回归收尾（待办，见 T33-R1）

@@ -5,6 +5,51 @@
 > 状态约定：PASS / PARTIAL / FAIL / NOT_VERIFIED（禁止模糊表述）。
 
 > 更新（T33-R1 Browser Verification，2026-08-07）：真实浏览器回归完成。
+> 更新（T33-R4 Real FluidSynth Verification，2026-08-07）：真实 SoundFont 渲染链路验收完成。
+
+## T33-R4 Real FluidSynth Verification
+
+环境：Windows + FluidSynth 2.4.7（chocolatey 安装，`C:\ProgramData\chocolatey\bin\fluidsynth.EXE`）+ `data/soundfonts/GeneralUser-GS.sf2`（32MB，gitignored）。
+
+```text
+FluidSynth binary: C:\ProgramData\chocolatey\bin\fluidsynth.EXE
+FluidSynth version: FluidSynth runtime version 2.4.7（-V 检测成功）
+SoundFont: GeneralUser-GS.sf2（id=35a7972b7b5f，exists/readable/valid=true）
+Diagnostics: fluidsynth.available=true, renderer_backends.fluidsynth=true
+
+songId: cd70852c-d7d1-4cba-a618-c9568f48dbd0（测试工程，已清理）
+render result: 真实产品 API 渲染成功（同步 + 异步 Render Task 均 succeeded）
+WAV: output.wav 存在，11954220 bytes（≈11.9MB），duration 67.77s
+
+renderer: fluidsynth
+is_fallback: false
+fallback_reason: null
+soundfont_name: GeneralUser-GS
+soundfont_id: 35a7972b7b5f
+
+frontend result: PASS（r4-verify.spec.ts + 手动浏览器验证）
+  - Workspace 显示 FluidSynth / GeneralUser-GS
+  - 无 fallback warning
+  - audio 元素可播放
+browser refresh result: PASS（刷新后状态保持）
+```
+
+| 验收项 | 状态 | 证据 |
+|---|---|---|
+| FluidSynth 可被 backend 找到 | PASS | diagnostics `available=true` + version 2.4.7 |
+| GeneralUser-GS.sf2 可解析 | PASS | diagnostics `valid=true` + API 列表返回 |
+| 工程选择 SoundFont 成功 | PASS | PUT /soundfont 返回 GeneralUser-GS |
+| 真实产品 render API 成功 | PASS | POST /audio/render → metadata renderer=fluidsynth |
+| 真实 WAV 输出存在 | PASS | 11.9MB / 67.77s（非 HTTP 200 单点判断） |
+| renderer / is_fallback / soundfont_name | PASS | 磁盘 audio_metadata.json + assets API 一致 |
+| Workspace 显示 FluidSynth、无 fallback warning | PASS | Playwright 真实浏览器 |
+| 浏览器刷新后状态保持 | PASS | reload 后 GeneralUser-GS 仍在、无 fallback |
+| 异步 Render Task metadata 传播 | PASS | tasks/render-audio succeeded → assets renderer=fluidsynth |
+| selected ≠ rendered 回归（换第二个 SoundFont） | NOT_VERIFIED | 环境仅有 1 个 SoundFont，无法实测切换 |
+| Fallback 路径（fallback_reason 传播） | PASS | 既有 pytest 覆盖（46 passed，mock subprocess） |
+
+结论：**T33-R4 = PASS**（真实 WAV 由 FluidSynth 生成，metadata 反映真实渲染路径，前端显示正确）。
+唯一 NOT_VERIFIED：多 SoundFont 切换回归（环境限制，非缺陷）。
 
 ## T33-R1 Browser Verification
 
