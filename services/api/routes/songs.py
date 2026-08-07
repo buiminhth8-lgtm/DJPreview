@@ -109,6 +109,8 @@ from services.api.schemas.api_models import (
     OptimizeResponse,
     PianoRollResponse,
     ProjectImportResponse,
+    ProjectListResponse,
+    ProjectSummaryItem,
     RenderAudioResponse,
     RestoreSummary,
     RestoreVersionResponse,
@@ -125,24 +127,27 @@ from services.api.schemas.api_models import (
 from services.api.storage.project_store import (
     AUDIO_FILENAME,
     AUDIO_GENERATOR_VERSION,
-    create_project,
-    create_version,
-    get_audio_metadata,
-    get_current_version,
-    get_midi_path,
-    get_mix_spec,
-    get_project,
-    get_project_dir,
-    get_project_soundfont,
-    get_quality_report as get_quality_report_store,
-    get_stems_dir,
-    get_stems_zip_path,
-    get_version_detail as get_version_detail_store,
-    get_version_diff as get_version_diff_store,
-    get_wav_path,
-    init_version_if_needed,
-    is_valid_song_id,
-    list_versions,
+      create_project,
+      create_version,
+      delete_project,
+      get_audio_metadata,
+      get_current_version,
+      get_midi_path,
+      get_mix_spec,
+      get_project,
+      get_project_dir,
+      get_project_soundfont,
+      get_project_summary,
+      get_quality_report as get_quality_report_store,
+      get_stems_dir,
+      get_stems_zip_path,
+      get_version_detail as get_version_detail_store,
+      get_version_diff as get_version_diff_store,
+      get_wav_path,
+      init_version_if_needed,
+      is_valid_song_id,
+      list_project_ids,
+      list_versions,
     restore_version,
     save_audio_metadata,
     save_midi_file,
@@ -594,6 +599,31 @@ def get_song(song_id: str) -> GetSongResponse:
     except ValueError as exc:
         raise invalid_request(str(exc)) from None
     return GetSongResponse(song_id=song_id, music_spec=spec)
+
+
+@router.get("/projects", response_model=ProjectListResponse, summary="工程列表（T33.2）")
+def list_projects_route() -> ProjectListResponse:
+    """列出 data/projects 下所有工程摘要（倒序）。"""
+    items = []
+    for song_id in list_project_ids():
+        summary = get_project_summary(song_id)
+        if summary is not None:
+            items.append(ProjectSummaryItem(**summary))
+    return ProjectListResponse(projects=items, total=len(items))
+
+
+@router.delete("/songs/{song_id}", response_model=dict, summary="删除工程（T33.2）")
+def delete_song_route(song_id: str) -> dict:
+    """删除工程目录（含资产）。不存在返回 404。"""
+    if not is_valid_song_id(song_id):
+        raise invalid_request("非法 song_id：必须为 UUID 格式")
+    try:
+        deleted = delete_project(song_id)
+    except ValueError as exc:
+        raise invalid_request(str(exc)) from None
+    if not deleted:
+        raise project_not_found(song_id)
+    return {"song_id": song_id, "deleted": True}
 
 
 # ---------- MIDI ----------

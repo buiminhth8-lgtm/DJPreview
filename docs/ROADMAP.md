@@ -488,5 +488,11 @@
   - App.tsx 降级为兼容层；main.tsx 挂 RouterProvider；新增 app-shell.css
   - e2e：router.spec.ts 5 用例 + demo.spec.ts 适配；playwright 端口同步 49152
   - 遗留：e2e chromium 需在联网环境安装后运行；生产部署需 SPA history fallback（Nginx try_files）
-- T33.2-T33.9：工程 API 整理 → 工程库页 → 创作页 feature 化 → 工作台 feature 化 →
+- T33.2 completed：工程 API 层整理
+  - 后端 unblocker：GET /api/v1/projects（列表）+ DELETE /api/v1/songs/{song_id}（删除）
+  - 前端 features/projects/：projectTypes（camelCase）+ projectApi（list/get/delete/import/export
+    + AbortSignal）+ useProjects + useProject；shared/utils/download.ts；client.ts 支持 signal
+  - ProjectLibraryPage 最小列表接入；全量 pytest 669 + npm build 通过
+  - 遗留：旧 api/projectApi.ts / musicApi.ts 空壳待 T33.6 合并
+- T33.3-T33.9：工程库正式 UI（搜索/删除确认/导入）→ 创作页 feature 化 → 工作台 feature 化 →
   SoundFont/Renderer 整合 → 导入导出/删除确认 → 回归收尾（详见 FRONTEND_REFACTOR_T33.md）

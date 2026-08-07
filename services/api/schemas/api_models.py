@@ -448,6 +448,28 @@ class ProjectImportResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class ProjectSummaryItem(BaseModel):
+    """工程列表项（T33.2 新增，供 /projects 页面）。"""
+
+    song_id: str
+    title: str = "未命名工程"
+    created_at: str | None = None
+    current_version_id: str | None = None
+    has_midi: bool = False
+    has_audio: bool = False
+    has_stems: bool = False
+    has_quality_report: bool = False
+    renderer: str | None = None
+    soundfont_name: str | None = None
+
+
+class ProjectListResponse(BaseModel):
+    """工程列表响应（T33.2 新增）。"""
+
+    projects: list[ProjectSummaryItem] = Field(default_factory=list)
+    total: int = 0
+
+
 # 复用外部模型
 RegenerationRequest = RegenerationRequest
 RegenerationResult = RegenerationResult

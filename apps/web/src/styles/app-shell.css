@@ -82,6 +82,63 @@
   min-height: 60vh;
 }
 
+/* 工程库最小列表（T33.2；正式卡片 UI 留 T33.3） */
+.project-library__toolbar {
+  margin-bottom: var(--workspace-gap-md, 16px);
+}
+
+.project-library__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-sm, 10px);
+}
+
+.project-library__item {
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  transition: background 0.15s ease;
+}
+
+.project-library__item:hover {
+  background: var(--workspace-surface-hover, rgba(255, 255, 255, 0.09));
+}
+
+.project-library__link {
+  display: flex;
+  align-items: center;
+  gap: var(--workspace-gap-md, 16px);
+  padding: 12px var(--workspace-gap-md, 16px);
+  text-decoration: none;
+  color: var(--workspace-text, #f8fafc);
+}
+
+.project-library__title {
+  font-weight: 600;
+  flex: 1;
+}
+
+.project-library__meta {
+  color: var(--workspace-text-dim, #94a3b8);
+  font-size: 0.85rem;
+}
+
+.project-library__badges {
+  display: flex;
+  gap: 6px;
+}
+
+@media (max-width: 600px) {
+  .project-library__link {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
 @media (max-width: 600px) {
   .app-shell__header {
     padding: 10px var(--workspace-gap-md, 16px);

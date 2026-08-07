@@ -83,6 +83,91 @@ def get_project(song_id: str) -> MusicSpec:
     return MusicSpec.model_validate(data)
 
 
+def list_project_ids() -> list[str]:
+    """返回 data/projects 下所有有效工程 song_id（按创建时间倒序）。"""
+    projects_dir = get_settings().projects_dir
+    if not projects_dir.exists():
+        return []
+    ids: list[tuple[str, float]] = []
+    for entry in projects_dir.iterdir():
+        if not entry.is_dir():
+            continue
+        if not is_valid_song_id(entry.name):
+            continue
+        if not (entry / "music_spec.json").exists():
+            continue
+        try:
+            mtime = entry.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        ids.append((entry.name, mtime))
+    ids.sort(key=lambda item: item[1], reverse=True)
+    return [song_id for song_id, _ in ids]
+
+
+def delete_project(song_id: str) -> bool:
+    """删除工程目录（含全部资产）。不存在返回 False；非法 id 抛 ValueError。"""
+    project_dir = _project_dir(song_id)
+    if not project_dir.exists():
+        return False
+    import shutil
+
+    shutil.rmtree(project_dir)
+    return True
+
+
+def get_project_summary(song_id: str) -> dict | None:
+    """构建工程摘要（供列表 API）。工程不存在返回 None。"""
+    project_dir = _project_dir(song_id)
+    spec_path = project_dir / "music_spec.json"
+    if not spec_path.exists():
+        return None
+    try:
+        spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        spec = {}
+    title = spec.get("title")
+    created_at = None
+    metadata_path = project_dir / METADATA_FILENAME
+    if metadata_path.exists():
+        try:
+            meta = json.loads(metadata_path.read_text(encoding="utf-8"))
+            created_at = meta.get("generated_at")
+        except (json.JSONDecodeError, OSError):
+            pass
+    audio_meta = get_audio_metadata(song_id)
+    return {
+        "song_id": song_id,
+        "title": title or "未命名工程",
+        "created_at": created_at,
+        "current_version_id": _read_current_version_id(project_dir),
+        "has_midi": (project_dir / MIDI_FILENAME).exists(),
+        "has_audio": (project_dir / AUDIO_FILENAME).exists(),
+        "has_stems": (project_dir / "stems").exists(),
+        "has_quality_report": (project_dir / "quality_report.json").exists(),
+        "renderer": (audio_meta or {}).get("renderer"),
+        "soundfont_name": (audio_meta or {}).get("soundfont_name"),
+    }
+
+
+def _read_current_version_id(project_dir: Path) -> str | None:
+    pointer = project_dir / CURRENT_VERSION_ID_FILENAME
+    if pointer.exists():
+        value = pointer.read_text(encoding="utf-8").strip()
+        if value:
+            return value
+    current = project_dir / CURRENT_JSON_FILENAME
+    if current.exists():
+        try:
+            data = json.loads(current.read_text(encoding="utf-8"))
+            version_id = data.get("version_id") or data.get("current_version_id")
+            if version_id:
+                return version_id
+        except (json.JSONDecodeError, OSError):
+            pass
+    return None
+
+
 def _write_spec_file(project_dir: Path, music_spec: MusicSpec) -> None:
     """把 MusicSpec 写为 music_spec.json（UTF-8，中文不转义）。"""
     payload = json.dumps(

@@ -121,6 +121,13 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
       },
     });
   } catch (e) {
+    if ((e as Error).name === "AbortError") {
+      throw new ApiRequestError("请求已取消", {
+        status: 0,
+        code: "ABORTED",
+        stage: "network",
+      });
+    }
     // 网络错误：不是 HTTP 错误，也不是 JSON 解析错误
     throw new ApiRequestError(`网络请求失败：${(e as Error).message}`, {
       status: 0,
@@ -142,11 +149,18 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   }
 }
 
-export async function apiDownloadBlob(path: string): Promise<Blob> {
+export async function apiDownloadBlob(path: string, signal?: AbortSignal): Promise<Blob> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`);
+    response = await fetch(`${API_BASE_URL}${path}`, { signal });
   } catch (e) {
+    if ((e as Error).name === "AbortError") {
+      throw new ApiRequestError("请求已取消", {
+        status: 0,
+        code: "ABORTED",
+        stage: "network",
+      });
+    }
     throw new ApiRequestError(`网络请求失败：${(e as Error).message}`, {
       status: 0,
       code: "NETWORK_ERROR",
@@ -159,16 +173,22 @@ export async function apiDownloadBlob(path: string): Promise<Blob> {
   return response.blob();
 }
 
-async function requestJson<T>(url: string, method: string, payload?: unknown): Promise<T> {
+async function requestJson<T>(
+  url: string,
+  method: string,
+  payload?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   return apiFetch<T>(url, {
     method,
-    body: payload !== undefined ? JSON.stringify(payload) : undefined,
-    headers: payload !== undefined ? { "Content-Type": "application/json" } : undefined,
+    body: payload !== undefined ? (payload instanceof FormData ? payload : JSON.stringify(payload)) : undefined,
+    headers: payload !== undefined && !(payload instanceof FormData) ? { "Content-Type": "application/json" } : undefined,
+    signal,
   });
 }
 
-async function requestForm<T>(url: string, form: FormData): Promise<T> {
-  return apiFetch<T>(url, { method: "POST", body: form });
+async function requestForm<T>(url: string, form: FormData, signal?: AbortSignal): Promise<T> {
+  return apiFetch<T>(url, { method: "POST", body: form, signal });
 }
 
 export function resolveUrl(path: string): string {

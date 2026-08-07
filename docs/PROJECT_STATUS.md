@@ -213,6 +213,19 @@
   新增 `styles/app-shell.css`；e2e 新增 `router.spec.ts` 5 用例、`demo.spec.ts` 适配新路由、
   playwright.config 端口同步为 49152。build 通过（133 modules）。遗留：e2e chromium 本机下载
   超时未跑；正式工程库列表留 T33.3；feature 拆分留 T33.4~T33.6。
+- T33.2 completed：工程 API 层整理。后端最小 unblocker：新增 `GET /api/v1/projects`（工程列表，
+  倒序）与 `DELETE /api/v1/songs/{song_id}`（删除工程）；storage 新增 `list_project_ids` /
+  `delete_project` / `get_project_summary`；schema 新增 `ProjectSummaryItem` / `ProjectListResponse`；
+  新增 `tests/test_project_list_api.py`（5 用例）。前端新增工程生命周期统一入口
+  `features/projects/`：`projectTypes.ts`（camelCase 映射，Project == 后端 song project）、
+  `projectApi.ts`（listProjects/getProject/deleteProject/importProject/exportProject，均支持
+  AbortSignal）、`useProjects.ts`（列表 + removeProject + 防竞态）、`useProject.ts`（URL 刷新
+  恢复 + 404/notFound + unmount 取消）；复用 `api/client.ts` 作为 httpClient（新增 AbortSignal
+  透传与 ABORTED code）；新增 `shared/utils/download.ts`（downloadBlob +
+  filenameFromContentDisposition）。`ProjectLibraryPage` 最小列表接入 useProjects；
+  `ProjectWorkspacePage` 保持 LegacyWorkspaceContent（避免重复请求）。全量 pytest 669 passed；
+  npm build 通过（136 modules）。遗留：旧 `api/projectApi.ts`（仅 import/export）与
+  `musicApi.ts` 空壳待 T33.6 合并清理；正式工程库 UI（搜索/删除确认/导入）留 T33.3/T33.8。
 
 
 ## Partially Completed / Needs Verification（部分完成或需验证）

@@ -354,15 +354,38 @@ apps/web/src/
   - e2e：新增 `router.spec.ts`（5 用例），`demo.spec.ts` 适配新路由
 - 风险说明：e2e 浏览器在本机下载超时未跑（chromium 未安装成功），build 通过；`/projects/:songId` 直接打开与刷新已验证可服务（SPA fallback 由 dev server 提供，生产需 Nginx `try_files`）
 
-### T33.2 工程 API 层整理
-- 目标：清理 musicApi 空壳、按 feature 分组 API 文件、补充工程列表/搜索/删除封装（视后端接口）
-- 输入：api/ 现状；输出：api 目录按 feature 组织，类型按 feature 拆分
-- 风险：改动面大——只移动/重命名不改行为，build 必须保持绿
+### T33.2 工程 API 层整理（已完成）
+
+- 状态：**Completed**
+- 目标：把工程/song/project 生命周期 API 统一为稳定入口，消除散落 fetch 与重复封装
+- 实际落地：
+  - **后端 unblocker（最小补充，低风险）**：新增 `GET /api/v1/projects`（工程列表，倒序）与
+    `DELETE /api/v1/songs/{song_id}`（删除工程）。storage 新增 `list_project_ids` /
+    `delete_project` / `get_project_summary` / `_read_current_version_id`；schema 新增
+    `ProjectSummaryItem` / `ProjectListResponse`。新增 `tests/test_project_list_api.py`（5 用例）。
+    未改变任何既有 API 行为；全量 pytest 669 passed。
+  - **前端工程生命周期统一入口**：`features/projects/projectTypes.ts`（camelCase 映射，Project ==
+    后端 song project）+ `features/projects/projectApi.ts`（`listProjects` / `getProject` /
+    `deleteProject` / `importProject` / `exportProject`，均支持 AbortSignal）+ `index.ts`
+  - **hooks**：`features/projects/useProjects.ts`（projects/isLoading/error/reload/removeProject，
+    AbortController 防竞态）；`features/projects/useProject.ts`（songId 缺失不发请求、变化重载、
+    notFound/404、unmount 取消）
+  - **httpClient**：复用现有 `api/client.ts`（`apiFetch`/`requestJson`/`apiDownloadBlob`/
+    `ApiRequestError`），新增 AbortSignal 透传与 `ABORTED` code；`requestJson` 支持 FormData
+  - **下载抽象**：`shared/utils/download.ts`（`downloadBlob` + `filenameFromContentDisposition`）
+  - **页面最小接入**：`ProjectLibraryPage` 用 `useProjects()` 渲染最小列表（标题/日期/版本/
+    资产 badges/进入工作台；无搜索筛选删除 UI）；`ProjectWorkspacePage` 保持 LegacyWorkspaceContent
+    （已有独立加载，避免重复请求，hook 接口留 T33.5 接入）
+- 命名：前端 Project == 后端 song project（`/api/v1/songs/*`），仅在 projectApi 边界做
+  snake_case → camelCase 映射
+- 遗留 legacy：`api/projectApi.ts`（仅 import/export，被旧面板使用）→ T33.6 合并到新入口；
+  `musicApi.ts` 空壳 re-export 待 T33.6 清理
+- 散落 fetch：无（全部经 api 层）
 
 ### T33.3 工程库页 ProjectLibraryPage
-- 目标：实现 /projects：列表、搜索、导入、删除（删除需确认）
-- 输入：projectApi + 新 useProjects()；输出：工程库可用的独立页面
-- 风险：后端工程列表接口可能缺失——需确认或新增最小接口
+- 目标：实现 /projects：正式列表卡片、搜索、导入 UI、删除（删除需确认）
+- 输入：projectApi + useProjects()（T33.2 已就绪）；输出：工程库完整页面
+- 风险：删除需二次确认交互（T33.8 细化）；导入 UI 复用 ProjectImportExportPanel
 
 ### T33.4 创作页 CreatePage
 - 目标：实现 /create：prompt + 风格模板 + 生成后摘要 + 跳转工作台
