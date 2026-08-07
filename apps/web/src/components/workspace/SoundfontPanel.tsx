@@ -1,10 +1,11 @@
-// SoundfontPanel：音源管理（常驻，T38-H）。
+// SoundfontPanel：音源管理（常驻，T38-H / T39-B）。
 // 无工程时扫描可用；「应用到当前工程」disabled 并显示原因；有工程才请求项目音源。
+// 显示 FluidSynth 可用状态与诊断信息（/soundfonts/diagnostics）。
 
 import { useEffect } from "react";
 import { useSoundfonts } from "../../hooks";
 import type { SoundFontInfo } from "../../api/types";
-import { ActionButton, ButtonRow, EmptyState, SectionCard, StatusBadge } from "../ui";
+import { ActionButton, ButtonRow, EmptyState, InlineNotice, SectionCard, StatusBadge } from "../ui";
 
 export interface SoundfontPanelProps {
   songId?: string | null;
@@ -19,6 +20,10 @@ export function SoundfontPanel({ songId, onError }: SoundfontPanelProps) {
   }, [sf.loadSoundfonts]);
 
   useEffect(() => {
+    void sf.loadDiagnostics();
+  }, [sf.loadDiagnostics]);
+
+  useEffect(() => {
     void sf.loadProjectSoundfont();
   }, [sf.loadProjectSoundfont]);
 
@@ -29,6 +34,9 @@ export function SoundfontPanel({ songId, onError }: SoundfontPanelProps) {
   const hasSong = Boolean(songId);
   const selectedId = sf.projectSoundfont?.soundfont?.soundfont_id ?? null;
   const list = Array.isArray(sf.soundfonts) ? sf.soundfonts : ([] as SoundFontInfo[]);
+  const fluidsynthAvailable = Boolean(sf.diagnostics?.fluidsynth?.available);
+  const fluidsynthError = sf.diagnostics?.fluidsynth?.error ?? null;
+  const fluidsynthVersion = sf.diagnostics?.fluidsynth?.version ?? null;
 
   let body;
   if (list.length === 0) {
@@ -58,6 +66,18 @@ export function SoundfontPanel({ songId, onError }: SoundfontPanelProps) {
             暂无当前工程：可以先扫描音源；生成或导入工程后可将音源应用到当前工程。
           </p>
         )}
+        <div className="workspace-soundfont__fluidsynth">
+          {fluidsynthAvailable ? (
+            <InlineNotice variant="success" title="FluidSynth 可用">
+              {fluidsynthVersion ? `版本：${fluidsynthVersion}` : "FluidSynth 已安装"}。渲染 WAV 将优先使用 SoundFont。
+            </InlineNotice>
+          ) : (
+            <InlineNotice variant="warning" title="FluidSynth 不可用">
+              {fluidsynthError ? `诊断：${fluidsynthError}` : "FluidSynth 不可用"}。即使已选择 SoundFont，渲染也会回退到简易
+              fallback 预览音色。请安装 FluidSynth（如 `choco install fluidsynth`）或设置 FLUIDSYNTH_BIN。
+            </InlineNotice>
+          )}
+        </div>
         <div className="workspace-soundfont-list">
           {list.map((item) => {
             const isSelected = selectedId === item.id;

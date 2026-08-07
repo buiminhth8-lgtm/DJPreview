@@ -4,23 +4,41 @@ import { useCallback, useState } from "react";
 
 import {
   getProjectSoundfont,
+  getSoundfontDiagnostics,
   listSoundfonts,
   scanSoundfonts,
   setProjectSoundfont,
 } from "../api/soundfontApi";
-import type { ProjectSoundfontResponse, SoundFontInfo, SoundfontListResponse } from "../api/types";
+import type {
+  ProjectSoundfontResponse,
+  SoundFontInfo,
+  SoundfontDiagnosticsResponse,
+  SoundfontListResponse,
+} from "../api/types";
 import { getErrorMessage } from "./error";
 
 export function useSoundfonts(songId?: string | null) {
   const [soundfonts, setSoundfonts] = useState<SoundFontInfo[]>([]);
   const [defaultSoundfontId, setDefaultSoundfontId] = useState<string | null>(null);
   const [projectSoundfont, setProjectSoundfontState] = useState<ProjectSoundfontResponse | null>(null);
+  const [diagnostics, setDiagnostics] = useState<SoundfontDiagnosticsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const applyList = useCallback((response: SoundfontListResponse) => {
     setSoundfonts(response.soundfonts);
     setDefaultSoundfontId(response.default_soundfont_id);
+  }, []);
+
+  const loadDiagnostics = useCallback(async (): Promise<SoundfontDiagnosticsResponse | null> => {
+    try {
+      const response = await getSoundfontDiagnostics();
+      setDiagnostics(response);
+      return response;
+    } catch (e) {
+      setError(getErrorMessage(e));
+      return null;
+    }
   }, []);
 
   const loadSoundfonts = useCallback(async (): Promise<SoundfontListResponse | null> => {
@@ -91,11 +109,13 @@ export function useSoundfonts(songId?: string | null) {
     soundfonts,
     defaultSoundfontId,
     projectSoundfont,
+    diagnostics,
     loading,
     error,
     setError,
     loadSoundfonts,
     rescan,
+    loadDiagnostics,
     loadProjectSoundfont,
     selectSoundfont,
   };

@@ -4,6 +4,7 @@ import { requestJson } from "./client";
 import type {
   ProjectSoundfontRequest,
   ProjectSoundfontResponse,
+  SoundfontDiagnosticsResponse,
   SoundfontListResponse,
 } from "./types";
 
@@ -13,6 +14,10 @@ export function listSoundfonts(): Promise<SoundfontListResponse> {
 
 export function scanSoundfonts(): Promise<SoundfontListResponse> {
   return requestJson("/api/v1/soundfonts/scan", "POST");
+}
+
+export function getSoundfontDiagnostics(): Promise<SoundfontDiagnosticsResponse> {
+  return requestJson("/api/v1/soundfonts/diagnostics", "GET");
 }
 
 export function getProjectSoundfont(songId: string): Promise<ProjectSoundfontResponse> {

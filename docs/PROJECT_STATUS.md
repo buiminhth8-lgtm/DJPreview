@@ -169,8 +169,22 @@
   PlaybackDownloadPanel（WAV 渲染后显示渲染器/音质/SoundFont + fallback 提示）、
   ProjectOverviewPanel（Renderer/Quality/SoundFont 摘要）、GenerationDebugPanel（renderer 明细）
   展示；`useAudioAssets` 暴露 `audioRenderMetadata`；类型 `AudioRenderMetadata` 新增。
-  后端测试：`tests/test_audio_api.py` 新增 metadata 质量字段与旧 metadata 兼容测试（通过）。
-  未改渲染核心逻辑 / MIDI composer / MusicSpec schema；未提交真实 SoundFont。
+   后端测试：`tests/test_audio_api.py` 新增 metadata 质量字段与旧 metadata 兼容测试（通过）。
+   未改渲染核心逻辑 / MIDI composer / MusicSpec schema；未提交真实 SoundFont。
+- T39-B completed：SoundFont 渲染链路诊断与修复（soundfont selection 贯通 + FluidSynth 渲染增强）。
+  新增 `packages/renderer/fluidsynth_check.py`（`detect_fluidsynth()`：FLUIDSYNTH_BIN/FLUIDSYNTH_PATH/
+  PATH/`--version`，捕获 not found/权限/超时/非零退出；`validate_soundfont_file()`：存在/可读/后缀/
+  `.sf2` RIFF 头）。`_render_audio_for` 重构为「读项目选择 → 校验文件 → 检测 FluidSynth → 优先
+  FluidSynth，失败才回退」并写入结构化 `is_fallback` / `fallback_reason`
+  （no_soundfont_selected / soundfont_file_missing / soundfont_not_found / fluidsynth_unavailable /
+  fluidsynth_render_failed / renderer_not_configured）与 `fluidsynth` 状态；`AudioMetadata` schema 扩展
+  `is_fallback` / `fallback_reason` / `fluidsynth`；FluidSynthRenderer 复用 `detect_fluidsynth`。
+  新增诊断 API `GET /api/v1/soundfonts/diagnostics`（目录/文件校验/FluidSynth/renderer_backends）。
+  前端：RendererStatusCard 仅当 `is_fallback=true` 显示 fallback 提示并展示 fallback_reason；
+  SoundfontPanel 显示 FluidSynth 可用状态与诊断错误；`useSoundfonts` 暴露 `diagnostics`；
+  types 新增 `FallbackReason` / `FluidsynthStatus` / `SoundfontDiagnosticsResponse`。
+  新增 `tests/test_render_chain_diagnostics.py`（13 项：检测/校验/各 fallback_reason/FluidSynth 成功/
+  失败回退/异步任务一致/诊断 API）。全量 pytest 657 passed；未提交真实 SoundFont。
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /
@@ -183,7 +197,8 @@
 ## Partially Completed / Needs Verification（部分完成或需验证）
 
 - 音频渲染质量：fallback 渲染器为开发兜底（三角波合成），音色保真有限；真实音源依赖用户自备 SoundFont + FluidSynth。
-  前端「渲染器状态」已明确提示当前是否为预览级音色并引导选择 SoundFont（T39-A）。
+  前端「渲染器状态」已明确提示当前是否为预览级音色并引导选择 SoundFont（T39-A）；
+  T39-B 后若仍 fallback 会给出结构化原因（如 `fluidsynth_unavailable` / `soundfont_file_missing`）。
 - 音乐分析指标（旋律 / 和声 / 节奏 / 编曲）为轻量辅助，未并入 QualityReport 评分模型。
 - Evaluation trait 打分语义仍较粗（如 `has_track_role2` 与 `has_track_role` 有重复），后续可细化。
 - MIDI Parser 对文件末尾仍未关闭的 `note_on` 按“丢弃”处理，未做按轨道末 tick 收尾。

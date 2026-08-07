@@ -551,6 +551,14 @@ T38 系列核心目标已达成（常驻瀑布流 + Empty State + disabled 引�
 - 数据来源：`GET /api/v1/songs/{id}/assets` → `audio.metadata`（renderer_label / quality / renderer_warnings / soundfont_*）。
 - 旧工程无 metadata 时不白屏，显示「暂无渲染器信息」。
 
+## T39-B 补充：渲染链路与 fallback 原因（已完成）
+
+- `RendererStatusCard` 仅当 `is_fallback=true` 才显示 fallback 提示（不再靠 quality/preview 推断），
+  并展示结构化 `fallback_reason`（如 fluidsynth_unavailable / soundfont_file_missing）。
+- `SoundfontPanel` 新增 FluidSynth 可用状态与诊断错误提示（来自 `GET /api/v1/soundfonts/diagnostics`）。
+- 数据来源：`audio.metadata.is_fallback` / `audio.metadata.fallback_reason` / `audio.metadata.fluidsynth`。
+- 成功使用 FluidSynth + SoundFont 时 `is_fallback=false`，不显示任何 fallback 提示。
+
 ## 9. Risks and Mitigations
 
 1. **App.tsx 状态过重**：直接大改可能破坏生成链路 → T38-C 只改布局骨架，App.tsx 保留为组合层。

@@ -17,6 +17,10 @@
   color: var(--workspace-text-dim, #64748b);
 }
 
+.workspace-soundfont__fluidsynth {
+  margin-bottom: var(--workspace-gap-md, 16px);
+}
+
 .workspace-soundfont-list {
   display: flex;
   flex-direction: column;

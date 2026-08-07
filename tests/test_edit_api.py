@@ -52,7 +52,7 @@ def test_edit_auto_render_false_skips_audio(monkeypatch):
     def boom(*args, **kwargs):
         raise AssertionError("renderer should not be called when auto_render=false")
 
-    monkeypatch.setattr("services.api.routes.songs.get_audio_renderer", boom)
+    monkeypatch.setattr("services.api.routes.songs._render_audio_for", boom)
 
     song_id = _create_song()
     before = _version_count(song_id)

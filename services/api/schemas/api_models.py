@@ -114,6 +114,8 @@ class AudioMetadata(BaseModel):
     renderer: str
     renderer_label: str | None = None
     quality: str | None = None
+    is_fallback: bool = False
+    fallback_reason: str | None = None
     sample_rate: int
     duration_seconds: float | None = None
     file_size: int
@@ -124,6 +126,7 @@ class AudioMetadata(BaseModel):
     soundfont_id: str | None = None
     soundfont_name: str | None = None
     soundfont_path: str | None = None
+    fluidsynth: dict[str, Any] | None = None
 
 
 class RenderAudioResponse(BaseModel):
@@ -319,6 +322,30 @@ class ProjectSoundfontResponse(BaseModel):
     soundfont: dict | None = None
     available: bool = False
     warning: str | None = None
+
+
+class SoundfontDiagnosticsFile(BaseModel):
+    """诊断：单个 SoundFont 文件状态。"""
+
+    id: str | None = None
+    name: str | None = None
+    path: str | None = None
+    exists: bool = False
+    readable: bool = False
+    valid: bool = False
+    format: str | None = None
+    size_bytes: int = 0
+    error: str | None = None
+
+
+class SoundfontDiagnosticsResponse(BaseModel):
+    """诊断 API：SoundFont 目录 / 文件 / FluidSynth 状态。"""
+
+    soundfont_dirs: list[str] = Field(default_factory=list)
+    soundfonts_found: int = 0
+    soundfonts: list[SoundfontDiagnosticsFile] = Field(default_factory=list)
+    fluidsynth: dict[str, Any] = Field(default_factory=dict)
+    renderer_backends: dict[str, bool] = Field(default_factory=dict)
 
 
 # ---------- T30：异步渲染任务 ----------

@@ -50,8 +50,18 @@ from packages.music_core.styles.style_library import get_style_template, list_st
 from packages.music_core.styles.style_models import StyleTemplateSpec
 from packages.music_core.validation.spec_validator import validate_music_spec_semantics
 from packages.music_core.versioning.version_assets import mirror_stems_to_root
-from packages.renderer.factory import get_audio_renderer
-from packages.renderer.renderer_metadata import build_renderer_metadata
+from packages.renderer.fallback_renderer import FallbackRenderer
+from packages.renderer.fluidsynth_check import detect_fluidsynth, validate_soundfont_file
+from packages.renderer.fluidsynth_renderer import FluidSynthRenderer
+from packages.renderer.renderer_metadata import (
+    REASON_FLUIDSYNTH_RENDER_FAILED,
+    REASON_FLUIDSYNTH_UNAVAILABLE,
+    REASON_NO_SOUNDFONT_SELECTED,
+    REASON_RENDERER_NOT_CONFIGURED,
+    REASON_SOUNDFONT_FILE_MISSING,
+    REASON_SOUNDFONT_NOT_FOUND,
+    build_renderer_metadata,
+)
 from packages.renderer.stem_renderer import export_stems as export_stems_impl
 from services.api.dependencies.config import get_settings
 from services.api.tasks.render_task_service import song_render_lock
@@ -253,36 +263,79 @@ def _ensure_midi_for(song_id: str) -> Path:
 
 
 def _render_audio_for(song_id: str) -> RenderAudioResponse:
-    """确保 output.mid 存在，调用 AudioRenderer 渲染 WAV 并保存 audio_metadata.json。"""
+    """确保 output.mid 存在，调用 AudioRenderer 渲染 WAV 并保存 audio_metadata.json。
+
+    渲染决策：
+    - 有已选择的 SoundFont 且文件有效、FluidSynth 可用 → 优先 FluidSynth renderer；
+    - 否则回退 FallbackRenderer，并写入结构化 fallback_reason。
+    """
     with song_render_lock(song_id):
         settings = get_settings()
         midi_path = _ensure_midi_for(song_id)
-        renderer = get_audio_renderer()
         wav_path = _project_dir_for(song_id) / AUDIO_FILENAME
+        fluidsynth_status = detect_fluidsynth()
+        renderer_cfg = (settings.audio_renderer or "auto").strip().lower()
 
-        # 音源解析：项目级设置 > 默认策略
+        # 解析音源：项目级设置 > 默认策略
         soundfont = None
+        fallback_reason: str | None = None
         soundfont_warnings: list[str] = []
-        project_sf = get_project_soundfont(song_id)
-        if project_sf and project_sf.get("soundfont_id"):
-            soundfont = get_soundfont(project_sf["soundfont_id"])
-            if soundfont is None:
-                soundfont_warnings.append(f"项目指定的音源 {project_sf['soundfont_id']} 本地缺失，使用默认渲染策略")
-        if soundfont is None:
-            soundfont = resolve_default_soundfont()
+        if renderer_cfg == "fallback":
+            fallback_reason = REASON_RENDERER_NOT_CONFIGURED
+        else:
+            project_sf = get_project_soundfont(song_id)
+            if project_sf and project_sf.get("soundfont_id"):
+                soundfont = get_soundfont(project_sf["soundfont_id"])
+                if soundfont is None:
+                    fallback_reason = REASON_SOUNDFONT_NOT_FOUND
+                    soundfont_warnings.append(
+                        f"项目指定的音源 {project_sf['soundfont_id']} 本地缺失，使用默认渲染策略"
+                    )
+            if soundfont is None and fallback_reason is None:
+                soundfont = resolve_default_soundfont()
+            if soundfont is None and fallback_reason is None:
+                fallback_reason = REASON_NO_SOUNDFONT_SELECTED
 
-        result = renderer.render_wav(
-            midi_path,
-            wav_path,
-            sample_rate=settings.audio_sample_rate,
-            gain=settings.audio_gain,
-            soundfont_path=soundfont.path if soundfont else None,
-        )
+        # 决定是否使用 FluidSynth
+        result = None
+        is_fallback = True
+        if fallback_reason is None and soundfont is not None:
+            sf_status = validate_soundfont_file(soundfont.path)
+            if not sf_status["valid"]:
+                fallback_reason = REASON_SOUNDFONT_FILE_MISSING
+                soundfont_warnings.append(f"SoundFont 文件校验失败：{sf_status.get('error') or 'unknown'}")
+            elif not fluidsynth_status["available"]:
+                fallback_reason = REASON_FLUIDSYNTH_UNAVAILABLE
+            else:
+                try:
+                    result = FluidSynthRenderer().render_wav(
+                        midi_path,
+                        wav_path,
+                        sample_rate=settings.audio_sample_rate,
+                        gain=settings.audio_gain,
+                        soundfont_path=soundfont.path,
+                    )
+                    is_fallback = False
+                except Exception as exc:  # noqa: BLE001 - 单个渲染失败回退，不中断服务
+                    logger.warning("FluidSynth 渲染失败，回退 fallback：%s", exc)
+                    fallback_reason = REASON_FLUIDSYNTH_RENDER_FAILED
+
+        # 回退渲染
+        if result is None:
+            result = FallbackRenderer().render_wav(
+                midi_path,
+                wav_path,
+                sample_rate=settings.audio_sample_rate,
+                gain=settings.audio_gain,
+            )
+
         renderer_meta = build_renderer_metadata(
             renderer=result.renderer,
             soundfont_id=soundfont.id if soundfont else None,
             soundfont_name=soundfont.name if soundfont else None,
             soundfont_path=Path(soundfont.path).name if soundfont else None,
+            is_fallback=is_fallback,
+            fallback_reason=fallback_reason,
         )
         metadata = {
             "audio_file": AUDIO_FILENAME,
@@ -293,6 +346,7 @@ def _render_audio_for(song_id: str) -> RenderAudioResponse:
             "soundfont_id": soundfont.id if soundfont else None,
             "soundfont_name": soundfont.name if soundfont else None,
             "soundfont_path": Path(soundfont.path).name if soundfont else None,
+            "fluidsynth": fluidsynth_status,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "generator_version": AUDIO_GENERATOR_VERSION,
             "warnings": [*result.warnings, *soundfont_warnings],

@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 from packages.renderer.audio_metadata import AudioRenderResult, get_wav_duration_seconds
+from packages.renderer.fluidsynth_check import detect_fluidsynth
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +30,15 @@ class FluidSynthRenderer:
     name = "fluidsynth"
 
     def __init__(self, binary: str | None = None, soundfont: str | None = None) -> None:
-        self.binary = binary or os.getenv("FLUIDSYNTH_BIN", "") or "fluidsynth"
+        self.binary = binary or os.getenv("FLUIDSYNTH_BIN", "") or os.getenv("FLUIDSYNTH_PATH", "") or "fluidsynth"
         self.soundfont = soundfont if soundfont is not None else os.getenv("SOUNDFONT_PATH", "")
 
     def is_available(self) -> tuple[bool, list[str]]:
         """检查 fluidsynth 与 SoundFont 是否可用，返回 (可用, 警告列表)。"""
         warnings: list[str] = []
-        if shutil.which(self.binary) is None:
-            warnings.append("未找到 fluidsynth 可执行文件，请安装 FluidSynth 或设置 AUDIO_RENDERER=fallback")
+        status = detect_fluidsynth()
+        if not status["available"]:
+            warnings.append(status["error"] or "FluidSynth 不可用")
             return False, warnings
         if self._find_soundfont() is None:
             warnings.append("未找到 SoundFont，请设置 SOUNDFONT_PATH 或安装 fluid-soundfont-gm")
@@ -66,12 +68,13 @@ class FluidSynthRenderer:
         gain: float = 0.6,
         soundfont_path: Path | str | None = None,
     ) -> AudioRenderResult:
-        exe = shutil.which(self.binary)
-        if exe is None:
+        status = detect_fluidsynth()
+        if not status["available"]:
             raise RuntimeError(
-                "未找到 fluidsynth 可执行文件，请安装 FluidSynth，"
-                "或将 AUDIO_RENDERER 设为 fallback 使用开发兜底渲染。"
+                f"FluidSynth 不可用（{status.get('error') or 'unknown'}），"
+                "请安装 FluidSynth 或将 AUDIO_RENDERER 设为 fallback 使用开发兜底渲染。"
             )
+        exe = shutil.which(status["binary"]) or status["binary"]
         soundfont = self._find_soundfont(soundfont_path)
         if soundfont is None:
             raise RuntimeError(

@@ -20,6 +20,8 @@ function toAudioRenderMetadata(metadata: AudioMetadata | null | undefined): Audi
     renderer: metadata.renderer ?? null,
     rendererLabel: metadata.renderer_label ?? null,
     quality: metadata.quality ?? null,
+    isFallback: metadata.is_fallback ?? false,
+    fallbackReason: metadata.fallback_reason ?? null,
     soundfontId: metadata.soundfont_id ?? null,
     soundfontName: metadata.soundfont_name ?? null,
     soundfontPath: metadata.soundfont_path ?? null,

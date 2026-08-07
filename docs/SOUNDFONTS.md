@@ -161,3 +161,83 @@ metadata 字段（udio_metadata.json / GET /api/v1/songs/{id}/assets 的 udio.
 
 如果听起来像电子蜂鸣音，优先检查前端是否显示 fallback / preview：那是预览级音色，
 选择 SoundFont 后需**重新渲染 WAV** 才会生效。
+
+## 11. 渲染链路与 fallback 原因（T39-B）
+
+完整的渲染决策链路：
+
+```text
+soundfont scan → soundfont selection → song/project soundfont config
+→ render request → renderer backend → FluidSynth availability → WAV output
+→ metadata → frontend warning
+```
+
+选择 SoundFont 后渲染 WAV 时：
+
+- 先读项目 `soundfont.json`（无则用默认音源策略）。
+- 校验 SoundFont 文件（存在 / 可读 / 后缀 / `.sf2` RIFF 头）。
+- 检测 FluidSynth 可用性（`FLUIDSYNTH_BIN` / `FLUIDSYNTH_PATH` / PATH / `--version`）。
+- **都满足时优先使用 FluidSynth + SoundFont 渲染**；任何一步失败才回退 fallback。
+
+### fallback_reason 支持值
+
+| reason | 含义 |
+| --- | --- |
+| `no_soundfont_selected` | 未选择任何 SoundFont |
+| `soundfont_file_missing` | 已选 SoundFont 但文件缺失 / 不可读 |
+| `soundfont_not_found` | 项目指定 soundfont_id 本地查不到 |
+| `fluidsynth_unavailable` | SoundFont 有效但 FluidSynth 不可用 |
+| `fluidsynth_render_failed` | FluidSynth 渲染抛错 |
+| `renderer_not_configured` | AUDIO_RENDERER 被强制为 fallback |
+| `unknown` | 未知原因 |
+
+### 诊断 API
+
+```http
+GET /api/v1/soundfonts/diagnostics
+```
+
+返回 `soundfont_dirs` / `soundfonts`（含 exists/valid/format/size_bytes/error）/ `fluidsynth`
+（available/binary/version/error）/ `renderer_backends`。前端 SoundFont 面板会显示
+FluidSynth 是否可用及诊断错误。
+
+### metadata 新增字段
+
+```json
+{
+  "renderer": "fallback",
+  "is_fallback": true,
+  "fallback_reason": "fluidsynth_unavailable",
+  "fluidsynth": {"available": false, "binary": null, "version": null, "error": "fluidsynth not found in PATH"},
+  "renderer_warnings": [
+    {"code": "FALLBACK_RENDERER_QUALITY", "message": "..."},
+    {"code": "FALLBACK_REASON", "message": "已选择 SoundFont，但 FluidSynth 不可用，已回退到简易 renderer。..."}
+  ]
+}
+```
+
+成功使用 FluidSynth + SoundFont 时：`renderer=fluidsynth`、`is_fallback=false`、
+`fallback_reason=null`，且 `renderer_warnings` 不包含 FALLBACK_RENDERER_QUALITY。
+
+### Windows 检查 FluidSynth
+
+```powershell
+fluidsynth --version
+where fluidsynth
+```
+
+未安装时可：
+
+```powershell
+choco install fluidsynth
+```
+
+或下载 FluidSynth Windows binary 并把 `fluidsynth.exe` 所在目录加入 PATH；
+也支持手动指定：
+
+```powershell
+$env:FLUIDSYNTH_BIN="C:\path\to\fluidsynth.exe"
+$env:AUDIO_RENDERER="auto"
+```
+
+> 仅有 `.sf2` 文件还不够；若当前 renderer 依赖 FluidSynth，本机必须能调用 `fluidsynth`。

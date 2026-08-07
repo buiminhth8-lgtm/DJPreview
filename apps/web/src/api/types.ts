@@ -165,15 +165,33 @@ export interface GenerateMidiResponse {
 
 export type AudioRenderQuality = "preview" | "basic" | "soundfont" | "unknown";
 
+export type FallbackReason =
+  | "no_soundfont_selected"
+  | "soundfont_file_missing"
+  | "soundfont_not_found"
+  | "fluidsynth_unavailable"
+  | "fluidsynth_render_failed"
+  | "renderer_not_configured"
+  | "unknown";
+
 export interface RendererWarning {
   code?: string;
   message?: string;
+}
+
+export interface FluidsynthStatus {
+  available: boolean;
+  binary?: string | null;
+  version?: string | null;
+  error?: string | null;
 }
 
 export interface AudioRenderMetadata {
   renderer?: string | null;
   rendererLabel?: string | null;
   quality?: AudioRenderQuality | null;
+  isFallback?: boolean;
+  fallbackReason?: FallbackReason | null;
   soundfontId?: string | null;
   soundfontName?: string | null;
   soundfontPath?: string | null;
@@ -185,6 +203,8 @@ export interface AudioMetadata {
   renderer: string;
   renderer_label?: string | null;
   quality?: AudioRenderQuality | null;
+  is_fallback?: boolean;
+  fallback_reason?: FallbackReason | null;
   sample_rate: number;
   duration_seconds: number | null;
   file_size: number;
@@ -195,6 +215,7 @@ export interface AudioMetadata {
   soundfont_id?: string | null;
   soundfont_name?: string | null;
   soundfont_path?: string | null;
+  fluidsynth?: FluidsynthStatus | null;
 }
 
 export interface RenderAudioResponse {
@@ -586,6 +607,29 @@ export interface ProjectSoundfontResponse {
   } | null;
   available: boolean;
   warning: string | null;
+}
+
+export interface SoundfontDiagnosticsFile {
+  id: string | null;
+  name: string | null;
+  path: string | null;
+  exists: boolean;
+  readable: boolean;
+  valid: boolean;
+  format: string | null;
+  size_bytes: number;
+  error: string | null;
+}
+
+export interface SoundfontDiagnosticsResponse {
+  soundfont_dirs: string[];
+  soundfonts_found: number;
+  soundfonts: SoundfontDiagnosticsFile[];
+  fluidsynth: FluidsynthStatus;
+  renderer_backends: {
+    fallback: boolean;
+    fluidsynth: boolean;
+  };
 }
 
 // ---------- T30：异步渲染任务 ----------
