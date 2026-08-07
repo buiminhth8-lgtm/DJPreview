@@ -520,4 +520,6 @@
   FluidSynth 链路未验证；前端测试缺失；T33.9 待办）。修复切片：T33-R1 浏览器 smoke /
   T33-R2 删除未用 hooks / T33-R3 前端单测 / T33-R4 真实渲染链路验收。
   详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
+- T33-R1 completed：浏览器三条主流程真实回归 **PASS**（Playwright 11 passed：路由/刷新恢复/A-B 隔离/
+  编辑版本/删除生命周期/SoundFont 语义）；修复自然语言编辑 P1 bug。T33-R2/R3/R4 待办。
 - T33.9：回归收尾（待办，见 T33-R1）

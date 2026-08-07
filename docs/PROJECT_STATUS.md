@@ -55,6 +55,9 @@
 - T33-R（审计）：T33 整体判 **PARTIAL**（Critical Gates 10/10 通过，架构目标达成；浏览器端三 Flow、
   真实 FluidSynth 渲染链路与前端自动化测试未验证/未执行，T33.9 待办）。
   详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
+- T33-R1（浏览器回归）：三条主流程真实浏览器验证 **PASS**（Playwright 11 passed；含路由、刷新恢复、
+  A/B 隔离、编辑/版本、删除生命周期、SoundFont UI 语义）；修复自然语言编辑失效的 P1 bug
+  （handleApplyEdit 异步 state 读取问题）。详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

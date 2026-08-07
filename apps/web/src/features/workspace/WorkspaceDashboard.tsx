@@ -54,7 +54,7 @@ export interface WorkspaceDashboardProps {
   onGenerate: () => void;
   onGenerateMidi: () => void;
   onRenderAudio: () => void;
-  onApplyEdit: (autoRender?: boolean) => void;
+  onApplyEdit: (instruction: string, autoRender?: boolean) => void;
   onLoadVersions: () => void;
   onRestore: (versionId: string) => void;
   onMixApplied: (assets: AssetsResponse) => void;
@@ -268,7 +268,7 @@ export default function WorkspaceDashboard({
           diff={lastDiff}
           onEditSong={(instruction, options) => {
             songProject.setEditInstruction(instruction);
-            onApplyEdit(options?.autoRender ?? false);
+            onApplyEdit(instruction, options?.autoRender ?? false);
           }}
         />
 

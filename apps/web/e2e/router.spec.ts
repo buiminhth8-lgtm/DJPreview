@@ -8,12 +8,12 @@
 test("/ 自动跳转 /create", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/create$/);
-  await expect(page.getByRole("heading", { name: "生成控制台" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "创作新音乐" })).toBeVisible();
 });
 
 test("/create 可渲染生成能力", async ({ page }) => {
   await page.goto("/create");
-  await expect(page.getByRole("heading", { name: "生成控制台" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "创作新音乐" })).toBeVisible();
   const promptBox = page.getByRole("textbox").first();
   await expect(promptBox).toBeVisible();
 });
@@ -23,30 +23,34 @@ test("/projects 可渲染工程库壳", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "工程库" })).toBeVisible();
 });
 
-test("/projects/:songId 从 URL 取得 songId 并加载工作台", async ({ page }) => {
-  // 先通过创建页生成一个工程，获得 song_id
-  await page.goto("/create");
-  const promptBox = page.getByRole("textbox").first();
-  await promptBox.fill("生成一段忧郁空灵的钢琴配乐，72 BPM，D 小调");
-  await page.getByRole("button", { name: "生成 MusicSpec" }).click();
-  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+/, { timeout: 60_000 });
+async function createProjectViaApi(): Promise<string> {
+  const response = await fetch("http://127.0.0.1:8000/api/v1/songs/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: "生成一段忧郁空灵的钢琴配乐，72 BPM，D 小调" }),
+  });
+  if (!response.ok) throw new Error(`create project failed: ${response.status}`);
+  const data = (await response.json()) as { song_id: string };
+  return data.song_id;
+}
 
-  // 工作台应可见（WorkspaceHeader）
-  await expect(page.getByRole("heading", { name: "AI Music Studio" })).toBeVisible({ timeout: 30_000 });
+test("/projects/:songId 从 URL 取得 songId 并加载工作台", async ({ page }) => {
+  const songId = await createProjectViaApi();
+  await page.goto(`/projects/${songId}`);
+  await expect(page).toHaveURL(new RegExp(`/projects/${songId}`));
+  await expect(page.getByText(/song_id：/).first()).toBeVisible({ timeout: 30_000 });
 });
 
 test("/projects/:songId 刷新后 songId 不丢失", async ({ page }) => {
-  await page.goto("/create");
-  const promptBox = page.getByRole("textbox").first();
-  await promptBox.fill("生成一段忧郁空灵的钢琴配乐，72 BPM，D 小调");
-  await page.getByRole("button", { name: "生成 MusicSpec" }).click();
-  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+/, { timeout: 60_000 });
-  const url = page.url();
+  const songId = await createProjectViaApi();
+  const url = `/projects/${songId}`;
+  await page.goto(url);
+  await expect(page.getByText(/song_id：/).first()).toBeVisible({ timeout: 30_000 });
 
   // 直接刷新：URL 不变，工作台仍加载
   await page.reload();
-  await expect(page).toHaveURL(url);
-  await expect(page.getByRole("heading", { name: "AI Music Studio" })).toBeVisible({ timeout: 30_000 });
+  await expect(page).toHaveURL(new RegExp(`/projects/${songId}`));
+  await expect(page.getByText(/song_id：/).first()).toBeVisible({ timeout: 30_000 });
 });
 
 test("未知路径显示 NotFoundPage", async ({ page }) => {

@@ -130,9 +130,9 @@ export default function ProjectWorkspacePage() {
   };
   const handleRenderAudio = () => void audioAssets.renderAudio();
 
-  const handleApplyEdit = (autoRender = true) => {
+  const handleApplyEdit = (instruction: string, autoRender = true) => {
     void (async () => {
-      const result = await songProject.edit(songProject.editInstruction, autoRender);
+      const result = await songProject.edit(instruction, autoRender);
       if (!result) return;
       audioAssets.updateFromAssets(result.assets);
       await versions.refreshVersions();
@@ -206,7 +206,7 @@ export default function ProjectWorkspacePage() {
         onGenerate={handleGenerate}
         onGenerateMidi={handleGenerateMidi}
         onRenderAudio={handleRenderAudio}
-        onApplyEdit={(autoRender) => handleApplyEdit(autoRender)}
+        onApplyEdit={(instruction, autoRender) => handleApplyEdit(instruction, autoRender)}
         onLoadVersions={handleLoadVersions}
         onRestore={(versionId) => handleRestore(versionId)}
         onMixApplied={handleMixApplied}

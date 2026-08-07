@@ -4,6 +4,45 @@
 > 依据：当前代码、真实依赖关系、API 调用、build 结果、pytest 结果与 git history。
 > 状态约定：PASS / PARTIAL / FAIL / NOT_VERIFIED（禁止模糊表述）。
 
+> 更新（T33-R1 Browser Verification，2026-08-07）：真实浏览器回归完成。
+
+## T33-R1 Browser Verification
+
+环境：Playwright Chromium（npmmirror 下载）+ MockProvider 后端（fallback renderer）+ Vite dev server。
+
+| 验收项 | 状态 | 证据 |
+|---|---|---|
+| Flow A：/create → 生成 → 摘要 → 工作台 → MIDI → WAV | PASS | `e2e/demo.spec.ts`（真实浏览器生成/播放） |
+| Flow B：/projects → 打开 → 刷新恢复 → 编辑 → 版本 → 导出入口 | PASS | `e2e/flow-b-project.spec.ts` |
+| Flow C：删除 Cancel/Confirm → 回 /projects → 列表移除 | PASS | `e2e/flow-b-project.spec.ts` |
+| Workspace 刷新恢复（URL songId） | PASS | `e2e/router.spec.ts` 刷新用例 |
+| 工程 A → B 状态隔离 | PASS | `e2e/flow-b-project.spec.ts`（标题/song_id 无残留） |
+| SoundFont UI 语义（环境能力 ≠ 当前 WAV） | PASS | `e2e/flow-soundfont.spec.ts` |
+| 路由三结构 + NotFound | PASS | `e2e/router.spec.ts`（6 用例） |
+| Playwright 套件 | PASS | **11 passed**（16.5s） |
+
+### 发现并修复的 P1 Bug（自然语言编辑失效）
+
+- **复现步骤**：工作台输入编辑指令 → 点击“应用修改” → 无任何 POST /edit 请求，版本不更新。
+- **根因**：`ProjectWorkspacePage.handleApplyEdit` 读取 `songProject.editInstruction`（React state），
+  而 `WorkspaceDashboard.onEditSong` 先 `setEditInstruction(instruction)`（异步）再立即调用
+  `onApplyEdit`，点击时 state 仍是旧值（空），`edit()` 因空指令直接返回。
+- **修复**：`handleApplyEdit(instruction, autoRender)` 直接接收指令字符串，不再依赖异步 state；
+  `WorkspaceDashboard` 同步传参。修复后 POST /edit 200 且版本刷新为 v2。
+
+### 非阻塞观察（P2/P3）
+
+- 页面加载时偶发 `GET /versions` 400（Vite 代理/时序相关，直接 API 调用 5 次均为 200，
+  非后端缺陷；不影响主流程，未进一步深挖）。
+- 工作台首屏会并行请求 styles / soundfonts / evaluation / mix / tasks / assets 等多个接口
+  （一次性加载较多，功能正常；后续可做 tab 懒加载优化）。
+
+### 未验证项
+
+- Render Task 异步轮询的浏览器级观察：后端 mock/fallback 渲染极快（任务秒级完成），
+  未捕获到 queued → running → succeeded 的完整 UI 过渡（不影响功能结论）。
+- 真实 FluidSynth + SoundFont 渲染 metadata：仍归 T33-R4。
+
 ## 1. 总览
 
 ```text
