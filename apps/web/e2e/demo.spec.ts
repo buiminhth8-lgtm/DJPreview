@@ -2,14 +2,18 @@ import { expect, test } from "@playwright/test";
 
 /**
  * 完整演示链路：prompt → MusicSpec → MIDI → WAV 播放 → 编辑 → 版本 → 混音 → 工程导出。
+ * T33.1 起生成入口在 /create，生成成功后自动进入 /projects/:songId 工作台。
  * 需要本机 8000 端口运行 MockProvider 后端。
  */
 test("full demo chain: generate to export", async ({ page }) => {
-  // 1. 生成 MusicSpec
+  // 1. 生成 MusicSpec（/ 自动跳转 /create）
   await page.goto("/");
-  const promptBox = page.getByPlaceholder(/例如：生成一段忧郁空灵的钢琴配乐/);
+  await expect(page).toHaveURL(/\/create$/);
+  const promptBox = page.getByRole("textbox").first();
   await promptBox.fill("生成一段忧郁空灵的钢琴配乐，72 BPM，D 小调");
   await page.getByRole("button", { name: "生成 MusicSpec" }).click();
+  // 生成成功自动进入工作台
+  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+/, { timeout: 60_000 });
   await expect(page.getByText(/song_id：/).first()).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText(/MIDI：无/)).toBeVisible();
 

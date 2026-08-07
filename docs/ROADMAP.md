@@ -475,3 +475,18 @@
 3. 生产级任务队列：按需启用 `TASK_BACKEND=celery` 并验证多 worker / 重启恢复。
 4. 音质与音色：真实 SoundFont 渲染体验优化、弦乐声部/音色进一步细化。
 5. 如未来需要 CI/CD，可重新引入 GitHub Actions / Docker（当前已彻底移除）。
+
+## T33 前端三路由重构（/create、/projects、/projects/:songId）
+
+- T33.0 completed：前端现状扫描与迁移计划（docs/FRONTEND_REFACTOR_T33.md + 组件迁移 JSON）
+- T33.1 completed：引入 React Router 与页面壳
+  - 新增 react-router-dom@6.30.4（createBrowserRouter）
+  - 路由：/ → /create、/create、/projects、/projects/:songId、* → NotFound
+  - 页面：CreatePage / ProjectLibraryPage / ProjectWorkspacePage / NotFoundPage + AppShell 导航
+  - 过渡组件：LegacyCreateContent（生成控制台，成功后跳转工作台）、LegacyWorkspaceContent
+    （原 App 工作台，songId 来自 URL，刷新可恢复）
+  - App.tsx 降级为兼容层；main.tsx 挂 RouterProvider；新增 app-shell.css
+  - e2e：router.spec.ts 5 用例 + demo.spec.ts 适配；playwright 端口同步 49152
+  - 遗留：e2e chromium 需在联网环境安装后运行；生产部署需 SPA history fallback（Nginx try_files）
+- T33.2-T33.9：工程 API 整理 → 工程库页 → 创作页 feature 化 → 工作台 feature 化 →
+  SoundFont/Renderer 整合 → 导入导出/删除确认 → 回归收尾（详见 FRONTEND_REFACTOR_T33.md）

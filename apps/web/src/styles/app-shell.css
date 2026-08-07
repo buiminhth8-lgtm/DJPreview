@@ -1,0 +1,94 @@
+/* AppShell / 页面壳最小样式（T33.1）。视觉升级留到后续任务。 */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-shell__header {
+  display: flex;
+  align-items: center;
+  gap: var(--workspace-gap-lg, 24px);
+  padding: 12px var(--workspace-gap-lg, 24px);
+  background: var(--workspace-bg-elevated, rgba(10, 14, 26, 0.85));
+  border-bottom: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.1));
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.app-shell__brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--workspace-text, #f8fafc);
+  text-decoration: none;
+  background: linear-gradient(135deg, #818cf8, #22d3ee);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+}
+
+.app-shell__nav {
+  display: flex;
+  gap: var(--workspace-gap-sm, 10px);
+}
+
+.app-shell__link {
+  padding: 6px 14px;
+  border-radius: var(--workspace-radius-sm, 8px);
+  color: var(--workspace-text-dim, #94a3b8);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.app-shell__link:hover {
+  color: var(--workspace-text, #f8fafc);
+  background: var(--workspace-surface-hover, rgba(255, 255, 255, 0.08));
+}
+
+.app-shell__link--active {
+  color: var(--workspace-primary, #818cf8);
+  background: var(--workspace-primary-soft, rgba(129, 140, 248, 0.12));
+}
+
+.app-shell__main {
+  flex: 1;
+  width: 100%;
+}
+
+.page {
+  width: min(1280px, 100vw - 32px);
+  margin: 0 auto;
+  padding: 24px 0 56px;
+}
+
+.page--create {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-lg, 24px);
+}
+
+.page--workspace {
+  padding: 0;
+}
+
+.page--not-found {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+}
+
+@media (max-width: 600px) {
+  .app-shell__header {
+    padding: 10px var(--workspace-gap-md, 16px);
+  }
+
+  .page {
+    width: 100%;
+    padding: 16px 10px 32px;
+  }
+}

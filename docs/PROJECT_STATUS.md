@@ -59,6 +59,7 @@
   新增 `.mock.env.example` / `.lmstudio.env.example` / `.deepseek.env.example`；`.gitignore`
   忽略真实 env、保留 example）
 - T34：Gemini OpenAI-compatible Provider
+
   （新增 `GeminiProvider`（`packages/llm/gemini_provider.py`），复用 `OpenAICompatibleProvider` 基类：
   `GEMINI_*` 环境变量（API_KEY / BASE_URL / MODEL / TIMEOUT / TEMPERATURE / MAX_TOKENS /
   REASONING_EFFORT / USE_RESPONSE_FORMAT）；base_url 尾部斜杠拼接去重避免双斜杠；
@@ -202,6 +203,17 @@
   不写 melodic program，pattern 保留）；chorus / outro / final_chorus 自动补明确终止式（V7/IV → 主和弦），
   minor 使用 harmonic minor V（如 A minor → E7 → Am）；validator 接受 authentic（V/V7→I）与
   plagal（IV/iv→I）终止式，真正 weak cadence 仍告警
+- T33.1 completed：前端引入路由与页面壳（前端三路由重构第 1 步）。
+  新增 `react-router-dom@6.30.4` + `createBrowserRouter`；`app/router.tsx`（/ → /create、
+  /create、/projects、/projects/:songId、* → NotFound）、`app/layout/AppShell.tsx`（顶部导航
+  + Outlet，无业务状态）、`pages/CreatePage / ProjectLibraryPage / ProjectWorkspacePage /
+  NotFoundPage`；`components/legacy/LegacyCreateContent.tsx`（生成控制台 + 概览，成功后跳转
+  /projects/:songId）与 `LegacyWorkspaceContent.tsx`（原 App 工作台状态原样保留，songId 来自
+  URL 并可刷新恢复）；`App.tsx` 降级为兼容层（Navigate /create），`main.tsx` 挂 RouterProvider；
+  新增 `styles/app-shell.css`；e2e 新增 `router.spec.ts` 5 用例、`demo.spec.ts` 适配新路由、
+  playwright.config 端口同步为 49152。build 通过（133 modules）。遗留：e2e chromium 本机下载
+  超时未跑；正式工程库列表留 T33.3；feature 拆分留 T33.4~T33.6。
+
 
 ## Partially Completed / Needs Verification（部分完成或需验证）
 

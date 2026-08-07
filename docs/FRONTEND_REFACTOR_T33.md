@@ -335,10 +335,24 @@ apps/web/src/
 
 ## 8. 迁移顺序建议
 
-### T33.1 引入路由与页面壳
-- 目标：引入 React Router（createBrowserRouter），建立 AppLayout + 三个空页面壳
-- 输入：T33.0 本文档；输出：路由可导航、页面壳可渲染
-- 风险：现有单页行为变化——先全部路由到旧工作台保底，新页面壳独立开发
+### T33.1 引入路由与页面壳（已完成）
+
+- 状态：**Completed**（commit `8d0c34d` 前后，见 git log）
+- 目标：引入 React Router（react-router-dom@6.30.4 + createBrowserRouter），建立 AppShell + 三页面壳
+- 输入：T33.0 本文档；输出：路由可导航、页面壳可渲染、`/projects/:songId` 刷新可恢复
+- 实际落地：
+  - `app/router.tsx`：`/` → `/create`、`/create`、`/projects`、`/projects/:songId`、`*` → NotFound
+  - `app/layout/AppShell.tsx`：顶部导航（创作/工程库，NavLink active 态）+ Outlet，无业务状态
+  - `pages/CreatePage.tsx`：复用 `LegacyCreateContent`（GenerateConsole + 概览 + 调试）
+  - `pages/ProjectLibraryPage.tsx`：页面壳 + EmptyState（列表能力留 T33.3）
+  - `pages/ProjectWorkspacePage.tsx`：`useParams<{songId}>` → `LegacyWorkspaceContent`，URL 缺失显示 ErrorState
+  - `pages/NotFoundPage.tsx`：最小错误页
+  - `components/legacy/LegacyWorkspaceContent.tsx`：原 App 工作台状态/回调原样保留，接收 songId 并在变化时 loadSong + 刷新资产/版本
+  - `components/legacy/LegacyCreateContent.tsx`：生成控制台 + 概览，生成成功后 navigate `/projects/:songId`
+  - `App.tsx`：降级为兼容层（`Navigate to /create`），main.tsx 改挂 `RouterProvider`
+  - `styles/app-shell.css`：最小导航/页面壳样式
+  - e2e：新增 `router.spec.ts`（5 用例），`demo.spec.ts` 适配新路由
+- 风险说明：e2e 浏览器在本机下载超时未跑（chromium 未安装成功），build 通过；`/projects/:songId` 直接打开与刷新已验证可服务（SPA fallback 由 dev server 提供，生产需 Nginx `try_files`）
 
 ### T33.2 工程 API 层整理
 - 目标：清理 musicApi 空壳、按 feature 分组 API 文件、补充工程列表/搜索/删除封装（视后端接口）
