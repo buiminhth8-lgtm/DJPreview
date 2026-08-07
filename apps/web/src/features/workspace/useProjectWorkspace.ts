@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { MusicSpec } from "../../api/types";
 import { useProject } from "../projects/useProject";
-import { useAudioAssets, useSongProject, useStyles, useVersions } from "../../hooks";
+import { useAudioAssets, useSongProject, useSoundfonts, useStyles, useVersions } from "../../hooks";
 
 export interface UseProjectWorkspaceResult {
   songId: string | null;
@@ -22,11 +22,14 @@ export interface UseProjectWorkspaceResult {
   songProject: ReturnType<typeof useSongProject>;
   audioAssets: ReturnType<typeof useAudioAssets>;
   versions: ReturnType<typeof useVersions>;
+  soundfonts: ReturnType<typeof useSoundfonts>;
   styles: ReturnType<typeof useStyles>;
   styleStrength: number;
   setStyleStrength: (value: number) => void;
   pianoRefreshKey: number;
   refreshPiano: () => void;
+  handleSoundFontChanged: () => void;
+  handleMidiRegenerated: () => void;
 }
 
 export function useProjectWorkspace(songId: string | undefined | null): UseProjectWorkspaceResult {
@@ -38,12 +41,15 @@ export function useProjectWorkspace(songId: string | undefined | null): UseProje
 
   const audioAssets = useAudioAssets(songProject.songId);
   const versions = useVersions({ songId: songProject.songId });
+  const soundfonts = useSoundfonts(songId);
 
   // 最新实例引用：effect 闭包始终调用当前 songId 绑定的 hook
   const audioAssetsRef = useRef(audioAssets);
   audioAssetsRef.current = audioAssets;
   const versionsRef = useRef(versions);
   versionsRef.current = versions;
+  const soundfontsRef = useRef(soundfonts);
+  soundfontsRef.current = soundfonts;
   const songProjectRef = useRef(songProject);
   songProjectRef.current = songProject;
 
@@ -54,6 +60,7 @@ export function useProjectWorkspace(songId: string | undefined | null): UseProje
     if (current.songId === songId) return; // 同一工程：由详情 effect 刷新
     audioAssetsRef.current.resetAssets();
     versionsRef.current.resetVersions();
+    void soundfontsRef.current.loadProjectSoundfont();
     setPianoRefreshKey((k) => k + 1);
   }, [songId]);
 
@@ -83,10 +90,13 @@ export function useProjectWorkspace(songId: string | undefined | null): UseProje
     songProject,
     audioAssets,
     versions,
+    soundfonts,
     styles,
     styleStrength,
     setStyleStrength,
     pianoRefreshKey,
     refreshPiano: () => setPianoRefreshKey((k) => k + 1),
+    handleSoundFontChanged: () => audioAssetsRef.current.markAudioStale(),
+    handleMidiRegenerated: () => audioAssetsRef.current.markAudioStale(),
   };
 }

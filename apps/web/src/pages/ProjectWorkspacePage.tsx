@@ -68,7 +68,7 @@ export default function ProjectWorkspacePage() {
     );
   }
 
-  const { songProject, audioAssets, versions, styles } = ws;
+  const { songProject, audioAssets, versions, soundfonts, styles } = ws;
   const lastDiff = null as DiffItem[] | null;
   const projectTitle = songProject.musicSpec?.title ?? null;
   const rendererMeta = audioAssets.audioRenderMetadata;
@@ -88,7 +88,10 @@ export default function ProjectWorkspacePage() {
     })();
   };
 
-  const handleGenerateMidi = () => void audioAssets.generateMidi();
+  const handleGenerateMidi = () => {
+    void audioAssets.generateMidi();
+    ws.handleMidiRegenerated();
+  };
   const handleRenderAudio = () => void audioAssets.renderAudio();
 
   const handleApplyEdit = (autoRender = true) => {
@@ -148,7 +151,9 @@ export default function ProjectWorkspacePage() {
         currentVersionId={versions.currentVersionId}
         hasMidi={Boolean(audioAssets.assets?.has_midi)}
         hasAudio={Boolean(audioAssets.assets?.has_audio)}
+        audioNeedsRender={audioAssets.audioNeedsRender}
         renderer={rendererMeta?.renderer ?? null}
+        isFallback={Boolean(rendererMeta?.isFallback)}
         soundfontName={rendererMeta?.soundfontName ?? null}
         error={songProject.error}
       />
@@ -156,6 +161,7 @@ export default function ProjectWorkspacePage() {
         songProject={songProject}
         audioAssets={audioAssets}
         versions={versions}
+        soundfonts={soundfonts}
         styles={styles}
         styleStrength={ws.styleStrength}
         setStyleStrength={ws.setStyleStrength}
@@ -172,6 +178,7 @@ export default function ProjectWorkspacePage() {
         onRegenerated={(result) => handleRegenerated(result)}
         onGenerateFromReference={handleGenerateFromReference}
         onImported={handleImported}
+        onSoundFontChanged={ws.handleSoundFontChanged}
       />
     </div>
   );

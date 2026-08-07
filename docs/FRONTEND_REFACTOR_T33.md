@@ -7,6 +7,22 @@
 > 更新（T33.6 Completed）：已完成工作台功能模块拆分与共享组件抽取，
 > `components/workspace`、`components/legacy` 与顶层旧组件已删除，页面直接组合 features。
 
+> 更新（T33.7 Completed）：SoundFont / Renderer 状态前端整合完成。
+> 核心原则：`selected SoundFont ≠ rendered SoundFont`、`FluidSynth available ≠ 当前 WAV 使用 FluidSynth`、
+> `fallback 状态以后端 audio metadata（is_fallback）为准`。
+
+## SoundFont / Renderer 状态模型（T33.7）
+
+- **环境能力（A）**：`useSoundfonts` 的 diagnostics（FluidSynth 可用性 / 扫描结果）只回答“能不能”，
+  不参与当前 WAV 状态判断。
+- **工程配置（B）**：`projectSoundfont`（selected SoundFont）回答“下一次渲染准备用什么”。
+- **当前 WAV 实际渲染（C）**：`AudioRenderMetadata`（renderer / is_fallback / fallback_reason /
+  soundfont_id / soundfont_name）回答“正在试听的 WAV 实际用了什么”，以后端返回为准。
+- **WAV stale（D）**：`useAudioAssets.audioNeedsRender` + `markAudioStale()`；仅在会话内标记
+  “需要重新渲染”，不伪造后端 metadata。SoundFont 选择成功、MIDI 重新生成后触发；渲染成功后清除。
+- **RendererStatusCard**：fallback 唯一判断依据为 `metadata.isFallback === true`；
+  无 WAV 显示“尚未渲染/暂无音频”，不显示 fallback。
+
 ## 模块地图（T33.6 最终）
 
 ```text

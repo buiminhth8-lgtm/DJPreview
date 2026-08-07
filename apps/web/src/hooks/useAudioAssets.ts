@@ -58,6 +58,8 @@ export function useAudioAssets(songId: string | null | undefined) {
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // WAV stale：工程配置（SoundFont / MIDI / 版本）变化后，当前 WAV 可能不是最新状态
+  const [audioNeedsRender, setAudioNeedsRender] = useState(false);
 
   const refreshAssets = useCallback(async (): Promise<AssetsResponse | null> => {
     if (!songId) return null;
@@ -111,6 +113,7 @@ export function useAudioAssets(songId: string | null | undefined) {
     if (!songId) return null;
     setLoadingAudio(true);
     setError(null);
+    setAudioNeedsRender(false);
     try {
       const result = await renderAudioApi(songId);
       setAudioResult(result);
@@ -130,6 +133,11 @@ export function useAudioAssets(songId: string | null | undefined) {
     setMidiResult(null);
     setAudioResult(null);
     setAudioStreamUrl(null);
+    setAudioNeedsRender(false);
+  }, []);
+
+  const markAudioStale = useCallback(() => {
+    setAudioNeedsRender(true);
   }, []);
 
   const audioRenderMetadata = toAudioRenderMetadata(
@@ -141,6 +149,7 @@ export function useAudioAssets(songId: string | null | undefined) {
     midiResult,
     audioResult,
     audioRenderMetadata,
+    audioNeedsRender,
     audioStreamUrl,
     midiDownloadUrl: midiResult ? resolveUrl(midiResult.download_url) : null,
     audioDownloadUrl: audioResult ? resolveUrl(audioResult.download_url) : null,
@@ -155,6 +164,7 @@ export function useAudioAssets(songId: string | null | undefined) {
     setError,
     refreshAssets,
     updateFromAssets,
+    markAudioStale,
     generateMidi,
     renderAudio,
     resetAssets,

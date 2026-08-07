@@ -36,7 +36,8 @@ export function RendererStatusCard({ metadata, compact = false }: RendererStatus
   const quality = metadata?.quality ?? null;
   const soundfontName = metadata?.soundfontName ?? null;
   const rendererWarnings: RendererWarning[] = metadata?.warnings ?? [];
-  const isFallback = metadata?.isFallback ?? (renderer === "fallback" || quality === "preview");
+  // 唯一依据：后端 audio metadata 的 is_fallback；前端不做推断
+  const isFallback = metadata?.isFallback === true;
   const fallbackReason = metadata?.fallbackReason ?? null;
 
   const isSoundfont = quality === "soundfont" || Boolean(soundfontName);

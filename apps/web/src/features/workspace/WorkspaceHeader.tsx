@@ -10,7 +10,9 @@ export interface WorkspaceHeaderProps {
   currentVersionId: string | null;
   hasMidi: boolean;
   hasAudio: boolean;
+  audioNeedsRender?: boolean;
   renderer?: string | null;
+  isFallback?: boolean;
   soundfontName?: string | null;
   error: string | null;
 }
@@ -21,7 +23,9 @@ export default function WorkspaceHeader({
   currentVersionId,
   hasMidi,
   hasAudio,
+  audioNeedsRender = false,
   renderer,
+  isFallback = false,
   soundfontName,
   error,
 }: WorkspaceHeaderProps) {
@@ -47,11 +51,14 @@ export default function WorkspaceHeader({
           </StatusBadge>
         )}
         {songId && (
-          <StatusBadge variant={hasAudio ? "success" : "neutral"} title="WAV 资产">
-            WAV：{hasAudio ? "有" : "无"}
+          <StatusBadge
+            variant={hasAudio ? (audioNeedsRender ? "warning" : "success") : "neutral"}
+            title="WAV 资产"
+          >
+            WAV：{hasAudio ? (audioNeedsRender ? "需重新渲染" : "有") : "无"}
           </StatusBadge>
         )}
-        {renderer === "fallback" && <StatusBadge variant="warning">Fallback Renderer</StatusBadge>}
+        {hasAudio && isFallback && <StatusBadge variant="warning">Fallback Renderer</StatusBadge>}
         {renderer === "fluidsynth" && <StatusBadge variant="success">FluidSynth</StatusBadge>}
         {soundfontName && <StatusBadge variant="neutral">SF：{soundfontName}</StatusBadge>}
       </div>

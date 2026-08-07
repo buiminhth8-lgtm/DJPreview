@@ -47,6 +47,9 @@
 - T33.6：前端工作台功能模块拆分（ProjectWorkspacePage 只做组合；MIDI/Audio/SoundFonts/Versions/
   Tasks/Quality/Export 归入对应 feature；`components/workspace`、`components/legacy` 与顶层旧组件已删除；
   修复全部跨目录 import 断链；build 通过）
+- T33.7：SoundFont / Renderer 状态前端整合（selected ≠ rendered SoundFont；fallback 仅以
+  audio metadata `is_fallback` 为准；WAV stale 标记在 SoundFont/MIDI 变化后置位、渲染成功后清除；
+  RendererStatusCard 不再用 renderer/quality 推断 fallback；FluidSynth diagnostics 与当前 WAV 解耦）
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

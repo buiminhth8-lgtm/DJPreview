@@ -10,9 +10,10 @@ import { ActionButton, ButtonRow, EmptyState, InlineNotice, SectionCard, StatusB
 export interface SoundfontPanelProps {
   songId?: string | null;
   onError?: (message: string) => void;
+  onSoundFontChanged?: () => void;
 }
 
-export function SoundfontPanel({ songId, onError }: SoundfontPanelProps) {
+export function SoundfontPanel({ songId, onError, onSoundFontChanged }: SoundfontPanelProps) {
   const sf = useSoundfonts(songId);
 
   useEffect(() => {
@@ -37,6 +38,15 @@ export function SoundfontPanel({ songId, onError }: SoundfontPanelProps) {
   const fluidsynthAvailable = Boolean(sf.diagnostics?.fluidsynth?.available);
   const fluidsynthError = sf.diagnostics?.fluidsynth?.error ?? null;
   const fluidsynthVersion = sf.diagnostics?.fluidsynth?.version ?? null;
+
+  const handleSelect = (soundfontId: string) => {
+    void (async () => {
+      const response = await sf.selectSoundfont(soundfontId);
+      if (response) {
+        onSoundFontChanged?.();
+      }
+    })();
+  };
 
   let body;
   if (list.length === 0) {
@@ -96,7 +106,7 @@ export function SoundfontPanel({ songId, onError }: SoundfontPanelProps) {
                 <ButtonRow className="workspace-soundfont-item__actions">
                   <ActionButton
                     variant="secondary"
-                    onClick={() => void sf.selectSoundfont(item.id)}
+                    onClick={() => handleSelect(item.id)}
                     disabled={!hasSong || isSelected || sf.loading}
                     disabledReason={!hasSong ? "请先生成或导入工程" : undefined}
                   >
@@ -104,7 +114,7 @@ export function SoundfontPanel({ songId, onError }: SoundfontPanelProps) {
                   </ActionButton>
                   <ActionButton
                     variant="primary"
-                    onClick={() => void sf.selectSoundfont(item.id)}
+                    onClick={() => handleSelect(item.id)}
                     disabled={!hasSong || isSelected || sf.loading}
                     disabledReason={!hasSong ? "请先生成或导入工程" : isSelected ? "已应用该音源" : undefined}
                   >

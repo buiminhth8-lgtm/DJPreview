@@ -8,6 +8,7 @@
 // - 曲式/轨道/Piano Roll 已拆分为独立段（T38-F）。
 
 import type { useAudioAssets, useSongProject, useStyles, useVersions } from "../../hooks";
+import type { useSoundfonts } from "../../hooks";
 import { exportStems } from "../../api/audioApi";
 import type {
   AssetsResponse,
@@ -44,6 +45,7 @@ export interface WorkspaceDashboardProps {
   songProject: ReturnType<typeof useSongProject>;
   audioAssets: ReturnType<typeof useAudioAssets>;
   versions: ReturnType<typeof useVersions>;
+  soundfonts: ReturnType<typeof useSoundfonts>;
   styles: ReturnType<typeof useStyles>;
   styleStrength: number;
   setStyleStrength: (value: number) => void;
@@ -60,12 +62,14 @@ export interface WorkspaceDashboardProps {
   onRegenerated: (result: RegenerationResult) => void;
   onGenerateFromReference: (result: GenerateFromReferenceResponse) => void;
   onImported: (songId: string) => void;
+  onSoundFontChanged: () => void;
 }
 
 export default function WorkspaceDashboard({
   songProject,
   audioAssets,
   versions,
+  soundfonts,
   styles,
   styleStrength,
   setStyleStrength,
@@ -82,6 +86,7 @@ export default function WorkspaceDashboard({
   onRegenerated,
   onGenerateFromReference,
   onImported,
+  onSoundFontChanged,
 }: WorkspaceDashboardProps) {
   const songId = songProject.songId;
   const spec = songProject.musicSpec;
@@ -152,6 +157,8 @@ export default function WorkspaceDashboard({
           isGeneratingMidi={audioAssets.loadingMidi}
           hasMusicSpec={Boolean(spec)}
           audioRenderMetadata={audioAssets.audioRenderMetadata}
+          audioNeedsRender={audioAssets.audioNeedsRender}
+          selectedSoundfontName={soundfonts.projectSoundfont?.soundfont?.soundfont_name ?? null}
           onGenerateMidi={onGenerateMidi}
           onRenderAudio={onRenderAudio}
           onDownloadMidi={() => {
@@ -264,7 +271,11 @@ export default function WorkspaceDashboard({
         />
 
         {/* SoundFont / 音源管理 */}
-        <SoundfontPanel songId={songId} onError={songProject.setError} />
+        <SoundfontPanel
+          songId={songId}
+          onError={songProject.setError}
+          onSoundFontChanged={onSoundFontChanged}
+        />
 
         {/* 工程导入导出 */}
         <ProjectImportExportPanel

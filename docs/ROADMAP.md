@@ -512,4 +512,6 @@
 - T33.6 completed：工作台功能模块拆分与 shared 抽取（features/workspace、midi、audio、soundfonts、
   versions、tasks、quality、export；删除 components/workspace + components/legacy + 顶层旧组件；
   修复 features 内全部 import 断链；build 通过，详见 FRONTEND_REFACTOR_T33.md）
-- T33.7-T33.9：SoundFont/Renderer 整合 → 导入导出/删除确认增强 → 回归收尾（待办）
+- T33.7 completed：SoundFont / Renderer 状态前端整合（selected vs rendered SoundFont 分离、
+  WAV stale 标记、fallback 仅以 is_fallback 为准、diagnostics 与当前 WAV 解耦；build 通过）
+- T33.8-T33.9：导入导出/删除确认增强 → 回归收尾（待办）

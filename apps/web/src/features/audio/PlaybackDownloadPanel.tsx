@@ -16,6 +16,8 @@ export interface PlaybackDownloadPanelProps {
   isGeneratingMidi?: boolean;
   hasMusicSpec?: boolean;
   audioRenderMetadata?: AudioRenderMetadata | null;
+  audioNeedsRender?: boolean;
+  selectedSoundfontName?: string | null;
   onGenerateMidi?: () => void;
   onRenderAudio?: () => void;
   onDownloadMidi?: () => void;
@@ -32,6 +34,8 @@ export function PlaybackDownloadPanel({
   isGeneratingMidi = false,
   hasMusicSpec = false,
   audioRenderMetadata = null,
+  audioNeedsRender = false,
+  selectedSoundfontName = null,
   onGenerateMidi,
   onRenderAudio,
   onDownloadMidi,
@@ -63,9 +67,17 @@ export function PlaybackDownloadPanel({
     body = hasWavUrl ? (
       <div className="workspace-playback">
         <audio className="workspace-playback__audio" controls preload="metadata" src={wavUrl ?? undefined} />
-        <InlineNotice variant="success" title="音频已渲染">
-          可以播放试听或下载 WAV。
-        </InlineNotice>
+        {audioNeedsRender ? (
+          <InlineNotice variant="warning" title="当前 WAV 需要重新渲染">
+            {selectedSoundfontName
+              ? `已选择新的 SoundFont：${selectedSoundfontName}。重新渲染后才会应用新音色。`
+              : "工程配置（MIDI / 版本 / 音源）已变化。请重新渲染 WAV 以更新试听。"}
+          </InlineNotice>
+        ) : (
+          <InlineNotice variant="success" title="音频已渲染">
+            可以播放试听或下载 WAV。
+          </InlineNotice>
+        )}
         {audioRenderMetadata ? (
           <RendererStatusCard metadata={audioRenderMetadata} compact />
         ) : (
