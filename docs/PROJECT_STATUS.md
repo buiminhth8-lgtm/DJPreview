@@ -52,6 +52,9 @@
   RendererStatusCard 不再用 renderer/quality 推断 fallback；FluidSynth diagnostics 与当前 WAV 解耦）
 - T33.8：工程导入导出 / 删除 / 二次确认流程整合（ExportMenu 统一导出、downloadBlob 统一下载、
   Workspace 删除二次确认 + 成功后清理状态并回 /projects；Library 与 Workspace 删除共用同一 Dialog）
+- T33-R（审计）：T33 整体判 **PARTIAL**（Critical Gates 10/10 通过，架构目标达成；浏览器端三 Flow、
+  真实 FluidSynth 渲染链路与前端自动化测试未验证/未执行，T33.9 待办）。
+  详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

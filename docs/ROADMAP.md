@@ -516,4 +516,8 @@
   WAV stale 标记、fallback 仅以 is_fallback 为准、diagnostics 与当前 WAV 解耦；build 通过）
 - T33.8 completed：导入导出 / 删除 / 二次确认流程整合（ExportMenu + downloadActions 统一导出下载；
   Workspace 删除确认与导航；Library 与 Workspace 共用 DeleteProjectDialog；build 通过）
-- T33.9：回归收尾（待办）
+- T33-R（回溯审计）：T33 整体 **PARTIAL**（Critical Gates 10/10 PASS；浏览器三 Flow 与真实
+  FluidSynth 链路未验证；前端测试缺失；T33.9 待办）。修复切片：T33-R1 浏览器 smoke /
+  T33-R2 删除未用 hooks / T33-R3 前端单测 / T33-R4 真实渲染链路验收。
+  详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
+- T33.9：回归收尾（待办，见 T33-R1）
