@@ -320,6 +320,31 @@
   }
 }
 
+/* 工程工作台页（T33.5） */
+.workspace-header__back {
+  display: inline-block;
+  margin-bottom: 4px;
+  color: var(--workspace-primary, #818cf8);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.workspace-header__back:hover {
+  text-decoration: underline;
+}
+
+.workspace-header__error {
+  margin: 8px 0 0;
+  color: #f87171;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  .page--workspace {
+    padding: 12px 10px 32px;
+  }
+}
+
 @media (max-width: 600px) {
   .project-library__grid {
     grid-template-columns: 1fr;

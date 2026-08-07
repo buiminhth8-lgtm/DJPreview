@@ -248,6 +248,18 @@
   style_template_id / style_strength 经前端链路正确传后端（实测后端返回一致）。遗留：
   LegacyCreateContent 无引用待 T33.6 删除；Workspace 内 GenerateConsole 保留（T33.6 再定）；
   App.tsx create 状态随 LegacyCreateContent 停用。npm build 通过（146 modules）。
+- T33.5 completed：工程工作台页 ProjectWorkspacePage 独立化与单工程状态收敛。
+  新增 `features/workspace/useProjectWorkspace.ts`（协调层：useProject 页面级 loading/404/error/
+  reload + 业务 hooks 组合；useProject 详情注入 useSongProject 避免重复 getSong；切换 songId
+  立即清理旧资产；refs 防 stale closure；重绑后自动刷新）与 `features/workspace/WorkspaceHeader.tsx`
+  （←工程库 + 标题 + songId + 版本 + MIDI/WAV/FluidSynth/Fallback/SF badges + error，仅真实
+  metadata）。`ProjectWorkspacePage.tsx` 重写：URL songId → useProjectWorkspace，四态处理
+  （missing/404/loading/error + 重新加载），组合 WorkspaceDashboard 全部回调。
+  MIDI/audio/versions/soundfont/tasks 状态仍由各自 hook 管理（复用）。
+  `/projects/:songId` 刷新可恢复；检查无 selectedSongId、无 window.location.reload/href、
+  无组件内直接 fetch。npm build 通过（148 modules）。遗留：LegacyWorkspaceContent 不再被引用
+  （T33.6 删除）；App.tsx 兼容层与 Workspace 内 GenerateConsole 去留、面板按 feature 拆分、
+  useSongProject 深拆留 T33.6。
 
 
 

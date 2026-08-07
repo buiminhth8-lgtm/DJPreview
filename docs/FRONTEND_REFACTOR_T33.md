@@ -433,10 +433,34 @@ apps/web/src/
 - 数据流：`CreatePage → useGenerateSong → generationApi → songApi → client → backend`；
   进入工作台：`navigate(/projects/:songId)`（Workspace 通过 URL 自加载，不依赖 CreatePage 内存）
 
-### T33.5 工程工作台页 ProjectWorkspacePage
-- 目标：实现 /projects/:songId，把 WorkspaceDashboard 挂到 URL 上下文，刷新可恢复
-- 输入：useProject(songId) + URL 参数；输出：刷新不丢工程的工作台
-- 风险：useSongProject 拆分影响面大——先做薄拆分（生成态迁出），保持接口兼容
+### T33.5 工程工作台页 ProjectWorkspacePage（已完成）
+
+- 状态：**Completed**
+- 目标：把「针对一个具体工程」的功能集中到 /projects/:songId，形成独立工作台
+- 实际落地：
+  - 新增 `features/workspace/useProjectWorkspace.ts`：协调层——`useProject(songId)`（页面级
+    loading/404/error/reload）+ 业务 hooks（useSongProject/useAudioAssets/useVersions/useStyles）
+    组合；**避免重复 getSong**（useProject 详情注入 useSongProject.setSongId/setMusicSpec）；
+    切换 songId 立即清理旧资产；refs 防 stale closure；songId 变化 effect 依赖保证重绑后刷新
+  - 新增 `features/workspace/WorkspaceHeader.tsx`：← 工程库 + 工程标题 + songId 简写 + 版本 +
+    MIDI/WAV/FluidSynth/Fallback/SoundFont badges + error（仅真实 metadata）
+  - `ProjectWorkspacePage.tsx` 重写：URL songId → useProjectWorkspace；四态处理
+    （missing ID / 404「工程不存在或已被删除」/ loading「正在加载工程…」/ error「工程加载失败」
+    + 重新加载）；工作台组合 WorkspaceDashboard + 全部回调（生成/编辑/恢复/优化/重生成/导入）
+  - 状态归属：MIDI/audio/versions/soundfont/tasks 各自 hook（useAudioAssets/useVersions/
+    useSoundfonts/useRenderTasks 已存在，复用）；页面只做协调
+  - 刷新恢复：useProject 从 URL 加载，assets/versions 自动刷新
+  - 检查通过：无 selectedSongId、无 window.location.reload/href、无组件内直接 fetch
+- 遗留 legacy（T33.6）：`components/legacy/LegacyWorkspaceContent.tsx`（已不再被页面引用，
+  保留文件）；App.tsx 兼容层（Navigate /create）；Workspace 内 GenerateConsole 去留；
+  workspace 面板按 feature 目录进一步拆分；useSongProject 生成态/工程态深拆
+- 数据流：`ProjectWorkspacePage → useProjectWorkspace(songId) → useProject → projectApi →
+  backend`；业务 hooks 各自绑定 songId
+
+### T33.6 工作台功能模块拆分
+- 目标：把 workspace/ 面板按 feature 目录搬移，删除 legacy 死代码
+- 输入：T33.5 后的工作台；输出：features/* 干净分组
+- 风险：跨文件 import 链断裂——批量搬移 + tsc 校验 + 逐个验证
 
 ### T33.6 工作台功能模块拆分
 - 目标：把 workspace/ 面板按 feature 目录搬移，删除旧 WorkspaceLayout 死代码

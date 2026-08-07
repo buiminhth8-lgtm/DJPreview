@@ -504,5 +504,10 @@
     StyleTemplateSelector + GeneratedProjectSummary
   - CreatePage 重写：生成成功不自动跳转，摘要确认后进入 /projects/:songId；T31
     style_template_id/style_strength 链路回归确认；npm build 通过（146 modules）
-- T33.5-T33.9：工作台 feature 化 → SoundFont/Renderer 整合 → 导入导出/删除确认增强 →
-  回归收尾（详见 FRONTEND_REFACTOR_T33.md）
+- T33.5 completed：工程工作台独立化（/projects/:songId）
+  - features/workspace/：useProjectWorkspace 协调层（useProject + 业务 hooks，避免重复 getSong，
+    切换清理 + race 防护）+ WorkspaceHeader（←工程库/标题/版本/资产 badges）
+  - ProjectWorkspacePage 重写：URL songId 四态处理，刷新可恢复；无 selectedSongId /
+    window.reload / 组件内 fetch；npm build 通过（148 modules）
+- T33.6-T33.9：工作台面板按 feature 拆分 + 删除 legacy 死代码 → SoundFont/Renderer 整合 →
+  导入导出/删除确认增强 → 回归收尾（详见 FRONTEND_REFACTOR_T33.md）
