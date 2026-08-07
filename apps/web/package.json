@@ -11,7 +11,7 @@
     "esbuild"
   ],
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.0.1 --port 49152 --strictPort",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "e2e": "playwright test",
