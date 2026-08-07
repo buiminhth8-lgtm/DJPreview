@@ -185,6 +185,15 @@
   types 新增 `FallbackReason` / `FluidsynthStatus` / `SoundfontDiagnosticsResponse`。
   新增 `tests/test_render_chain_diagnostics.py`（13 项：检测/校验/各 fallback_reason/FluidSynth 成功/
   失败回退/异步任务一致/诊断 API）。全量 pytest 657 passed；未提交真实 SoundFont。
+- T39-C completed：修复 Windows/Chocolatey 下 FluidSynth 版本检测误判。`detect_fluidsynth` 改为
+  按 `-V` → `--version` 顺序尝试（Windows 下 `--version` 可能报 `Unknown switch '-'`，不代表不可用），
+  每个检测命令 3s timeout，返回 `version_arg` / `version_check_errors`；不使用会进入交互 console 的
+  `-version`；`FLUIDSYNTH_BIN=fluidsynth` 裸命令名用 `shutil.which` 解析。渲染命令改为**选项前置**
+  （`-ni -F <wav> -r <sr> -g <gain> <sf> <midi>`）——实测 Windows 下 midi 放在 `-F` 前会卡住，
+  选项前置可正常非交互渲染并退出；timeout 60s。诊断 API 返回 `version_arg` / `version_check_errors`。
+  新增测试 7 项（-V/--version 各种组合、裸命令名解析、timeout、命令选项前置/含 -ni/不含 shell）。
+  本机实测：`-V` 成功（2.4.7）→ 同步/异步渲染均 `renderer=fluidsynth`、`is_fallback=false`、无 warning。
+  全量 pytest 664 passed；未提交真实 SoundFont。
 - T31（风格作曲差异）：StyleApplier 覆盖已有同 role 轨道（instrument/pattern/register/velocity）、
   harmony_presets 写入 MusicSpec、template_id + strength 派生 seed；MelodyEngine 消费 style/pattern 调密度音区；
   DrumEngine / BassEngine 消费 canonical pattern（lofi_swing / rock_backbeat / battle_drive / ambient_minimal /

@@ -419,9 +419,12 @@ $env:SOUNDFONT_PATH="D:\project\DJPreview\ai-music-mvp\data\soundfonts\GeneralUs
 然后在前端 SoundFont 面板点击扫描，选择 GeneralUser-GS.sf2，并重新渲染 WAV。
 
 > ⚠ 仅有 `.sf2` 文件还不够。要获得真实 SoundFont 音色，本机必须能调用 FluidSynth。
-> Windows 检查：`fluidsynth --version` / `where fluidsynth`；未安装可 `choco install fluidsynth`
+> Windows 检查：`fluidsynth -V` / `where fluidsynth`；未安装可 `choco install fluidsynth`
 > 或手动指定 `$env:FLUIDSYNTH_BIN="C:\path\to\fluidsynth.exe"`。
-> 若渲染仍回退，可查看 `GET /api/v1/soundfonts/diagnostics` 或渲染结果的 `fallback_reason`
+> ⚠ Windows/Chocolatey 下 `fluidsynth --version` 可能报 `Unknown switch '-'`（不代表不可用），
+> 项目会自动尝试 `-V` → `--version` 检测版本。
+> 若渲染仍回退，可查看 `GET /api/v1/soundfonts/diagnostics`（含 `fluidsynth.version_arg` /
+> `version_check_errors`）或渲染结果的 `fallback_reason`
 > （如 `fluidsynth_unavailable` / `soundfont_file_missing`）。详见 `docs/SOUNDFONTS.md`。
 
 LM Studio（本地 OpenAI-compatible）配置示例（无需真实 DeepSeek API Key）：

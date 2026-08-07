@@ -1,6 +1,6 @@
-"""FluidSynth 可用性检测与 SoundFont 文件校验（T39-B）。
+"""FluidSynth 可用性检测与 SoundFont 文件校验（T39-B / T39-C）。
 
-- detect_fluidsynth()：检测系统 FluidSynth 是否可用（env → PATH → --version）。
+- detect_fluidsynth()：检测系统 FluidSynth 是否可用（env → PATH → -V → --version）。
 - validate_soundfont_file()：校验 SoundFont 文件存在 / 可读 / 格式 / RIFF 头。
 这些函数是纯诊断工具，不改变渲染核心逻辑；不可用时由调用方决定 fallback。
 """
@@ -14,78 +14,102 @@ from pathlib import Path
 
 SUPPORTED_EXTENSIONS = (".sf2", ".sf3", ".sfz")
 
+# 版本检测参数顺序：Windows / Chocolatey 下 --version 可能报 "Unknown switch '-'"，
+# 优先使用 -V。绝不使用 -version（会加载默认 SoundFont 并进入交互 console）。
+VERSION_ARGS = ("-V", "--version")
+
+# 每个版本检测命令的超时（秒）
+VERSION_TIMEOUT_SECONDS = 3.0
+
+
+def _resolve_binary() -> tuple[str | None, str | None]:
+    """解析 fluidsynth 可执行文件路径。
+
+    返回 (binary, error)。优先环境变量 FLUIDSYNTH_BIN / FLUIDSYNTH_PATH；
+    值为完整路径时直接使用，值为裸命令名（如 "fluidsynth"）时用 shutil.which 解析；
+    都找不到才返回 not found。
+    """
+    raw = os.getenv("FLUIDSYNTH_BIN", "").strip() or os.getenv("FLUIDSYNTH_PATH", "").strip() or ""
+    if raw:
+        if Path(raw).exists():
+            return str(Path(raw).resolve()), None
+        resolved = shutil.which(raw)
+        if resolved:
+            return resolved, None
+        return raw, f"FLUIDSYNTH_BIN 指定 {raw!r} 但 PATH 中找不到该命令"
+    found = shutil.which("fluidsynth") or shutil.which("fluidsynth.exe")
+    if found:
+        return found, None
+    return None, "fluidsynth not found in PATH"
+
 
 def detect_fluidsynth() -> dict:
     """检测 FluidSynth 是否可用，返回结构化状态。
 
-    优先读取环境变量 FLUIDSYNTH_BIN / FLUIDSYNTH_PATH，其次查找 PATH。
-    执行 `fluidsynth --version` 验证可执行，捕获 not found / 权限 / 超时 / 非零退出。
+    1. 解析 binary（环境变量 → PATH）。
+    2. 按顺序尝试版本检测参数：-V → --version。
+    3. 任一成功即可用；都失败才不可用，并收集 version_check_errors。
+    4. 每个命令设置 timeout，捕获 not found / 权限 / 超时 / 非零退出。
     不会抛出异常：FluidSynth 不可用时返回 available=False。
     """
-    binary = os.getenv("FLUIDSYNTH_BIN", "").strip() or os.getenv("FLUIDSYNTH_PATH", "").strip() or ""
-    if binary:
-        # 值是完整路径：要求文件存在
-        if Path(binary).exists():
-            resolved = str(Path(binary).resolve())
-        else:
-            # 值是裸命令名（如 "fluidsynth"）：交给 PATH 查找
-            resolved = shutil.which(binary)
-            if not resolved:
-                return {
-                    "available": False,
-                    "binary": binary,
-                    "version": None,
-                    "error": f"FLUIDSYNTH_BIN 指定 {binary!r} 但 PATH 中找不到该命令",
-                }
-        binary = resolved
-    else:
-        binary = shutil.which("fluidsynth") or shutil.which("fluidsynth.exe")
-        if not binary:
-            return {
-                "available": False,
-                "binary": None,
-                "version": None,
-                "error": "fluidsynth not found in PATH",
-            }
-
-    try:
-        proc = subprocess.run(
-            [binary, "--version"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-    except subprocess.TimeoutExpired as exc:
+    binary, resolve_error = _resolve_binary()
+    if binary is None:
         return {
             "available": False,
-            "binary": binary,
+            "binary": None,
             "version": None,
-            "error": f"fluidsynth --version 超时（{exc}）",
-        }
-    except (OSError, PermissionError) as exc:
-        return {
-            "available": False,
-            "binary": binary,
-            "version": None,
-            "error": f"无法执行 fluidsynth：{exc}",
+            "version_arg": None,
+            "version_check_errors": [],
+            "error": resolve_error or "fluidsynth not found",
         }
 
-    if proc.returncode != 0:
-        detail = (proc.stderr or proc.stdout or "").strip().splitlines()
+    version_check_errors: list[dict] = []
+    for arg in VERSION_ARGS:
+        try:
+            proc = subprocess.run(
+                [binary, arg],
+                capture_output=True,
+                text=True,
+                timeout=VERSION_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired as exc:
+            version_check_errors.append(
+                {"arg": arg, "returncode": None, "stderr": f"timeout: {exc}"}
+            )
+            continue
+        except (OSError, PermissionError) as exc:
+            version_check_errors.append(
+                {"arg": arg, "returncode": None, "stderr": f"cannot execute: {exc}"}
+            )
+            continue
+
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()[-500:]
+            version_check_errors.append(
+                {"arg": arg, "returncode": proc.returncode, "stderr": detail}
+            )
+            continue
+
+        first_line = (proc.stdout or proc.stderr or "").strip().splitlines()
+        version = first_line[0].strip() if first_line else None
         return {
-            "available": False,
+            "available": True,
             "binary": binary,
-            "version": None,
-            "error": f"fluidsynth --version 退出码 {proc.returncode}：{detail[-1] if detail else 'unknown'}",
+            "version": version,
+            "version_arg": arg,
+            "version_check_errors": version_check_errors,
+            "error": None,
         }
 
-    first_line = (proc.stdout or proc.stderr or "").strip().splitlines()
-    version = first_line[0].strip() if first_line else None
+    # 所有版本检测方式都失败
     return {
-        "available": True,
+        "available": False,
         "binary": binary,
-        "version": version,
-        "error": None,
+        "version": None,
+        "version_arg": None,
+        "version_check_errors": version_check_errors,
+        "error": f"FluidSynth binary found but version check failed: "
+        f"{version_check_errors[-1]['stderr'] if version_check_errors else 'unknown'}",
     }
 
 

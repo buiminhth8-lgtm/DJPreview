@@ -84,24 +84,27 @@ class FluidSynthRenderer:
 
         wav_path = Path(wav_path)
         wav_path.parent.mkdir(parents=True, exist_ok=True)
-        # 使用参数列表调用，不使用 shell=True，保证安全
+        # 使用参数列表调用，不使用 shell=True，保证安全。
+        # 注意：选项必须放在 positional（soundfont / midi）之前。
+        # Windows / Chocolatey 的 fluidsynth 把 midi 放在 -F 之前时会卡住（进入等待），
+        # 选项前置（-ni -F -r -g）可正常非交互渲染后退出。
         command = [
             exe,
             "-ni",
-            str(soundfont),
-            str(midi_path),
             "-F",
             str(wav_path),
             "-r",
             str(sample_rate),
             "-g",
             str(gain),
+            str(soundfont),
+            str(midi_path),
         ]
         logger.info("FluidSynth 渲染命令：%s", " ".join(command))
         try:
-            proc = subprocess.run(command, capture_output=True, text=True, timeout=600)
+            proc = subprocess.run(command, capture_output=True, text=True, timeout=60)
         except subprocess.TimeoutExpired as exc:
-            raise RuntimeError("FluidSynth 渲染超时（600s）") from exc
+            raise RuntimeError("FluidSynth 渲染超时（60s）") from exc
         except OSError as exc:
             raise RuntimeError(f"FluidSynth 启动失败：{exc}") from exc
 

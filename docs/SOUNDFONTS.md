@@ -226,6 +226,12 @@ fluidsynth --version
 where fluidsynth
 ```
 
+> ⚠ Windows / Chocolatey 环境下 `fluidsynth --version` 可能报 `Unknown switch '-'`，
+> **不代表 FluidSynth 不可用**。项目会自动依次尝试 `fluidsynth -V` → `fluidsynth --version`
+> 进行版本检测（优先 `-V`），诊断结果会显示 `version_arg`（如 `-V`）与
+> `version_check_errors`。
+> 不要使用 `fluidsynth -version`（单横线）检测——它会加载默认 SoundFont 并进入交互 console。
+
 未安装时可：
 
 ```powershell
@@ -239,5 +245,9 @@ choco install fluidsynth
 $env:FLUIDSYNTH_BIN="C:\path\to\fluidsynth.exe"
 $env:AUDIO_RENDERER="auto"
 ```
+
+渲染 WAV 时使用非交互命令（`-ni` + 选项前置 `-F <wav> -r <sr>` + soundfont + midi），
+不会进入 FluidSynth console。若仍 fallback，请查看 diagnostics 的
+`fluidsynth.version_check_errors` 与渲染结果的 `fallback_reason`。
 
 > 仅有 `.sf2` 文件还不够；若当前 renderer 依赖 FluidSynth，本机必须能调用 `fluidsynth`。
