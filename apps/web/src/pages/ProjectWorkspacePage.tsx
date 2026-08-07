@@ -5,7 +5,7 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useProjectWorkspace } from "../features/workspace/useProjectWorkspace";
 import WorkspaceHeader from "../features/workspace/WorkspaceHeader";
-import { WorkspaceDashboard } from "../components/workspace";
+import WorkspaceDashboard from "../features/workspace/WorkspaceDashboard";
 import { ErrorState, LoadingState } from "../components/ui";
 import type { AssetsResponse, DiffItem, GenerateFromReferenceResponse, OptimizeResponse, RegenerationResult } from "../api/types";
 

@@ -509,5 +509,7 @@
     切换清理 + race 防护）+ WorkspaceHeader（←工程库/标题/版本/资产 badges）
   - ProjectWorkspacePage 重写：URL songId 四态处理，刷新可恢复；无 selectedSongId /
     window.reload / 组件内 fetch；npm build 通过（148 modules）
-- T33.6-T33.9：工作台面板按 feature 拆分 + 删除 legacy 死代码 → SoundFont/Renderer 整合 →
-  导入导出/删除确认增强 → 回归收尾（详见 FRONTEND_REFACTOR_T33.md）
+- T33.6 completed：工作台功能模块拆分与 shared 抽取（features/workspace、midi、audio、soundfonts、
+  versions、tasks、quality、export；删除 components/workspace + components/legacy + 顶层旧组件；
+  修复 features 内全部 import 断链；build 通过，详见 FRONTEND_REFACTOR_T33.md）
+- T33.7-T33.9：SoundFont/Renderer 整合 → 导入导出/删除确认增强 → 回归收尾（待办）

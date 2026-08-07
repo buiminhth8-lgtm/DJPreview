@@ -4,6 +4,51 @@
 > 目标架构：`/create`（创作）、`/projects`（工程库）、`/projects/:songId`（工程工作台）
 > 本文档基于 2026-08-07 的代码实际扫描结果编写。
 
+> 更新（T33.6 Completed）：已完成工作台功能模块拆分与共享组件抽取，
+> `components/workspace`、`components/legacy` 与顶层旧组件已删除，页面直接组合 features。
+
+## 模块地图（T33.6 最终）
+
+```text
+ProjectWorkspacePage
+│
+├─ features/workspace    （布局 / 头部 / 曲式轨道概览 / MusicSpec 检查 / 生成控制台 / 编辑 / 重生成 / 参考）
+├─ features/midi         （MIDI 元数据 / 生成 / 下载 / Piano Roll / 曲式和声 / 轨道乐器）
+├─ features/audio        （WAV 预览 / 渲染按钮 / RendererStatus / 混音器 / Stems / 播放下载）
+├─ features/soundfonts   （音源列表 / 选择 / 扫描 / 项目绑定）
+├─ features/versions     （版本列表 / 详情 / diff / restore）
+├─ features/tasks        （异步渲染任务列表 / 状态 / 进度）
+├─ features/quality      （质量报告 / 自动优化 / 批量评估）
+└─ features/export       （工程导入导出）
+```
+
+### Feature Ownership
+
+- `features/workspace/`：workspace layout / header / project overview / MusicSpec inspector / 轨道概览 /
+  workspace tab state；不承载 MIDI/WAV/SoundFont/Version/Task API。
+- `features/midi/`：MIDI 元数据、生成、下载、Piano Roll、track note 可视化。
+- `features/audio/`：WAV 元数据、播放、渲染、renderer metadata、fallback 状态、下载、混音、Stems。
+- `features/soundfonts/`：SoundFont 列表、选择、扫描、项目绑定（诊断为全局 `useSoundfonts` 单一来源）。
+- `features/versions/`：版本列表、当前版本、restore、diff、metadata。
+- `features/tasks/`：渲染任务列表、轮询、进度、状态。
+- `features/quality/`：quality score、warnings、errors、report、自动优化、评估。
+- `features/export/`：工程导入导出入口（下载协调；API 仍属 projectApi）。
+- `shared/components/`：真正跨业务通用的 primitive（JsonPreview；ui primitives 暂留 `components/ui`）。
+
+### 跨 Feature 刷新策略（T33.6）
+
+```text
+操作                    刷新
+MIDI regenerated       → MIDI / Piano Roll / Audio stale（回调由 ProjectWorkspacePage 协调）
+Audio rendered         → Audio / Project summary / Tasks
+SoundFont changed      → SoundFont / Audio stale
+Version restored       → Project / MIDI / Audio / Versions / Quality
+Natural language edit  → Project / Versions / MIDI / Audio（按实际结果）/ Quality
+```
+
+跨 feature 通信一律通过 `ProjectWorkspacePage` 的 props / callbacks 协调，不引入 Event Bus、
+不新增全局 store；feature 之间不互相 import。
+
 ---
 
 ## 1. 当前前端总体结构

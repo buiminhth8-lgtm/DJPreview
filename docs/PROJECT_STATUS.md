@@ -44,6 +44,9 @@
 - T32：前端依赖安全收尾（vite 7.3.6、esbuild 0.28.1，`npm audit` 0 漏洞）
 - T33：彻底移除 Docker / GitHub Actions 相关文件；测试分层（slow marker + 快速回归脚本）；
   Playwright 前端 E2E；生产可选 Celery/Redis 任务后端；表达自动化（CC7/CC11）与弦乐 divisi 分部
+- T33.6：前端工作台功能模块拆分（ProjectWorkspacePage 只做组合；MIDI/Audio/SoundFonts/Versions/
+  Tasks/Quality/Export 归入对应 feature；`components/workspace`、`components/legacy` 与顶层旧组件已删除；
+  修复全部跨目录 import 断链；build 通过）
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
