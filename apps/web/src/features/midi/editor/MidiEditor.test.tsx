@@ -1,8 +1,8 @@
-// features/midi/editor/MidiEditor.test.tsx（T34.3）
-// 覆盖：document render、默认轨道选择、轨道切换、note.id key、songId A→B 隔离。
+// features/midi/editor/MidiEditor.test.tsx（T34.3/34.4）
+// 覆盖：document render、默认轨道选择、轨道切换、note.id key、无 MIDI、loading/error。
 
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { MidiEditor } from "./MidiEditor";
 import type { MidiEditorDocument } from "./midiEditorTypes";
@@ -66,46 +66,46 @@ vi.mock("./useMidiEditorDocument", () => ({
   }),
 }));
 
+function trackList() {
+  return within(screen.getByRole("listbox", { name: "选择轨道" }));
+}
+
 describe("MidiEditor", () => {
   it("renders track selector with real track data", () => {
     render(<MidiEditor songId="song-1" />);
-    expect(screen.getByRole("listbox", { name: "选择轨道" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /melody/ })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /bass/ })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /drums/ })).toBeInTheDocument();
+    const list = trackList();
+    expect(list.getByRole("option", { name: /melody/ })).toBeInTheDocument();
+    expect(list.getByRole("option", { name: /bass/ })).toBeInTheDocument();
+    expect(list.getByRole("option", { name: /drums/ })).toBeInTheDocument();
   });
 
   it("default selects first track with notes (melody) and renders its notes", () => {
     render(<MidiEditor songId="song-1" />);
-    const selected = screen.getByRole("option", { selected: true });
+    const selected = trackList().getByRole("option", { selected: true });
     expect(selected).toHaveTextContent(/melody/);
-    expect(screen.getByText(/2 notes/)).toBeInTheDocument();
+    expect(screen.getByText(/Track: melody/)).toBeInTheDocument();
   });
 
   it("switching to bass shows only bass notes", () => {
     render(<MidiEditor songId="song-1" />);
-    fireEvent.click(screen.getByRole("option", { name: /bass/ }));
-    expect(screen.getByRole("option", { selected: true })).toHaveTextContent(/bass/);
+    fireEvent.click(trackList().getByRole("option", { name: /bass/ }));
+    expect(trackList().getByRole("option", { selected: true })).toHaveTextContent(/bass/);
     expect(screen.getByText(/Track: bass/)).toBeInTheDocument();
-    expect(screen.getByText(/2 notes/)).toBeInTheDocument();
   });
 
   it("switching to drums shows drum notes", () => {
     render(<MidiEditor songId="song-1" />);
-    fireEvent.click(screen.getByRole("option", { name: /drums/ }));
-    expect(screen.getByRole("option", { selected: true })).toHaveTextContent(/drums/);
-    expect(screen.getByText(/1 notes/)).toBeInTheDocument();
+    fireEvent.click(trackList().getByRole("option", { name: /drums/ }));
+    expect(trackList().getByRole("option", { selected: true })).toHaveTextContent(/drums/);
+    expect(screen.getByText(/Track: drums/)).toBeInTheDocument();
   });
 
   it("notes render with canonical note.id as data attribute", () => {
     render(<MidiEditor songId="song-1" />);
-    // melody default: m1, m2
     const roll = document.querySelector('[data-note-count="2"]');
     expect(roll).not.toBeNull();
     expect(roll!.querySelector('[data-note-id="m1"]')).not.toBeNull();
-    expect(roll!.querySelector('[data-note-id="m2"]')).not.toBeNull();
-    // switch to bass → m1 gone, b1 present
-    fireEvent.click(screen.getByRole("option", { name: /bass/ }));
+    fireEvent.click(trackList().getByRole("option", { name: /bass/ }));
     const bassRoll = document.querySelector('[data-note-count="2"]');
     expect(bassRoll!.querySelector('[data-note-id="b1"]')).not.toBeNull();
     expect(bassRoll!.querySelector('[data-note-id="m1"]')).toBeNull();

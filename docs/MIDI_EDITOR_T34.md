@@ -703,3 +703,71 @@ pm test：44 passed（含 13 个新 editor/坐标测试）
 pm run build：PASS（133 modules）
 - 真实电子工程 smoke：5 tracks（melody/piano/bass/drums/pad），bass pitch 36-52（E1-G2），
   drums ch9 is_drum，bass 114 notes tick 定位正确；dev server 路由 200
+
+---
+
+## 32. T34.4 Note CRUD + Snap + Draft Editing（Completed）
+
+### 32.1 Draft architecture
+
+- useMidiEditorDraft(document) 管理 draftNotesByTrack（每轨道独立 session draft）+ savedByTrack。
+- document（songId/version/reload）变化 → draft 重置为 saved。
+- 所有编辑走 immutable update（只改目标轨道 draft），**不触碰 document / saved / backend**。
+- 
+otesDirty(saved, draft) 判定 dirty（dirtyTracks 集合）。
+
+### 32.2 New note defaults
+
+- 双击空白 Grid → 新 Note：pitch = clicked row、startTick = snapped click tick、
+  durationTick = snap unit、elocity = 90（DEFAULT_NEW_NOTE_VELOCITY）、channel = track.channel。
+- 边界：pitch 0..127、start>=0、duration>0、velocity 1..127（clamp）。
+
+### 32.3 Temporary Note ID
+
+- 新 Note：draft:（session 唯一、React key 稳定、拖动期间不变）。
+- 已有 Note：沿用 T34.1 canonical id。后端 Note ID contract 未改。
+
+### 32.4 Selection / interactions
+
+- 单选：点击 Note 高亮；点击空白取消；双击空白新增。
+- 拖动 Note 主体 → Move（startTick + pitch）；右边缘 handle → Resize（durationTick）。
+- Delete/Backspace 删除选中（输入框聚焦时由 isEditableTarget 守卫不误删）。
+- Pointer Events + setPointerCapture（jsdom 下 guard），drag threshold 3px，
+  commit-on-pointerup 语义（一次拖动=一次逻辑操作，为 T34.6 undo 铺垫）。
+
+### 32.5 Snap model
+
+- getSnapTicks(ppq, snap)：1/1=4*ppq、1/2=2*ppq、1/4=ppq、1/8=ppq/2、1/16=ppq/4、1/32=ppq/8；
+  off=1。全部 integer（round）。
+- snapTick(tick, snap, ppq)：absolute snapping（MVP）。
+- Move 量化 startTick；Resize 先 snap endTick 再反推 duration；Add 量化 startTick。
+- Snap off 仍保留 integer tick（不强制落 1/16 网格）。
+
+### 32.6 Track / Project isolation
+
+- 轨道切换：draftNotesByTrack 保留各轨道 draft（Bass→Melody→Bass 修改仍在）。
+- songId/document reload：draft 重置（不清到新 version 的旧 draft）。
+- 编辑只限定 selectedTrackId（Bass 修改不影响 Melody）。
+
+### 32.7 Known limitations（T34.5/34.6+）
+
+- Undo/Redo、Save UI、Version creation、Dirty guard、Zoom/Pan/Fit/Lock、Preview/Loop、
+  Multi-select、Copy/Paste、Velocity lane、Drum semantic names（均未实现）。
+
+### 32.8 Files
+
+- 新增：midiEditorGeometry.ts（snap + pointer 坐标 + note name）、
+  useMidiEditorDraft.ts（draft CRUD）、MidiEditor.tsx 升级（snap 工具栏 + velocity inspector +
+  键盘守卫）、PianoRollViewport.tsx 升级（双击添加/拖动/resize/网格 subdivision）。
+- 测试：midiEditorGeometry.test.ts、useMidiEditorDraft.test.ts、
+  PianoRollViewport.interaction.test.tsx、MidiEditor.keyboard.test.tsx。
+- 未改后端。
+
+### 32.9 Verification
+
+- 
+pm test：69 passed（新增 snap/add/delete/move/resize/velocity/boundary/scroll/隔离/reload/键盘）
+- 
+pm run build：PASS（135 modules）
+- 编辑过程中无 save/version/render 请求（代码审计确认 0 调用）；真实工程只读 smoke：bass 114 notes，
+  assets/version 稳定。

@@ -101,6 +101,18 @@
   坐标测试：4/4 与 3/4、tick→px、pitch→row、默认选择、轨道切换、空轨、note.id、songId 隔离）；
   npm build 通过（133 modules）。真实电子工程 smoke：5 tracks、bass pitch 36-52、drums ch9、
   bass 114 notes 定位正确。T34.4 next（Note CRUD + Snap）。
+- T34.4 completed：Note CRUD + Snap + Draft Editing。新增 `useMidiEditorDraft.ts`
+  （draftNotesByTrack 每轨道独立 session draft；immutable；document 变化重置；
+  add/delete/move/resize/setVelocity + 边界 clamp + temp id `draft:uuid`）与
+  `midiEditorGeometry.ts`（snap 纯函数 getSnapTicks/snapTick/snapResizeEnd + pointer 坐标
+  toGridRelative + midiPitchToNoteName）。PianoRollViewport 升级为可编辑：双击添加、拖主体
+  move（startTick/pitch）、右边缘 resize（durationTick）、网格 subdivision、Pointer Events +
+  setPointerCapture、drag threshold、commit-on-pointerup；MidiEditor 增加 Snap 工具栏
+  （1/1-1/32+Off）与 Velocity 编辑（clamp 1..127）+ Delete/Backspace 键盘守卫（输入框不误删）。
+  Draft 不调用 Save/Version/Render API。测试：Vitest 69 passed（snap 换算含 960/1200 PPQ、
+  add/delete/move/resize/velocity、边界 clamp、scroll 坐标、轨道隔离、document reload 重置、
+  键盘守卫、拖拽交互）；npm build 通过（135 modules）。代码审计确认编辑器无 save/version/
+  render 调用；真实工程只读 smoke 稳定。T34.5 next（Zoom/Pan/Fit/Lock）。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

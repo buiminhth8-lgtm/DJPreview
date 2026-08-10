@@ -562,3 +562,9 @@
   - PianoRollPanel hasMidi 时挂载 MidiEditor；旧 PianoRoll 不再被引用。
   - 验证：Vitest 44 passed；npm build 通过；真实电子工程 5 tracks（bass pitch 36-52、drums ch9、
     bass 114 notes）读取正确。T34.4 next（Note CRUD + Snap）。
+- T34.4 completed：Note CRUD + Snap + Draft Editing。
+  - useMidiEditorDraft（draftNotesByTrack + add/delete/move/resize/setVelocity + temp id）+
+    midiEditorGeometry（snap 纯函数 + pointer 坐标 + note name）。
+  - PianoRollViewport 可编辑（双击添加/拖移/右边缘 resize/网格）；MidiEditor Snap 工具栏 +
+    Velocity 编辑 + Delete 键盘守卫；无 Save/Version/Render 调用。
+  - 验证：Vitest 69 passed；npm build 通过（135 modules）。T34.5 next（Zoom/Pan/Fit/Lock）。
