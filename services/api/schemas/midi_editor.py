@@ -6,6 +6,8 @@ Track ID = MusicSpec track.id（稳定）；Note ID = deterministic hash（跨�
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -74,3 +76,31 @@ class MidiEditorSaveResponse(BaseModel):
     music_spec: object | None = None
     assets: dict | None = None
     warnings: list[str] = Field(default_factory=list)
+
+
+class MidiEditorPreviewTrack(BaseModel):
+    """一次 Editor Preview 使用的轨道快照。"""
+
+    track_id: str = Field(min_length=1)
+    notes: list[MidiEditorNote] = Field(default_factory=list, max_length=10000)
+
+
+class MidiEditorPreviewRequest(BaseModel):
+    """临时试听请求；不保存 MIDI，也不创建版本。"""
+
+    scope: Literal["current_track", "all_tracks"]
+    tracks: list[MidiEditorPreviewTrack] = Field(min_length=1, max_length=128)
+
+
+class MidiEditorPreviewResponse(BaseModel):
+    """scratch WAV 句柄。客户端 Stop/end/unmount 后应调用 cleanup_url。"""
+
+    token: str
+    stream_url: str
+    cleanup_url: str
+    duration_seconds: float | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class MidiEditorPreviewCleanupResponse(BaseModel):
+    cleaned: bool

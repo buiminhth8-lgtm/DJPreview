@@ -283,5 +283,104 @@ def write_midi_editor_track(
     return output
 
 
+def write_midi_editor_preview(
+    midi_path: str | Path,
+    output_path: str | Path,
+    *,
+    replacements: dict[str, list[MidiEditorNote]],
+    spec_track_ids: set[str],
+) -> Path:
+    """创建仅供 Editor Preview 使用的 MIDI 快照。
+
+    replacements 是本次应发声的完整轨道集合。集合内轨道用当前 Editor Session
+    notes 替换；集合外所有 MIDI 轨道移除 note 事件，因此 Current Track Preview
+    不会泄漏其他轨道。tempo/time-signature/program/CC/meta 事件均保留。
+
+    原 MIDI 事件先转换为 absolute tick，再重新计算 delta，避免移除 note 事件后
+    非 note 事件时序漂移。此函数只写 output_path，不修改输入 MIDI。
+    """
+    if not replacements:
+        raise ValueError("Preview 至少需要一个轨道")
+
+    midi = mido.MidiFile(str(midi_path))
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    tpb = midi.ticks_per_beat or 480
+    new_midi = mido.MidiFile(ticks_per_beat=tpb)
+    matched: set[str] = set()
+
+    for track_index, source_track in enumerate(midi.tracks):
+        absolute_tick = 0
+        track_name: str | None = None
+        preserved: list[tuple[int, int, int, mido.Message | mido.MetaMessage]] = []
+        end_tick = 0
+        sequence = 0
+
+        for msg in source_track:
+            absolute_tick += msg.time
+            end_tick = max(end_tick, absolute_tick)
+            if msg.type == "track_name":
+                track_name = msg.name
+            if msg.type in ("note_on", "note_off", "end_of_track"):
+                continue
+            preserved.append((absolute_tick, 0, sequence, msg.copy(time=0)))
+            sequence += 1
+
+        track_id = _track_id_for(track_name, spec_track_ids, track_index)
+        notes = replacements.get(track_id)
+        if notes is not None:
+            matched.add(track_id)
+            for note in notes:
+                preserved.append(
+                    (
+                        note.start_tick,
+                        3,
+                        sequence,
+                        mido.Message(
+                            "note_on",
+                            note=note.pitch,
+                            velocity=note.velocity,
+                            channel=note.channel,
+                            time=0,
+                        ),
+                    )
+                )
+                sequence += 1
+                preserved.append(
+                    (
+                        note.start_tick + note.duration_tick,
+                        2,
+                        sequence,
+                        mido.Message(
+                            "note_off",
+                            note=note.pitch,
+                            velocity=0,
+                            channel=note.channel,
+                            time=0,
+                        ),
+                    )
+                )
+                sequence += 1
+                end_tick = max(end_tick, note.start_tick + note.duration_tick)
+
+        # 同 tick：meta/program/CC -> note_off -> note_on。
+        preserved.sort(key=lambda item: (item[0], item[1], item[2]))
+        preview_track = mido.MidiTrack()
+        previous_tick = 0
+        for event_tick, _priority, _sequence, message in preserved:
+            preview_track.append(message.copy(time=max(0, event_tick - previous_tick)))
+            previous_tick = event_tick
+        preview_track.append(mido.MetaMessage("end_of_track", time=max(0, end_tick - previous_tick)))
+        new_midi.tracks.append(preview_track)
+
+    missing = set(replacements) - matched
+    if missing:
+        names = ", ".join(sorted(missing))
+        raise ValueError(f"MIDI 中找不到 Preview 轨道：{names}")
+
+    new_midi.save(str(output))
+    return output
+
+
 def channel_of(notes: list[MidiEditorNote]) -> int:
     return notes[0].channel if notes else 0

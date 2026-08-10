@@ -578,3 +578,17 @@
     per-track history/dirty/discard/rebase + MidiEditor Save/Discard/Undo/Redo/冲突/beforeunload +
     onMidiSaved → markAudioStale。
   - 验证：后端 7+34 passed；Vitest 89 passed；npm build 通过。T34.7 next（Preview/Transport/Loop）。
+- T34.7 completed：MIDI Editor Preview / Transport / Playhead / Seek / Loop。
+  - 后端：POST/GET/DELETE `/midi/preview` scratch 生命周期；Editor Session 轨道快照写临时 MIDI，
+    Current Track 静音他轨、All Tracks 合并各轨 draft/saved；复用当前 SoundFont/renderer 策略，
+    不写正式 WAV/metadata/version；OS temp TTL/数量上限清理。
+  - 前端：`useMidiPlayback` + `midiPlayback`，Play/Stop、Current/All、RAF playhead、Timeline seek、
+    bar loop + validation；Stop/allNotesOff 清理 audio/RAF，并使 pending response 失效后删除 scratch；
+    Save/refresh/document/unmount
+    lifecycle stop；locked Track 可试听；Zoom/Pan 只改变 playhead 像素位置，不改变 tick。
+  - 性能/验证：memoized NoteLayer/dirty；500/1000/3000-note smoke；后端 Preview+Save 12 passed、
+    MIDI/Version/Regenerate 扩展回归 49 passed；Vitest
+    107 passed；npm build（138 modules）；Playwright Chromium 1 passed；Preview 全程无 Save/Version/
+    Render WAV，Version/MIDI/WAV metadata 不变。
+- T34.8 next：Advanced Selection / Drum semantics（Multi-select、Box Selection、Velocity Lane 等）；
+  T34.7 未提前实现这些能力。

@@ -2,8 +2,11 @@
 
 import logging
 import os
+import shutil
 import tempfile
+import threading
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -29,7 +32,11 @@ from packages.music_core.evaluation.eval_fixtures import get_eval_cases
 from packages.music_core.evaluation.eval_models import EvalCase, EvalReport
 from packages.music_core.evaluation.eval_runner import run_generation_eval
 from packages.music_core.midi.midi_writer import write_midi
-from packages.music_core.midi.midi_editor_io import build_midi_editor_document, write_midi_editor_track
+from packages.music_core.midi.midi_editor_io import (
+    build_midi_editor_document,
+    write_midi_editor_preview,
+    write_midi_editor_track,
+)
 from packages.music_core.mix.mix_engine import (
     apply_mix_to_composition,
     create_default_mix_spec,
@@ -156,7 +163,14 @@ from services.api.storage.project_store import (
     save_optimize_report,
     save_quality_report,
 )
-from services.api.schemas.midi_editor import MidiEditorDocument, MidiEditorSaveRequest, MidiEditorSaveResponse
+from services.api.schemas.midi_editor import (
+    MidiEditorDocument,
+    MidiEditorPreviewCleanupResponse,
+    MidiEditorPreviewRequest,
+    MidiEditorPreviewResponse,
+    MidiEditorSaveRequest,
+    MidiEditorSaveResponse,
+)
 from services.api.schemas.music_edit_spec import MusicEditSpec
 from services.api.schemas.music_spec import MusicSpec
 
@@ -165,6 +179,75 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10MB
+_MIDI_PREVIEW_ROOT = Path(tempfile.gettempdir()) / "ai-music-mvp-midi-preview"
+_MIDI_PREVIEW_TTL_SECONDS = 30 * 60
+_MIDI_PREVIEW_MAX_RESOURCES = 32
+_midi_preview_lock = threading.RLock()
+_midi_preview_resources: dict[str, tuple[str, Path, float]] = {}
+
+
+def _remove_midi_preview_resource(token: str) -> bool:
+    """移除已登记的 scratch preview；目录始终位于固定 OS 临时根目录下。"""
+    with _midi_preview_lock:
+        resource = _midi_preview_resources.pop(token, None)
+    if resource is None:
+        return False
+    _song_id, wav_path, _created_at = resource
+    preview_dir = wav_path.parent.resolve()
+    root = _MIDI_PREVIEW_ROOT.resolve()
+    if preview_dir != root and root in preview_dir.parents:
+        shutil.rmtree(preview_dir, ignore_errors=True)
+    return True
+
+
+def _prune_midi_preview_resources() -> None:
+    now = time.time()
+    with _midi_preview_lock:
+        ordered = sorted(_midi_preview_resources.items(), key=lambda item: item[1][2])
+        expired = [token for token, (_song, _path, created) in ordered if now - created > _MIDI_PREVIEW_TTL_SECONDS]
+        overflow = max(0, len(ordered) - _MIDI_PREVIEW_MAX_RESOURCES + 1)
+        stale = set(expired + [token for token, _resource in ordered[:overflow]])
+    for token in stale:
+        _remove_midi_preview_resource(token)
+
+
+def _render_editor_preview_for(song_id: str, midi_path: Path, wav_path: Path):
+    """用正式渲染链路已有的 renderer/SoundFont 选择生成 scratch WAV。
+
+    与 _render_audio_for 的关键边界：不写 output.wav、不写 audio_metadata，
+    不更新 renderer/SoundFont/fallback 状态，也不创建版本。
+    """
+    settings = get_settings()
+    renderer_cfg = (settings.audio_renderer or "auto").strip().lower()
+    soundfont = None
+    if renderer_cfg != "fallback":
+        project_sf = get_project_soundfont(song_id)
+        if project_sf and project_sf.get("soundfont_id"):
+            soundfont = get_soundfont(project_sf["soundfont_id"])
+        if soundfont is None:
+            soundfont = resolve_default_soundfont()
+
+    if soundfont is not None:
+        sf_status = validate_soundfont_file(soundfont.path)
+        fluidsynth_status = detect_fluidsynth()
+        if sf_status["valid"] and fluidsynth_status["available"]:
+            try:
+                return FluidSynthRenderer().render_wav(
+                    midi_path,
+                    wav_path,
+                    sample_rate=settings.audio_sample_rate,
+                    gain=settings.audio_gain,
+                    soundfont_path=soundfont.path,
+                )
+            except Exception as exc:  # noqa: BLE001 - Preview 与正式渲染相同：失败时 fallback
+                logger.warning("Editor Preview FluidSynth 渲染失败，回退 fallback：%s", exc)
+
+    return FallbackRenderer().render_wav(
+        midi_path,
+        wav_path,
+        sample_rate=settings.audio_sample_rate,
+        gain=settings.audio_gain,
+    )
 
 
 def _map_llm_exception(exc: Exception, provider: str | None = None) -> HTTPException:
@@ -952,6 +1035,112 @@ def get_midi_editor_document(song_id: str) -> MidiEditorDocument:
         )
     except (ValueError, OSError, EOFError) as exc:
         raise invalid_request(f"MIDI 解析失败：{exc}") from None
+
+
+@router.post(
+    "/songs/{song_id}/midi/preview",
+    response_model=MidiEditorPreviewResponse,
+    summary="创建 MIDI Editor scratch preview（T34.7）",
+)
+def create_midi_editor_preview(song_id: str, req: MidiEditorPreviewRequest) -> MidiEditorPreviewResponse:
+    """从当前 Editor Session 轨道快照生成临时 WAV，不修改任何工程状态。"""
+    try:
+        spec = get_project(song_id)
+        midi_path = get_midi_path(song_id)
+    except FileNotFoundError as exc:
+        if "output.mid" in str(exc) or "MIDI" in str(exc):
+            raise asset_not_found("output.mid", message="当前工程尚未生成 MIDI，请先生成 MIDI") from None
+        raise project_not_found(song_id) from None
+    except ValueError as exc:
+        raise invalid_request(str(exc)) from None
+
+    if req.scope == "current_track" and len(req.tracks) != 1:
+        raise invalid_request("Current Track Preview 必须且只能包含一个轨道")
+    track_ids = [track.track_id for track in req.tracks]
+    if len(track_ids) != len(set(track_ids)):
+        raise invalid_request("Preview 请求包含重复 track_id")
+    total_notes = sum(len(track.notes) for track in req.tracks)
+    if total_notes > 30000:
+        raise invalid_request("Preview notes 总数不能超过 30000")
+
+    spec_track_ids = {track.id for track in spec.tracks}
+    try:
+        current_doc = build_midi_editor_document(
+            midi_path,
+            song_id=song_id,
+            spec_track_ids=spec_track_ids,
+        )
+    except (ValueError, OSError, EOFError) as exc:
+        raise invalid_request(f"MIDI 解析失败：{exc}") from None
+    available_track_ids = {track.id for track in current_doc.tracks}
+    requested_track_ids = set(track_ids)
+    unknown = requested_track_ids - available_track_ids
+    if unknown:
+        raise invalid_request(f"未知 Preview track_id：{', '.join(sorted(unknown))}")
+    if req.scope == "all_tracks" and requested_track_ids != available_track_ids:
+        missing = available_track_ids - requested_track_ids
+        raise invalid_request(f"All Tracks Preview 缺少轨道：{', '.join(sorted(missing))}")
+
+    _MIDI_PREVIEW_ROOT.mkdir(parents=True, exist_ok=True)
+    _prune_midi_preview_resources()
+    preview_dir = Path(tempfile.mkdtemp(prefix=f"{song_id}-", dir=_MIDI_PREVIEW_ROOT))
+    scratch_midi = preview_dir / "preview.mid"
+    scratch_wav = preview_dir / "preview.wav"
+    try:
+        replacements = {track.track_id: track.notes for track in req.tracks}
+        write_midi_editor_preview(
+            midi_path,
+            scratch_midi,
+            replacements=replacements,
+            spec_track_ids=spec_track_ids,
+        )
+        result = _render_editor_preview_for(song_id, scratch_midi, scratch_wav)
+        if not scratch_wav.exists() or scratch_wav.stat().st_size <= 0:
+            raise RuntimeError("Preview renderer 未生成有效 WAV")
+    except ValueError as exc:
+        shutil.rmtree(preview_dir, ignore_errors=True)
+        raise invalid_request(str(exc)) from None
+    except (OSError, EOFError) as exc:
+        shutil.rmtree(preview_dir, ignore_errors=True)
+        raise invalid_request(f"Preview MIDI 写入失败：{exc}") from None
+    except Exception as exc:
+        shutil.rmtree(preview_dir, ignore_errors=True)
+        raise render_failed(f"Editor Preview 渲染失败：{exc}") from None
+
+    scratch_midi.unlink(missing_ok=True)
+    token = uuid.uuid4().hex
+    with _midi_preview_lock:
+        _midi_preview_resources[token] = (song_id, scratch_wav, time.time())
+    base_url = f"/api/v1/songs/{song_id}/midi/preview/{token}"
+    return MidiEditorPreviewResponse(
+        token=token,
+        stream_url=f"{base_url}/stream",
+        cleanup_url=base_url,
+        duration_seconds=result.duration_seconds,
+        warnings=list(result.warnings),
+    )
+
+
+@router.get("/songs/{song_id}/midi/preview/{token}/stream", summary="播放 Editor scratch preview")
+def stream_midi_editor_preview(song_id: str, token: str) -> FileResponse:
+    with _midi_preview_lock:
+        resource = _midi_preview_resources.get(token)
+    if resource is None or resource[0] != song_id or not resource[1].exists():
+        raise asset_not_found("preview.wav", message="Editor Preview 已失效，请重新播放")
+    return FileResponse(resource[1], media_type="audio/wav", headers={"Cache-Control": "no-store"})
+
+
+@router.delete(
+    "/songs/{song_id}/midi/preview/{token}",
+    response_model=MidiEditorPreviewCleanupResponse,
+    summary="清理 Editor scratch preview",
+)
+def cleanup_midi_editor_preview(song_id: str, token: str) -> MidiEditorPreviewCleanupResponse:
+    with _midi_preview_lock:
+        resource = _midi_preview_resources.get(token)
+    if resource is None or resource[0] != song_id:
+        return MidiEditorPreviewCleanupResponse(cleaned=False)
+    return MidiEditorPreviewCleanupResponse(cleaned=_remove_midi_preview_resource(token))
 
 
 @router.post(

@@ -902,3 +902,89 @@ pm run build：PASS（136 modules）
 - 后端：	est_midi_editor_save_api.py 7 passed；MIDI/version 回归 34 passed。
 - 前端：Vitest 89 passed；npm build 通过（136 modules）。
 - 真实 smoke：save→v2（≠v1）、bass pitch 36→37、stale base→409、has_audio=false、current=v2。
+
+---
+
+## 35. T34.7 Preview / Transport / Playhead / Loop（Completed）
+
+### 35.1 Preview engine（沿用 T34.0 Final Decision）
+
+- 实现方案仍为 **Draft → 后端 scratch MIDI → scratch WAV**，没有引入前端大型 synth/audio 库。
+- `POST /api/v1/songs/{song_id}/midi/preview` 接收本次试听的完整轨道快照：
+  - `current_track`：只接收当前轨，scratch MIDI 移除其他轨的 note 事件。
+  - `all_tracks`：接收 document 全部轨道，每轨由前端选择当前 Draft 或 Saved notes。
+- `write_midi_editor_preview` 把原事件转换为 absolute tick，保留 tempo/time-signature/track_name/
+  program/CC/meta，再重新计算 delta；同 tick 顺序为设置事件 → note_off → note_on。
+- scratch 资源写入 OS temp 的 `ai-music-mvp-midi-preview`，不写 `data/projects`；POST 返回一次性
+  `stream_url` + `cleanup_url`。Stop/end/unmount 调 DELETE；服务端另有 30 分钟 TTL 和 32 资源上限。
+- 渲染严格复用当前项目的 SoundFont + FluidSynth（可用时）→ FallbackRenderer 路线，但不调用
+  `_render_audio_for`，因此不写正式 `output.wav` 或 `audio_metadata.json`。
+
+### 35.2 Draft preview semantics
+
+- `buildMidiPreviewTracks(document, draftNotesByTrack, selectedTrackId, scope)` 是唯一前端选择边界：
+  - 轨道 key 存在于 `draftNotesByTrack`（包括空数组，即 Delete All）→ 使用 Draft。
+  - 无 Draft key → 使用 document Saved notes。
+- Current Track 只发送选中轨；All Tracks 对全部轨道逐一合并，不因正在编辑 Bass 丢失
+  Melody/Drums/Pad。
+- 播放过程中允许编辑，但已生成的本次 scratch 音频不热更新；用户 Stop → Play 后重新取最新 Draft。
+- Lock 仅限制 Note mutation，不限制 Preview。
+
+### 35.3 Tempo / PPQ timing
+
+- transport UI 使用 `MidiEditorDocument.bpm` + `ppq` 的统一 helper：
+  `seconds = tick / ppq * 60 / bpm`，反向按 integer tick round。
+- 组件内不硬编码 120 BPM；document 无有效 bpm 时拒绝 Play 并显示明确错误。
+- scratch WAV 由真实 MIDI tempo 事件渲染；当前 read model 延续 T34.1 限制，以首个 canonical tempo
+  驱动 UI playhead。复杂 tempo map 仍属于后续增强。
+
+### 35.4 Transport / playhead / seek / loop
+
+- Toolbar：`▶ Play`、`■ Stop`、`Current Track / All Tracks`；准备/播放时禁用重复 Play。
+- Playhead 由 `requestAnimationFrame` 只更新 `currentTick`，Timeline 与 Roll 都通过同一
+  `pixelsPerTick` geometry 映射。Zoom/Pan 不修改 tick，仅重新定位像素。
+- Timeline Header 是独立 seek 区域；click x → canonical tick。Roll Grid 的 double-click Add、
+  drag Edit、Space+drag Pan 不受影响。Timeline/Roll/Keyboard scroll state 同步。
+- Loop 用简洁的 Start bar / End bar 输入；必须满足 `start >= 0`、`end > start` 且不超过工程范围。
+  到 end 时同一个 audio resource seek 回 start，避免重复 voice/scheduler 泄漏。
+- MVP 不实现 Pause、复杂拖拽 loop handles、自动 Follow Playhead。
+
+### 35.5 Stop / end / lifecycle cleanup
+
+- `allNotesOff(audio)` 立即 `pause()`、移除 src 并 `load()` 清空解码缓冲；同时取消 RAF、使 pending
+  Preview response 失效。已到达后端的 render 允许返回 cleanup token，generation guard 随即 DELETE
+  scratch（避免 abort 后丢失 token）；UI/声音在 Stop 时仍即时停止。
+- 正常播放结束设置 `playing=false`、playhead 停在 end、清音频/RAF/scratch。
+- Save MIDI 前先 Stop；`refreshKey`（Restore/Regenerate）reload 前 Stop；song/version/document 变化
+  和 Editor unmount 由 hook effect cleanup Stop。Project A 的声音不会跨到 Project B。
+
+### 35.6 Performance
+
+- Preview 调度依赖单一 HTMLAudioElement，不使用“每个 Note 一个 setTimeout”。
+- Draft snapshot 是数组引用选择/序列化；500/1000/3000 notes 自动 smoke 均通过。
+- `dirtyTracks` 深比较按 Draft/Saved 引用 memoize；SVG NoteLayer memoize。RAF 帧不会 clone notes、
+  重解析 MIDI、重算整个 document 或重新创建 Note 元素，只更新 transport/playhead。
+
+### 35.7 State boundary
+
+- Preview 不调用 Save API，不创建 Project Version，不调用正式 WAV Render，不修改 dirty。
+- `audioNeedsRender`、renderer、is_fallback、fallback_reason、renderedSoundFont、MIDI asset、
+  Version pointer 均保持不变。UI 明确标记为 **Editor Preview**，不冒充正式 SoundFont WAV。
+- Save 仍沿用 T34.6 `/midi/edit`；Preview endpoint 不改变其 request/response contract。
+
+### 35.8 Verification / known limitations
+
+- 后端：`test_midi_editor_preview_api.py` + `test_midi_editor_save_api.py`：12 passed；加入 read/version/
+  regenerate/generate-midi 的扩展回归共 49 passed。
+- 前端：Vitest 21 files / 107 tests passed；`npm run build` passed（138 modules）。
+- Chromium smoke：未保存 Bass Move → Current Track Play → Stop → Seek → Loop → Locked Preview →
+  All Tracks；Preview payload 包含 Draft，其他轨保留；无 `/midi/edit`、`/audio/render`、Version mutation；
+  前后 Version/MIDI/WAV/renderer state 不变。
+- 已知限制：首次 Play 有后端 scratch 渲染往返；播放中编辑需 Stop→Play 才生效；无 Pause、follow
+  playhead、tempo-map UI、Solo/Mute。本阶段未实现 Multi-select/Copy-Paste/Velocity Lane/Scale/
+  Chord/Section/AI MIDI Edit。
+
+### 35.9 T34.8 readiness
+
+- T34.7 transport 与 Advanced Selection 解耦；T34.8 可在现有 Draft/History/Viewport 之上增加
+  Multi-select、Box Selection、Velocity Lane 与 Drum semantic names，无需修改 Preview 数据边界。

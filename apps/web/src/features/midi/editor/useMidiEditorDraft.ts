@@ -6,7 +6,7 @@
 // - document 变化（songId/version/reload）→ 重置 draft + history
 // - 新增 Note 用临时 ID（draft:<uuid>），已有 Note 沿用 canonical id
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MidiEditorDocument, MidiEditorNote } from "./midiEditorTypes";
 
 export const HISTORY_LIMIT = 80;
@@ -269,12 +269,15 @@ export function useMidiEditorDraft(document: MidiEditorDocument | null): UseMidi
     pendingBeforeRef.current.delete(trackId);
   }, []);
 
-  const dirtyTracks = new Set<string>();
-  for (const trackId of Object.keys(draftNotesByTrack)) {
-    const saved = savedByTrack[trackId] ?? [];
-    const draft = draftNotesByTrack[trackId] ?? [];
-    if (notesDirty(saved, draft)) dirtyTracks.add(trackId);
-  }
+  const dirtyTracks = useMemo(() => {
+    const dirty = new Set<string>();
+    for (const trackId of Object.keys(draftNotesByTrack)) {
+      const saved = savedByTrack[trackId] ?? [];
+      const trackDraft = draftNotesByTrack[trackId] ?? [];
+      if (notesDirty(saved, trackDraft)) dirty.add(trackId);
+    }
+    return dirty;
+  }, [draftNotesByTrack, savedByTrack]);
 
   const canUndoTrack = useCallback(
     (trackId: string) => (undoByTrack[trackId]?.length ?? 0) > 0,

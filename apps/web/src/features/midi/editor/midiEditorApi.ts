@@ -125,3 +125,67 @@ export function saveMidiEditorTrack(
     warnings: data.warnings ?? [],
   }));
 }
+
+export type MidiPreviewScope = "current_track" | "all_tracks";
+
+export interface MidiEditorPreviewTrackInput {
+  trackId: string;
+  notes: MidiEditorNote[];
+}
+
+export interface CreateMidiEditorPreviewInput {
+  scope: MidiPreviewScope;
+  tracks: MidiEditorPreviewTrackInput[];
+}
+
+export interface MidiEditorPreviewResult {
+  token: string;
+  streamUrl: string;
+  cleanupUrl: string;
+  durationSeconds: number | null;
+  warnings: string[];
+}
+
+export function createMidiEditorPreview(
+  songId: string,
+  input: CreateMidiEditorPreviewInput,
+  options?: { signal?: AbortSignal },
+): Promise<MidiEditorPreviewResult> {
+  const encoded = encodeURIComponent(songId);
+  return requestJson<{
+    token: string;
+    stream_url: string;
+    cleanup_url: string;
+    duration_seconds: number | null;
+    warnings?: string[];
+  }>(
+    `/api/v1/songs/${encoded}/midi/preview`,
+    "POST",
+    {
+      scope: input.scope,
+      tracks: input.tracks.map((track) => ({
+        track_id: track.trackId,
+        notes: track.notes.map((note) => ({
+          id: note.id,
+          pitch: note.pitch,
+          start_tick: note.startTick,
+          duration_tick: note.durationTick,
+          velocity: note.velocity,
+          channel: note.channel,
+        })),
+      })),
+    },
+    options?.signal,
+  ).then((data) => ({
+    token: data.token,
+    streamUrl: data.stream_url,
+    cleanupUrl: data.cleanup_url,
+    durationSeconds: data.duration_seconds,
+    warnings: data.warnings ?? [],
+  }));
+}
+
+export async function deleteMidiEditorPreview(cleanupUrl: string): Promise<boolean> {
+  const data = await requestJson<{ cleaned: boolean }>(cleanupUrl, "DELETE");
+  return data.cleaned;
+}

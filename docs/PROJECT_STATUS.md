@@ -135,6 +135,20 @@
   renderer/SoundFont/is_fallback 保持真实。测试：后端 7 passed + MIDI/version 回归 34 passed；
   前端 Vitest 89 passed（history/dirty/save 语义）；npm build 通过（136 modules）。
   T34.7 next（Preview/Transport/Loop）。
+- T34.7 completed：MIDI Editor Preview / Transport / Playhead / Seek / Loop。严格复用 T34.0
+  后端 scratch 路线：`POST /midi/preview` 接收当前 Editor Session 轨道快照，Current Track 清空
+  其他轨 note，All Tracks 合并各轨 draft/saved；临时 MIDI/WAV 只写 OS temp，复用项目当前
+  SoundFont/FluidSynth→fallback 选择，不写 output.wav/audio_metadata、不创建版本。前端新增
+  `useMidiPlayback`（HTMLAudioElement allNotesOff + generation cleanup + RAF）、`midiPlayback` 纯函数
+  （Draft selection/tick↔seconds/loop validation）、Play/Stop/Current-All、bar loop 输入、Timeline
+  click-to-seek、Timeline/Roll playhead 与 loop overlay。Save/refreshKey/document change/unmount 前统一
+  Stop；locked Track 仍可 Preview；播放中编辑不热更新，Stop→Play 使用最新 Draft。性能：NoteLayer
+  与 dirty 深比较 memoize，Preview 无 per-note timer；500/1000/3000 notes smoke 通过。验证：后端
+  Preview+Save 12 passed、MIDI/Version/Regenerate 扩展回归 49 passed；前端 Vitest 107 passed；
+  npm build 通过（138 modules）；真实 Chromium
+  E2E 1 passed（未保存 Bass Draft、Current/All、Stop、Seek、Loop、Lock、无 Save/Version/Render、
+  Version/MIDI/WAV 状态不变）。T34.8 next（Advanced Selection /
+  Drum semantics）。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

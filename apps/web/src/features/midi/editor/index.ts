@@ -16,3 +16,6 @@ export { useMidiViewport } from "./useMidiViewport";
 export type { UseMidiViewportResult } from "./useMidiViewport";
 export { useMidiEditorDraft, notesDirty, tempNoteId } from "./useMidiEditorDraft";
 export type { UseMidiEditorDraftResult } from "./useMidiEditorDraft";
+export { useMidiPlayback, allNotesOff } from "./useMidiPlayback";
+export type { UseMidiPlaybackResult } from "./useMidiPlayback";
+export * from "./midiPlayback";

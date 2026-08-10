@@ -6,7 +6,7 @@
 // - 所有操作走 draft 回调；不直接调用 backend
 // - React key / data-note-id = canonical note.id（新增为 draft:uuid 临时 id）
 
-import { useMemo, useRef } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import type { MidiEditorNote } from "./midiEditorTypes";
 import {
   computeMaxTick,
@@ -43,6 +43,10 @@ export interface PianoRollViewportProps {
   onScrollLeftChange?: (v: number) => void;
   onScrollTopChange?: (v: number) => void;
   gridRef?: (el: HTMLDivElement | null) => void;
+  currentTick?: number;
+  loopEnabled?: boolean;
+  loopStartTick?: number;
+  loopEndTick?: number;
   layout?: typeof DEFAULT_LAYOUT;
 }
 
@@ -61,6 +65,61 @@ export interface ViewNote {
 
 const DRAG_THRESHOLD_PX = 3;
 const RESIZE_HANDLE_W = 6;
+
+interface NoteLayerProps {
+  notes: ViewNote[];
+  selectedNoteId: string | null;
+  onPointerDown: (event: React.PointerEvent, note: ViewNote, kind: "move" | "resize") => void;
+  onPointerMove: (event: React.PointerEvent) => void;
+  onPointerEnd: (event: React.PointerEvent) => void;
+}
+
+const NoteLayer = memo(function NoteLayer({
+  notes,
+  selectedNoteId,
+  onPointerDown,
+  onPointerMove,
+  onPointerEnd,
+}: NoteLayerProps) {
+  return notes.map((note) => (
+    <g
+      key={note.id}
+      className={`midi-editor__note-group${note.id === selectedNoteId ? " is-selected" : ""}`}
+      data-note-id={note.id}
+      onPointerDown={(event) => onPointerDown(event, note, "move")}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+    >
+      <rect
+        className="midi-editor__note"
+        x={note.x}
+        y={note.y}
+        width={Math.max(2, note.width - RESIZE_HANDLE_W)}
+        height={note.height}
+        rx={2}
+        fill="#6c8cff"
+        opacity={0.9}
+        style={{ cursor: "move" }}
+      >
+        <title>{`${midiPitchToNoteName(note.pitch)} start=${note.startTick} dur=${note.durationTick}`}</title>
+      </rect>
+      <rect
+        className="midi-editor__resize"
+        x={note.x + note.width - RESIZE_HANDLE_W}
+        y={note.y}
+        width={RESIZE_HANDLE_W}
+        height={note.height}
+        fill="rgba(34,211,238,0.6)"
+        style={{ cursor: "ew-resize" }}
+        onPointerDown={(event) => onPointerDown(event, note, "resize")}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerEnd}
+        onPointerCancel={onPointerEnd}
+      />
+    </g>
+  ));
+});
 
 export function computeViewNotes(
   notes: MidiEditorNote[],
@@ -108,6 +167,10 @@ export function PianoRollViewport({
   onScrollLeftChange,
   onScrollTopChange,
   gridRef,
+  currentTick = 0,
+  loopEnabled = false,
+  loopStartTick = 0,
+  loopEndTick = 0,
   layout = DEFAULT_LAYOUT,
 }: PianoRollViewportProps) {
   const { viewNotes, minPitch, maxPitch, maxTick, height } = useMemo(
@@ -116,7 +179,7 @@ export function PianoRollViewport({
   );
 
   const perBar = ticksPerBar(ppq, meter);
-  const bars = Math.max(4, Math.ceil((maxTick + 1) / perBar));
+  const bars = Math.max(4, Math.ceil((Math.max(maxTick, currentTick, loopEndTick) + 1) / perBar));
   const width = Math.max(1, bars * perBar * layout.pixelsPerTick);
 
   // drag state
@@ -142,7 +205,7 @@ export function PianoRollViewport({
     gridRef?.(el);
   };
 
-  const onPointerDown = (e: React.PointerEvent, note: ViewNote, kind: "move" | "resize") => {
+  const onPointerDown = useCallback((e: React.PointerEvent, note: ViewNote, kind: "move" | "resize") => {
     if (locked) return; // lock blocks edit handlers
     e.preventDefault();
     e.stopPropagation();
@@ -168,9 +231,9 @@ export function PianoRollViewport({
       startScrollLeft: 0,
       startScrollTop: 0,
     };
-  };
+  }, [locked, onSelectNote]);
 
-  const onPointerMove = (e: React.PointerEvent) => {
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
     const dx = e.clientX - drag.startClientX;
@@ -199,9 +262,9 @@ export function PianoRollViewport({
       const newDur = Math.max(1, drag.startDuration + dt);
       onResizeNote(drag.noteId, newDur);
     }
-  };
+  }, [layout.pixelsPerTick, layout.rowHeight, onMoveNote, onResizeNote, onScrollLeftChange, onScrollTopChange, ppq, snap]);
 
-  const endDrag = (e: React.PointerEvent) => {
+  const endDrag = useCallback((e: React.PointerEvent) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
     dragRef.current = null;
@@ -214,7 +277,7 @@ export function PianoRollViewport({
       }
     }
     onDragEnd?.();
-  };
+  }, [onDragEnd]);
 
   const onGridDoubleClick = (e: React.MouseEvent) => {
     if (locked) return; // lock blocks add
@@ -286,13 +349,17 @@ export function PianoRollViewport({
       <div
         ref={setGridRef}
         className={`midi-editor__grid${locked ? " is-locked" : ""}${panEnabled ? " is-pan" : ""}`}
-        style={{ position: "relative", overflow: "hidden" }}
+        style={{ position: "relative", overflow: "auto" }}
         onDoubleClick={onGridDoubleClick}
         onPointerDown={onGridPointerDown}
         onPointerMove={onGridPointerMove}
         onPointerUp={onGridPointerUp}
         onPointerCancel={onGridPointerUp}
         onWheel={onWheel}
+        onScroll={(event) => {
+          onScrollLeftChange?.(event.currentTarget.scrollLeft);
+          onScrollTopChange?.(event.currentTarget.scrollTop);
+        }}
       >
         <svg
           className="midi-editor__roll"
@@ -302,6 +369,16 @@ export function PianoRollViewport({
           data-ppq={ppq}
           data-note-count={notes.length}
         >
+          {loopEnabled && loopEndTick > loopStartTick && (
+            <rect
+              className="midi-editor__roll-loop-region"
+              data-testid="roll-loop-region"
+              x={loopStartTick * layout.pixelsPerTick}
+              y={0}
+              width={(loopEndTick - loopStartTick) * layout.pixelsPerTick}
+              height={height}
+            />
+          )}
           {/* bar lines */}
           {Array.from({ length: bars + 1 }, (_, i) => (
             <line
@@ -341,45 +418,21 @@ export function PianoRollViewport({
               />
             );
           })}
-          {/* notes */}
-          {viewNotes.map((note) => (
-            <g
-              key={note.id}
-              className={`midi-editor__note-group${note.id === selectedNoteId ? " is-selected" : ""}`}
-              data-note-id={note.id}
-              onPointerDown={(e) => onPointerDown(e, note, "move")}
-              onPointerMove={onPointerMove}
-              onPointerUp={endDrag}
-              onPointerCancel={endDrag}
-            >
-              <rect
-                className="midi-editor__note"
-                x={note.x}
-                y={note.y}
-                width={Math.max(2, note.width - RESIZE_HANDLE_W)}
-                height={note.height}
-                rx={2}
-                fill="#6c8cff"
-                opacity={0.9}
-                style={{ cursor: "move" }}
-              >
-                <title>{`${midiPitchToNoteName(note.pitch)} start=${note.startTick} dur=${note.durationTick}`}</title>
-              </rect>
-              <rect
-                className="midi-editor__resize"
-                x={note.x + note.width - RESIZE_HANDLE_W}
-                y={note.y}
-                width={RESIZE_HANDLE_W}
-                height={note.height}
-                fill="rgba(34,211,238,0.6)"
-                style={{ cursor: "ew-resize" }}
-                onPointerDown={(e) => onPointerDown(e, note, "resize")}
-                onPointerMove={onPointerMove}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
-              />
-            </g>
-          ))}
+          <NoteLayer
+            notes={viewNotes}
+            selectedNoteId={selectedNoteId}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerEnd={endDrag}
+          />
+          <line
+            className="midi-editor__roll-playhead"
+            data-testid="roll-playhead"
+            x1={currentTick * layout.pixelsPerTick}
+            y1={0}
+            x2={currentTick * layout.pixelsPerTick}
+            y2={height}
+          />
         </svg>
         {notes.length === 0 && (
           <div className="midi-editor__empty-track">当前轨道没有音符，双击空白添加</div>

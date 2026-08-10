@@ -7,15 +7,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMidiEditorDocument } from "./useMidiEditorDocument";
 import { useMidiEditorDraft } from "./useMidiEditorDraft";
 import { useMidiViewport } from "./useMidiViewport";
+import { useMidiPlayback } from "./useMidiPlayback";
 import { saveMidiEditorTrack } from "./midiEditorApi";
 import { TrackSelector } from "./TrackSelector";
 import { TimelineHeader } from "./TimelineHeader";
 import { PianoKeyboard } from "./PianoKeyboard";
 import { PianoRollViewport } from "./PianoRollViewport";
 import type { MidiEditorDocument, MidiEditorNote, MidiEditorTrack } from "./midiEditorTypes";
-import { computePitchRange, DEFAULT_LAYOUT, tickToBar, tickToBeat } from "./midiEditorLayout";
+import { computePitchRange, DEFAULT_LAYOUT, tickToBar, tickToBeat, ticksPerBar } from "./midiEditorLayout";
 import { DEFAULT_SNAP, SNAP_OPTIONS, midiPitchToNoteName, type SnapValue } from "./midiEditorGeometry";
-import { documentMaxTick } from "./midiEditorGeometry";
 import { ActionButton, EmptyState, ErrorState, InlineNotice, LoadingState, SectionCard } from "../../../components/ui";
 import { getErrorMessage } from "../../../hooks/error";
 
@@ -23,11 +23,6 @@ export interface MidiEditorProps {
   songId?: string | null;
   refreshKey?: number;
   onSaved?: (versionId: string) => void;
-}
-
-export interface MidiEditorProps {
-  songId?: string | null;
-  refreshKey?: number;
 }
 
 function defaultTrackId(doc: MidiEditorDocument): string | null {
@@ -61,6 +56,21 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   const [conflict, setConflict] = useState<{ currentVersionId: string; baseVersionId: string } | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const dirtyRef = useRef(false);
+  const playback = useMidiPlayback({
+    songId,
+    document,
+    draftNotesByTrack: draft.draftNotesByTrack,
+    selectedTrackId,
+  });
+  const stopPreview = playback.stop;
+  const layout = useMemo(
+    () => ({
+      pixelsPerTick: viewport.pixelsPerTick,
+      rowHeight: viewport.rowHeight,
+      keyboardWidth: DEFAULT_LAYOUT.keyboardWidth,
+    }),
+    [viewport.pixelsPerTick, viewport.rowHeight],
+  );
 
   // songId 或 document 变化：重选有效轨道、清空 note 选择（draft hook 已自行重置）
   useEffect(() => {
@@ -103,10 +113,11 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   // refreshKey 变化（MIDI 重新生成 / 版本恢复）→ 重新加载 document
   useEffect(() => {
     if (refreshKey > 0) {
+      stopPreview();
       void reload();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey]);
+  }, [refreshKey, stopPreview]);
 
   // Space 键 → pan 模式（松开时结束）
   useEffect(() => {
@@ -166,6 +177,17 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
     [trackDraftNotes, selectedNoteId],
   );
 
+  const pitchRange = useMemo(
+    () =>
+      trackDraftNotes.length
+        ? computePitchRange(trackDraftNotes)
+        : {
+            minPitch: selectedTrack?.channel === 9 ? 36 : 48,
+            maxPitch: selectedTrack?.channel === 9 ? 60 : 84,
+          },
+    [selectedTrack?.channel, trackDraftNotes],
+  );
+
   const isTrackLocked = selectedTrack ? lockedTrackIds.has(selectedTrack.id) : false;
 
   const toggleTrackLock = () => {
@@ -178,8 +200,15 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
     });
   };
 
-  const meter = { numerator: document?.timeSignature?.[0] ?? 4, denominator: document?.timeSignature?.[1] ?? 4 };
-  const songMaxTick = document ? documentMaxTick(document.tracks) : 0;
+  const meter = useMemo(
+    () => ({
+      numerator: document?.timeSignature?.[0] ?? 4,
+      denominator: document?.timeSignature?.[1] ?? 4,
+    }),
+    [document?.timeSignature],
+  );
+  const songMaxTick = playback.maxTick;
+  const perBar = document ? ticksPerBar(document.ppq, meter) : 1;
 
   // 删除选中 Note（Delete/Backspace，非输入框内；locked 时不删除）
   useEffect(() => {
@@ -212,11 +241,67 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
 
   // 供 fit 使用的容器 ref
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  const timelineScrollRef = useRef<HTMLDivElement | null>(null);
+  const keyboardScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Roll 是滚动源；Timeline/Keyboard 跟随同一 viewport state。
+  useEffect(() => {
+    if (gridScrollRef.current && gridScrollRef.current.scrollLeft !== viewport.scrollLeft) {
+      gridScrollRef.current.scrollLeft = viewport.scrollLeft;
+    }
+    if (gridScrollRef.current && gridScrollRef.current.scrollTop !== viewport.scrollTop) {
+      gridScrollRef.current.scrollTop = viewport.scrollTop;
+    }
+    if (timelineScrollRef.current && timelineScrollRef.current.scrollLeft !== viewport.scrollLeft) {
+      timelineScrollRef.current.scrollLeft = viewport.scrollLeft;
+    }
+    if (keyboardScrollRef.current && keyboardScrollRef.current.scrollTop !== viewport.scrollTop) {
+      keyboardScrollRef.current.scrollTop = viewport.scrollTop;
+    }
+  }, [viewport.scrollLeft, viewport.scrollTop]);
+
+  const handleAddNote = useCallback(
+    (note: Omit<MidiEditorNote, "id">) => {
+      if (selectedTrackId) draft.addNote(selectedTrackId, note);
+    },
+    [draft.addNote, selectedTrackId],
+  );
+  const handleMoveNote = useCallback(
+    (noteId: string, start: number, pitch: number) => {
+      if (selectedTrackId) draft.moveNote(selectedTrackId, noteId, start, pitch);
+    },
+    [draft.moveNote, selectedTrackId],
+  );
+  const handleResizeNote = useCallback(
+    (noteId: string, duration: number) => {
+      if (selectedTrackId) draft.resizeNote(selectedTrackId, noteId, duration);
+    },
+    [draft.resizeNote, selectedTrackId],
+  );
+  const handleDragEnd = useCallback(() => {
+    if (selectedTrackId) draft.commitEdit(selectedTrackId);
+  }, [draft.commitEdit, selectedTrackId]);
+  const handleGridRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      gridScrollRef.current = element;
+      if (element) {
+        element.scrollLeft = viewport.scrollLeft;
+        element.scrollTop = viewport.scrollTop;
+      }
+    },
+    [viewport.scrollLeft, viewport.scrollTop],
+  );
+  const handleRollZoom = useCallback(
+    (direction: 1 | -1) => (direction > 0 ? viewport.zoomHIn() : viewport.zoomHOut()),
+    [viewport.zoomHIn, viewport.zoomHOut],
+  );
 
   const handleSave = useCallback(async () => {
     if (!document || !selectedTrack || saving) return;
     const notes = draft.draftNotesByTrack[selectedTrack.id];
     if (!notes) return;
+    stopPreview();
     setSaving(true);
     setSaveError(null);
     setConflict(null);
@@ -242,7 +327,7 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
     } finally {
       setSaving(false);
     }
-  }, [document, selectedTrack, draft, songId, saving, reload, onSaved]);
+  }, [document, selectedTrack, draft, songId, saving, reload, onSaved, stopPreview]);
 
   const handleDiscard = () => {
     if (!selectedTrack) return;
@@ -274,14 +359,6 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
     body = <EmptyState title="暂无 MIDI 数据" description="生成 MIDI 后即可查看。" />;
   } else {
     const isDirty = draft.dirtyTracks.has(selectedTrack.id);
-    const pitchRange = trackDraftNotes.length
-      ? computePitchRange(trackDraftNotes)
-      : { minPitch: selectedTrack.channel === 9 ? 36 : 48, maxPitch: selectedTrack.channel === 9 ? 60 : 84 };
-    const layout = {
-      pixelsPerTick: viewport.pixelsPerTick,
-      rowHeight: viewport.rowHeight,
-      keyboardWidth: DEFAULT_LAYOUT.keyboardWidth,
-    };
     body = (
       <div className="midi-editor">
         <TrackSelector
@@ -291,6 +368,71 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
         />
 
         <div className="midi-editor__toolbar">
+          <span className="midi-editor__transport">
+            <ActionButton
+              variant="primary"
+              onClick={() => void playback.play()}
+              disabled={playback.isPlaying || playback.isPreparing || document.bpm == null}
+              loading={playback.isPreparing}
+            >
+              {playback.isPreparing ? "准备试听…" : "▶ Play"}
+            </ActionButton>
+            <ActionButton
+              variant="secondary"
+              onClick={playback.stop}
+              disabled={!playback.isPlaying && !playback.isPreparing}
+            >
+              ■ Stop
+            </ActionButton>
+          </span>
+
+          <label className="midi-editor__preview-scope">
+            Preview
+            <select
+              value={playback.scope}
+              onChange={(event) => playback.setScope(event.target.value as "current_track" | "all_tracks")}
+              disabled={playback.isPlaying || playback.isPreparing}
+              aria-label="Preview 范围"
+            >
+              <option value="current_track">Current Track</option>
+              <option value="all_tracks">All Tracks</option>
+            </select>
+          </label>
+
+          <span className="midi-editor__loop-controls">
+            <label>
+              <input
+                type="checkbox"
+                checked={playback.loopEnabled}
+                onChange={(event) => playback.setLoopEnabled(event.target.checked)}
+                aria-label="Loop 开关"
+              />
+              Loop
+            </label>
+            <label>
+              Start bar
+              <input
+                type="number"
+                min={1}
+                max={Math.max(1, Math.ceil(songMaxTick / perBar))}
+                value={Math.floor(playback.loopStartTick / perBar) + 1}
+                onChange={(event) => playback.setLoopStartTick((Math.max(1, Number(event.target.value)) - 1) * perBar)}
+                aria-label="Loop Start bar"
+              />
+            </label>
+            <label>
+              End bar
+              <input
+                type="number"
+                min={1}
+                max={Math.max(2, Math.ceil(songMaxTick / perBar) + 1)}
+                value={Math.floor(playback.loopEndTick / perBar) + 1}
+                onChange={(event) => playback.setLoopEndTick((Math.max(1, Number(event.target.value)) - 1) * perBar)}
+                aria-label="Loop End bar"
+              />
+            </label>
+          </span>
+
           <label className="midi-editor__snap">
             Snap
             <select
@@ -350,25 +492,41 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
           </button>
 
           {isDirty && <span className="status-chip status-warning">未保存草稿</span>}
+          <span className={`status-chip ${playback.isPlaying ? "status-ok" : ""}`}>
+            Editor Preview · tick {Math.round(playback.currentTick)}
+          </span>
           <span className="midi-editor__toolbar-hint">
-            Ctrl+滚轮缩放 · Shift+滚轮横滚 · Space+拖动平移 · 双击添加 · 右边缘拉长 · Delete 删除
+            时间轴点击定位 · Ctrl+滚轮缩放 · Shift+滚轮横滚 · Space+拖动平移 · 双击添加 · 右边缘拉长 · Delete 删除
           </span>
         </div>
 
         <div className="midi-editor__board" ref={viewportRef}>
           <div className="midi-editor__timeline-row">
             <div className="midi-editor__timeline-spacer" style={{ width: DEFAULT_LAYOUT.keyboardWidth }} />
-            <div className="midi-editor__timeline-scroll">
+            <div
+              className="midi-editor__timeline-scroll"
+              ref={timelineScrollRef}
+              onScroll={(event) => viewport.setScrollLeft(event.currentTarget.scrollLeft)}
+            >
               <TimelineHeader
                 ppq={document.ppq}
                 meter={meter}
                 maxTick={Math.max(songMaxTick, 0)}
                 pixelsPerTick={layout.pixelsPerTick}
+                currentTick={playback.currentTick}
+                loopEnabled={playback.loopEnabled}
+                loopStartTick={playback.loopStartTick}
+                loopEndTick={playback.loopEndTick}
+                onSeek={playback.seek}
               />
             </div>
           </div>
           <div className="midi-editor__roll-row">
-            <div className="midi-editor__keyboard-scroll">
+            <div
+              className="midi-editor__keyboard-scroll"
+              ref={keyboardScrollRef}
+              onScroll={(event) => viewport.setScrollTop(event.currentTarget.scrollTop)}
+            >
               <PianoKeyboard
                 minPitch={pitchRange.minPitch}
                 maxPitch={pitchRange.maxPitch}
@@ -388,13 +546,18 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
                 locked={isTrackLocked}
                 panEnabled={spacePressed}
                 onSelectNote={setSelectedNoteId}
-                onAddNote={(note) => {
-                  draft.addNote(selectedTrack.id, note);
-                }}
-                onMoveNote={(noteId, start, pitch) => draft.moveNote(selectedTrack.id, noteId, start, pitch)}
-                onResizeNote={(noteId, duration) => draft.resizeNote(selectedTrack.id, noteId, duration)}
-                onDragEnd={() => draft.commitEdit(selectedTrack.id)}
-                onZoomH={(dir) => (dir > 0 ? viewport.zoomHIn() : viewport.zoomHOut())}
+                onAddNote={handleAddNote}
+                onMoveNote={handleMoveNote}
+                onResizeNote={handleResizeNote}
+                onDragEnd={handleDragEnd}
+                onZoomH={handleRollZoom}
+                onScrollLeftChange={viewport.setScrollLeft}
+                onScrollTopChange={viewport.setScrollTop}
+                gridRef={handleGridRef}
+                currentTick={playback.currentTick}
+                loopEnabled={playback.loopEnabled}
+                loopStartTick={playback.loopStartTick}
+                loopEndTick={playback.loopEndTick}
                 layout={layout}
               />
             </div>
@@ -405,6 +568,7 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
           <span>Track: {selectedTrack.name}</span>
           <span>Notes: {trackDraftNotes.length}</span>
           <span>PPQ: {document.ppq}</span>
+          <span>Playhead: {Math.round(playback.currentTick)} tick</span>
           <span>Version: {document.versionId ?? "—"}</span>
           {selectedNote && (
             <span className="midi-editor__selected-note">
@@ -438,6 +602,18 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
         {saveError && (
           <InlineNotice variant="danger" title="保存失败">
             {saveError}
+          </InlineNotice>
+        )}
+
+        {playback.error && (
+          <InlineNotice variant="danger" title="Editor Preview 失败">
+            {playback.error}
+          </InlineNotice>
+        )}
+
+        {playback.warnings.length > 0 && (
+          <InlineNotice variant="warning" title="Editor Preview">
+            {playback.warnings.join("；")}
           </InlineNotice>
         )}
 

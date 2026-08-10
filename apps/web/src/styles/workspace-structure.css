@@ -258,6 +258,27 @@
 .midi-editor__timeline {
   position: relative;
   height: 28px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.midi-editor__loop-region {
+  position: absolute;
+  inset-block: 0;
+  background: rgba(34, 211, 238, 0.14);
+  border-inline: 1px solid rgba(34, 211, 238, 0.55);
+  pointer-events: none;
+}
+
+.midi-editor__timeline-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  width: 2px;
+  background: #fb7185;
+  box-shadow: 0 0 6px rgba(251, 113, 133, 0.7);
+  pointer-events: none;
 }
 
 .midi-editor__bar {
@@ -308,14 +329,31 @@
 }
 
 .midi-editor__viewport-scroll {
-  overflow: auto;
+  overflow: hidden;
   flex: 1;
   min-width: 0;
+}
+
+.midi-editor__grid {
   max-height: 420px;
 }
 
 .midi-editor__roll {
   display: block;
+}
+
+.midi-editor__roll-loop-region {
+  fill: rgba(34, 211, 238, 0.08);
+  stroke: rgba(34, 211, 238, 0.4);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.midi-editor__roll-playhead {
+  stroke: #fb7185;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
 .midi-editor__note {
@@ -364,7 +402,7 @@
 }
 
 @media (max-width: 768px) {
-  .midi-editor__viewport-scroll {
+  .midi-editor__grid {
     max-height: 320px;
   }
 }
@@ -375,6 +413,35 @@
   align-items: center;
   gap: var(--workspace-gap-md, 16px);
   flex-wrap: wrap;
+}
+
+.midi-editor__transport,
+.midi-editor__loop-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.midi-editor__preview-scope,
+.midi-editor__loop-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--workspace-text-dim, #cbd5e1);
+  font-size: 0.8rem;
+}
+
+.midi-editor__preview-scope select,
+.midi-editor__loop-controls input[type="number"] {
+  padding: 6px 8px;
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.16));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  color: var(--workspace-text, #f8fafc);
+}
+
+.midi-editor__loop-controls input[type="number"] {
+  width: 58px;
 }
 
 .midi-editor__snap {
