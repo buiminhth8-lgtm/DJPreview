@@ -496,8 +496,8 @@ features/midi/editor/
 | **T34.5** Zoom / Pan / Fit / Lock | viewport 缩放平移、fit、轨道锁 | T34.4 | SVG 可视窗口、标尺 | 播放 | smoke：缩放平移 |
 | **T34.6** Undo / Redo / Dirty / Save | 快照栈、dirty 标记、save/discard | T34.4 | useMidiHistory + save 流程 | 高级选择 | 单测：undo/redo/dirty |
 | **T34.7** Preview / Transport / Loop | Draft preview（§15 方案 B）+ play/loop | T34.5 | preview endpoint + 播放条 | 不影响正式 renderer | smoke：preview 播放 |
-| **T34.8** Advanced Selection | 框选、多选、velocity 批量、鼓名映射 | T34.6 | 选择语义 + NoteInspector | AI | smoke |
-| **T34.9** AI-aware Piano Roll | 复用生成提示辅助编辑（如“这段更密集”） | T34.8 | 轻量 AI 建议 | 不在 MVP | 可选 |
+| **T34.8** Advanced Selection | 框选、多选、velocity 批量 | T34.6 | 选择语义 + NoteInspector | AI | smoke |
+| **T34.9** AI-aware Piano Roll | MusicSpec 音阶/和弦/段落、鼓语义行、角色提示 | T34.8 | 只读音乐上下文 | 不写回 MusicSpec/MIDI | 自动测试 + Chromium |
 | **T34.10** Final Regression | 性能压测 + 全链路回归 + 文档 | T34.1-9 | build/test/smoke/性能 | - | 性能预算达标；功能无回归 |
 
 ---
@@ -523,7 +523,7 @@ WAV stale strategy:          save 成功 → markAudioStale()；保留旧 WAV �
                             renderer/is_fallback/soundfont_name 只代表真实 WAV
 Preview strategy:           方案 B：Draft → 临时 MIDI → 后端 scratch preview（不改 renderer 状态）
 Piano Roll rendering:       继续 SVG（可视窗口裁剪）；3000+ note 不达标再评估 Canvas（T34.10）
-Drum strategy:              channel 9 + pitch（GM 鼓音色号）+ isDrum；不写 program；鼓 UI 留 T34.8
+Drum strategy:              channel 9 + pitch（GM 鼓音色号）+ isDrum；不写 program；T34.9 已加入只读语义行
 Legacy compatibility:        无 sidecar → 旧工程/旧 bundle 直接从 .mid + spec 重建，无需迁移
 ```
 
@@ -1059,7 +1059,62 @@ pm run build：PASS（136 modules）
 - 已知限制：无 batch resize、Velocity Lane、跨轨多选/组移动、复杂 drum↔pitched 转换、系统级 MIDI clipboard；
   Preview 仍需后端 scratch 渲染往返。
 
-### 36.8 T34.9 readiness
+### 36.8 T34.9 readiness（已完成）
 
-- T34.9 Next：Drum semantic rows / note names 与 Velocity Lane 等编辑可视化增强；继续复用现有
-  Selection、Draft、History、Viewport 与 Preview 边界。
+- T34.9 已在既有 Selection、Draft、History、Viewport 与 Preview 边界上完成只读音乐语义增强，
+  未引入第二套 Note/MusicSpec 或自动修复链路。
+
+---
+
+## 37. T34.9 AI-aware Piano Roll（Completed）
+
+### 37.1 Canonical context / isolation boundary
+
+- 新增 `midiEditorMusicContext.ts`，直接消费前端既有 `MusicSpec` 类型与 `MidiEditorDocument` 的
+  PPQ/time signature；派生 scale、section、chord、track role 与 project total ticks，不新增后端 schema，
+  不复制第二套 MusicSpec 协议。
+- `WorkspaceDashboard → PianoRollPanel → MidiEditor` 下传当前真实 MusicSpec；context 以 song/document/
+  refreshKey 为边界重建。Project A/B 切换时旧 document 立即清空，Restore/Regenerate 等 refresh 完成前不展示
+  新旧混合 context。
+- 所有语义均为 session-only read model；toggle、提示和 overlay 不进入 Draft/History，不调用 `/midi/edit`、
+  Version、正式 WAV Render 或 renderer/SoundFont 链路。
+
+### 37.2 Scale / key highlighting
+
+- 支持 Major/Minor，并复用现有词汇：ionian、natural_minor/aeolian、harmonic_minor、melodic_minor、
+  dorian、major/minor pentatonic；兼容真实 Provider 的 `c-major`、`d-natural-minor`、
+  `c-major-pentatonic` 主音前缀形式及升降号等音。
+- Roll row 分为 root / in-scale / out-of-scale 三种背景强度；只改变 SVG 背景，不改变 Note pitch。
+  无法解析 key/scale 时隐藏 Scale 控件；鼓轨不套用有调音阶背景。
+
+### 37.3 Chord / section timeline
+
+- 和弦时间复用 `harmony_engine.build_bar_harmony` 的稳定规则：MusicSpec progression 每小节一个和弦，
+  按段落 bars 循环；标记使用 canonical integer tick，与 Timeline、playhead、zoom 和水平滚动共享
+  `pixelsPerTick`。
+- 段落以 `form.start_bar`（1-based）和 `bars` 映射 start/end tick；支持 6/8、2/2 等分母拍号。
+  Section marker 可点击 seek。无匹配 section 时只保留 harmony summary，不伪造 chord duration。
+- Toolbar 提供 session-only `Scale / Chords / Sections` toggle；无对应真实数据时完全隐藏。
+
+### 37.4 Drum semantics / role-aware guidance
+
+- 鼓轨 pitch range 以 canonical GM 36–51 为基线并并入现有音符；键盘与 Roll 共用同一 range，
+  修正键盘 top-to-bottom pitch 顺序。标签镜像后端 `midi_constants.DRUM_NOTES`：Kick、Snare、Closed/Open
+  Hat、Crash、Ride，以及 Side Stick/Clap/Tom/Pedal Hat；双击 Add 仍提交原始 MIDI pitch/channel 9。
+- Bass overlap 只在 canonical role=`bass` 时检测；按 startTick 排序后用 furthest active end 单次扫描，
+  O(n log n)、不做 note-pair O(n²)。提示随 Draft/Undo 实时消失，只解释潜在低频浑浊，不自动修复。
+
+### 37.5 Verification / performance / regression
+
+- 前端：26 files / 145 tests passed；覆盖 scale、真实 vocabulary、6/8 section/chord tick、缺失数据、
+  overlay zoom/playhead、鼓标签/新增 pitch、Bass-only warning、Undo、A/B isolation、手动编辑边界，
+  以及 500/1000/3000-note overlap performance；`npm run build` passed（141 modules）。
+- 后端只读边界回归：MIDI Editor Read/Save/Preview + Version/Restore/Regenerate + legacy Piano Roll API
+  56 passed；未修改后端、MusicSpec、MIDI writer 或 renderer。
+- Chromium：T34.9 真实 Project A/B semantic context + GM drums + toggle/Version isolation 1 passed；
+  T34.8 Bass Box/Batch/Clipboard/Preview/one-Save/WAV-stale 回归 1 passed。
+
+### 37.6 T34.10 Next
+
+- T34.10 Final Regression：全量性能预算、长曲目/大规模 SVG 压测、完整 MIDI/Version/Preview/Render
+  回归与最终文档关闭；Velocity Lane 仍作为独立后续可视化，不混入本次只读语义上下文。

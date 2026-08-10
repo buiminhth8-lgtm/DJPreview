@@ -10,7 +10,7 @@ export interface MidiEditorLayoutConfig {
 export const DEFAULT_LAYOUT: MidiEditorLayoutConfig = {
   pixelsPerTick: 0.4, // 480ppq → 每拍 ~192px，每小节 ~768px
   rowHeight: 12,
-  keyboardWidth: 56,
+  keyboardWidth: 92,
 };
 
 export interface MeterInfo {
@@ -22,9 +22,14 @@ export function ticksPerBeat(ppq: number): number {
   return Math.max(1, ppq);
 }
 
-/** 每小节 tick 数：numerator 拍 × ppq（denominator 4 的常见情况）。 */
+/** 拍号中一个 denominator 拍的 tick 数（例如 6/8 的八分音符 = ppq/2）。 */
+export function ticksPerMeterBeat(ppq: number, meter: MeterInfo): number {
+  return Math.max(1, Math.round((Math.max(1, ppq) * 4) / Math.max(1, meter.denominator)));
+}
+
+/** 每小节 tick 数：numerator × denominator beat，支持非 4/4。 */
 export function ticksPerBar(ppq: number, meter: MeterInfo): number {
-  return Math.max(1, meter.numerator) * Math.max(1, ppq);
+  return Math.max(1, meter.numerator) * ticksPerMeterBeat(ppq, meter);
 }
 
 export function tickToX(tick: number, layout: MidiEditorLayoutConfig): number {

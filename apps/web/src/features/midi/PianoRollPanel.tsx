@@ -4,6 +4,7 @@
 
 import { ActionButton, ButtonRow, EmptyState, SectionCard } from "../../components/ui";
 import { MidiEditor } from "./editor/MidiEditor";
+import type { MusicSpec } from "../../api/types";
 
 export interface PianoRollPanelProps {
   songId?: string | null;
@@ -15,6 +16,7 @@ export interface PianoRollPanelProps {
   onGenerateMidi?: () => void;
   onMidiSaved?: (versionId: string) => void;
   onError?: (message: string) => void;
+  musicSpec?: MusicSpec | null;
 }
 
 export function PianoRollPanel({
@@ -25,6 +27,7 @@ export function PianoRollPanel({
   refreshKey = 0,
   onGenerateMidi,
   onMidiSaved,
+  musicSpec = null,
 }: PianoRollPanelProps) {
   const canLoadRoll = Boolean(songId) && hasMidi;
 
@@ -54,7 +57,7 @@ export function PianoRollPanel({
   } else {
     body = (
       <div className="workspace-piano-roll">
-        <MidiEditor songId={songId} refreshKey={refreshKey} onSaved={onMidiSaved} />
+        <MidiEditor songId={songId} refreshKey={refreshKey} onSaved={onMidiSaved} musicSpec={musicSpec} />
       </div>
     );
   }

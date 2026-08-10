@@ -27,11 +27,18 @@ import {
 } from "./midiSelection";
 import { ActionButton, EmptyState, ErrorState, InlineNotice, LoadingState, SectionCard } from "../../../components/ui";
 import { getErrorMessage } from "../../../hooks/error";
+import type { MusicSpec } from "../../../api/types";
+import {
+  bassOverlapWarning,
+  buildMidiEditorMusicContext,
+  computeDrumPitchRange,
+} from "./midiEditorMusicContext";
 
 export interface MidiEditorProps {
   songId?: string | null;
   refreshKey?: number;
   onSaved?: (versionId: string) => void;
+  musicSpec?: MusicSpec | null;
 }
 
 function defaultTrackId(doc: MidiEditorDocument): string | null {
@@ -51,7 +58,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps) {
+export function MidiEditor({ songId, refreshKey = 0, onSaved, musicSpec = null }: MidiEditorProps) {
   const { document, isLoading, error, notFound, reload } = useMidiEditorDocument(songId);
   const draft = useMidiEditorDraft(document);
   const viewport = useMidiViewport();
@@ -65,6 +72,10 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   const [conflict, setConflict] = useState<{ currentVersionId: string; baseVersionId: string } | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
+  const [showScale, setShowScale] = useState(true);
+  const [showChords, setShowChords] = useState(true);
+  const [showSections, setShowSections] = useState(true);
+  const [loadedContextRefreshKey, setLoadedContextRefreshKey] = useState(refreshKey);
   const dirtyRef = useRef(false);
   const editorRootRef = useRef<HTMLDivElement | null>(null);
   const editorActiveRef = useRef(false);
@@ -128,7 +139,10 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   useEffect(() => {
     if (refreshKey > 0) {
       stopPreview();
-      void reload();
+      void (async () => {
+        await reload();
+        setLoadedContextRefreshKey(refreshKey);
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey, stopPreview]);
@@ -187,14 +201,12 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   }, [trackDraftNotes]);
 
   const pitchRange = useMemo(
-    () =>
-      trackDraftNotes.length
+    () => selectedTrack?.isDrum
+      ? computeDrumPitchRange(trackDraftNotes)
+      : trackDraftNotes.length
         ? computePitchRange(trackDraftNotes)
-        : {
-            minPitch: selectedTrack?.channel === 9 ? 36 : 48,
-            maxPitch: selectedTrack?.channel === 9 ? 60 : 84,
-          },
-    [selectedTrack?.channel, trackDraftNotes],
+        : { minPitch: 48, maxPitch: 84 },
+    [selectedTrack?.isDrum, trackDraftNotes],
   );
 
   const isTrackLocked = selectedTrack ? lockedTrackIds.has(selectedTrack.id) : false;
@@ -218,6 +230,20 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   );
   const songMaxTick = playback.maxTick;
   const perBar = document ? ticksPerBar(document.ppq, meter) : 1;
+  const musicContext = useMemo(
+    () => document && musicSpec && document.songId === songId && loadedContextRefreshKey === refreshKey
+      ? buildMidiEditorMusicContext(musicSpec, document.ppq, meter, document.totalBars)
+      : null,
+    [document, loadedContextRefreshKey, meter, musicSpec, refreshKey, songId],
+  );
+  const selectedTrackRole = selectedTrack
+    ? musicContext?.trackRoles.get(selectedTrack.id) || selectedTrack.role
+    : null;
+  const overlapWarning = useMemo(
+    () => bassOverlapWarning(selectedTrackRole, trackDraftNotes),
+    [selectedTrackRole, trackDraftNotes],
+  );
+  const timelineMaxTick = Math.max(songMaxTick, musicContext?.totalTicks ?? 0);
 
   const handleVelocityCommit = (value: number) => {
     if (!selectedTrack || selectedNoteIds.size === 0 || isTrackLocked) return;
@@ -576,6 +602,45 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
             </select>
           </label>
 
+          {musicContext &&
+            (Boolean(musicContext.scale && !selectedTrack.isDrum) ||
+              musicContext.chords.length > 0 ||
+              musicContext.sections.length > 0) && (
+              <span className="midi-editor__semantic-controls" aria-label="Music context overlays">
+                {musicContext.scale && !selectedTrack.isDrum && (
+                  <button
+                    type="button"
+                    className="midi-editor__semantic-toggle"
+                    aria-pressed={showScale}
+                    onClick={() => setShowScale((value) => !value)}
+                    title={`Scale: ${musicContext.scale.label}`}
+                  >
+                    Scale {showScale ? "✓" : ""}
+                  </button>
+                )}
+                {musicContext.chords.length > 0 && (
+                  <button
+                    type="button"
+                    className="midi-editor__semantic-toggle"
+                    aria-pressed={showChords}
+                    onClick={() => setShowChords((value) => !value)}
+                  >
+                    Chords {showChords ? "✓" : ""}
+                  </button>
+                )}
+                {musicContext.sections.length > 0 && (
+                  <button
+                    type="button"
+                    className="midi-editor__semantic-toggle"
+                    aria-pressed={showSections}
+                    onClick={() => setShowSections((value) => !value)}
+                  >
+                    Sections {showSections ? "✓" : ""}
+                  </button>
+                )}
+              </span>
+            )}
+
           <span className="midi-editor__history">
             <ActionButton variant="ghost" onClick={() => draft.undo(selectedTrack.id)} disabled={!draft.canUndoTrack(selectedTrack.id)} title="撤销 (Ctrl+Z)">
               Undo
@@ -639,13 +704,17 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
               <TimelineHeader
                 ppq={document.ppq}
                 meter={meter}
-                maxTick={Math.max(songMaxTick, 0)}
+                maxTick={Math.max(timelineMaxTick, 0)}
                 pixelsPerTick={layout.pixelsPerTick}
                 currentTick={playback.currentTick}
                 loopEnabled={playback.loopEnabled}
                 loopStartTick={playback.loopStartTick}
                 loopEndTick={playback.loopEndTick}
                 onSeek={playback.seek}
+                sections={musicContext?.sections}
+                chords={musicContext?.chords}
+                showSections={showSections}
+                showChords={showChords}
               />
             </div>
           </div>
@@ -659,6 +728,7 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
                 minPitch={pitchRange.minPitch}
                 maxPitch={pitchRange.maxPitch}
                 rowHeight={layout.rowHeight}
+                isDrum={selectedTrack.isDrum}
               />
             </div>
             <div className="midi-editor__viewport-scroll">
@@ -686,6 +756,9 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
                 loopEnabled={playback.loopEnabled}
                 loopStartTick={playback.loopStartTick}
                 loopEndTick={playback.loopEndTick}
+                maxTimelineTick={timelineMaxTick}
+                pitchRange={pitchRange}
+                scale={showScale && !selectedTrack.isDrum ? musicContext?.scale : null}
                 layout={layout}
               />
             </div>
@@ -699,6 +772,7 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
           <span>Playhead: {Math.round(playback.currentTick)} tick</span>
           <span>Version: {document.versionId ?? "—"}</span>
           <span data-testid="selected-note-count">Selected: {selectedNoteIds.size}</span>
+          {musicContext?.scale && !selectedTrack.isDrum && <span>Scale: {musicContext.scale.label}</span>}
           {selectedNote && (
             <span className="midi-editor__selected-note">
               {midiPitchToNoteName(selectedNote.pitch)} ({selectedNote.pitch}) · bar{" "}
@@ -738,6 +812,12 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
         {selectionNotice && (
           <InlineNotice variant="warning" title="MIDI Selection">
             {selectionNotice}
+          </InlineNotice>
+        )}
+
+        {overlapWarning && (
+          <InlineNotice variant="warning" title="Bass overlap">
+            {overlapWarning}
           </InlineNotice>
         )}
 

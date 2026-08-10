@@ -14,6 +14,7 @@ import {
   tickToWidth,
   tickToX,
   ticksPerBar,
+  ticksPerMeterBeat,
   visibleBarCount,
 } from "./midiEditorLayout";
 
@@ -40,6 +41,9 @@ describe("coordinate helpers", () => {
   it("ticksPerBar respects time signature", () => {
     expect(ticksPerBar(480, { numerator: 4, denominator: 4 })).toBe(1920);
     expect(ticksPerBar(480, { numerator: 3, denominator: 4 })).toBe(1440);
+    expect(ticksPerBar(480, { numerator: 6, denominator: 8 })).toBe(1440);
+    expect(ticksPerBar(480, { numerator: 2, denominator: 2 })).toBe(1920);
+    expect(ticksPerMeterBeat(480, { numerator: 6, denominator: 8 })).toBe(240);
   });
 
   it("tickToBar is 1-based", () => {

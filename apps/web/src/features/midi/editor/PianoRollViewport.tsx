@@ -13,6 +13,7 @@ import {
   tickToWidth,
   tickToX,
   DEFAULT_LAYOUT,
+  ticksPerMeterBeat,
   ticksPerBar,
 } from "./midiEditorLayout";
 import type { SnapValue } from "./midiEditorGeometry";
@@ -30,6 +31,7 @@ import {
   type RectLike,
   type SelectionIntent,
 } from "./midiSelection";
+import { classifyScalePitch, type MidiEditorScaleContext } from "./midiEditorMusicContext";
 
 export interface PianoRollViewportProps {
   notes: MidiEditorNote[];
@@ -55,6 +57,9 @@ export interface PianoRollViewportProps {
   loopEnabled?: boolean;
   loopStartTick?: number;
   loopEndTick?: number;
+  maxTimelineTick?: number;
+  pitchRange?: { minPitch: number; maxPitch: number };
+  scale?: MidiEditorScaleContext | null;
   layout?: typeof DEFAULT_LAYOUT;
 }
 
@@ -136,9 +141,9 @@ const NoteLayer = memo(function NoteLayer({
 export function computeViewNotes(
   notes: MidiEditorNote[],
   layout: typeof DEFAULT_LAYOUT,
-  fallbackPitchRange?: { minPitch: number; maxPitch: number },
+  fixedPitchRange?: { minPitch: number; maxPitch: number },
 ): { viewNotes: ViewNote[]; minPitch: number; maxPitch: number; maxTick: number; height: number } {
-  const range = notes.length ? computePitchRange(notes) : fallbackPitchRange ?? { minPitch: 48, maxPitch: 84 };
+  const range = fixedPitchRange ?? (notes.length ? computePitchRange(notes) : { minPitch: 48, maxPitch: 84 });
   const { minPitch, maxPitch } = range;
   const maxTick = computeMaxTick(notes);
   const height = (maxPitch - minPitch + 1) * layout.rowHeight;
@@ -199,14 +204,18 @@ export function PianoRollViewport({
   loopEnabled = false,
   loopStartTick = 0,
   loopEndTick = 0,
+  maxTimelineTick = 0,
+  pitchRange,
+  scale = null,
   layout = DEFAULT_LAYOUT,
 }: PianoRollViewportProps) {
   const { viewNotes, minPitch, maxPitch, maxTick, height } = useMemo(
-    () => computeViewNotes(notes, layout),
-    [notes, layout],
+    () => computeViewNotes(notes, layout, pitchRange),
+    [notes, layout, pitchRange],
   );
   const perBar = ticksPerBar(ppq, meter);
-  const bars = Math.max(4, Math.ceil((Math.max(maxTick, currentTick, loopEndTick) + 1) / perBar));
+  const beatUnit = ticksPerMeterBeat(ppq, meter);
+  const bars = Math.max(4, Math.ceil(Math.max(maxTick, currentTick, loopEndTick, maxTimelineTick) / perBar));
   const width = Math.max(1, bars * perBar * layout.pixelsPerTick);
   const [selectionBox, setSelectionBox] = useState<RectLike | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -494,23 +503,36 @@ export function PianoRollViewport({
           {Array.from({ length: bars * meter.numerator }, (_, index) => (
             <line
               key={`beat-${index}`}
-              x1={index * ppq * layout.pixelsPerTick}
+              x1={index * beatUnit * layout.pixelsPerTick}
               y1={0}
-              x2={index * ppq * layout.pixelsPerTick}
+              x2={index * beatUnit * layout.pixelsPerTick}
               y2={height}
               stroke="rgba(255,255,255,0.05)"
             />
           ))}
           {Array.from({ length: maxPitch - minPitch + 1 }, (_, index) => {
             const pitch = maxPitch - index;
+            const scaleKind = scale ? classifyScalePitch(pitch, scale) : null;
+            const fill = scaleKind === "root"
+              ? "rgba(129,140,248,0.18)"
+              : scaleKind === "in-scale"
+                ? "rgba(129,140,248,0.075)"
+                : scaleKind === "out-of-scale"
+                  ? "rgba(15,23,42,0.22)"
+                  : pitch % 12 === 0
+                    ? "rgba(108,140,255,0.06)"
+                    : "transparent";
             return (
               <rect
                 key={`row-${pitch}`}
+                className={`midi-editor__pitch-row${scaleKind ? ` is-${scaleKind}` : ""}`}
+                data-midi-pitch={pitch}
+                data-scale-kind={scaleKind ?? undefined}
                 x={0}
                 y={index * layout.rowHeight}
                 width={width}
                 height={layout.rowHeight}
-                fill={pitch % 12 === 0 ? "rgba(108,140,255,0.06)" : "transparent"}
+                fill={fill}
               />
             );
           })}

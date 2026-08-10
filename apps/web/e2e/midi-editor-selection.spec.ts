@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const API = "http://127.0.0.1:8000/api/v1";
+const API = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 
 type NoteTitle = { name: string; start: number; duration: number };
 
@@ -47,12 +47,16 @@ test("T34.8 real Bass selection, clipboard, lock, preview and one-save boundary"
   expect(initialNoteCount).toBeGreaterThan(10);
 
   const grid = editor.locator(".midi-editor__grid");
+  await grid.scrollIntoViewIfNeeded();
   await grid.evaluate((element) => {
-    element.scrollLeft = 0;
-    element.scrollTop = 0;
+    const targets = Array.from(element.querySelectorAll<SVGGElement>("[data-note-id]")).slice(3, 6);
+    const boxes = targets.map((target) => target.getBBox());
+    element.scrollLeft = Math.max(0, Math.min(...boxes.map((box) => box.x)) - 24);
+    element.scrollTop = Math.max(0, Math.min(...boxes.map((box) => box.y)) - 24);
   });
+  await grid.scrollIntoViewIfNeeded();
   const firstThree = editor.locator("[data-note-id]");
-  const boxes = await Promise.all([0, 1, 2].map((index) => firstThree.nth(index).boundingBox()));
+  const boxes = await Promise.all([3, 4, 5].map((index) => firstThree.nth(index).boundingBox()));
   const visibleBoxes = boxes.filter((box): box is NonNullable<typeof box> => box != null);
   expect(visibleBoxes).toHaveLength(3);
   const gridBox = await grid.boundingBox();
@@ -72,7 +76,23 @@ test("T34.8 real Bass selection, clipboard, lock, preview and one-save boundary"
   await expect(editor.getByTestId("selected-note-count")).toHaveText(`Selected: ${groupSize}`);
 
   const titlesBefore = (await selected.locator("title").allTextContents()).map(parseTitle);
-  const anchorBox = await selected.first().boundingBox();
+  const visibleGridBox = await grid.boundingBox();
+  let anchorBox = null as Awaited<ReturnType<typeof selected.boundingBox>>;
+  let anchorIndex = -1;
+  for (let index = 0; index < groupSize; index += 1) {
+    const candidate = await selected.nth(index).boundingBox();
+    if (
+      candidate && visibleGridBox &&
+      candidate.x + 8 >= visibleGridBox.x &&
+      candidate.x + 8 <= visibleGridBox.x + visibleGridBox.width &&
+      candidate.y + candidate.height / 2 >= visibleGridBox.y &&
+      candidate.y + candidate.height / 2 <= visibleGridBox.y + visibleGridBox.height
+    ) {
+      anchorBox = candidate;
+      anchorIndex = index;
+      break;
+    }
+  }
   expect(anchorBox).not.toBeNull();
   await page.mouse.move(anchorBox!.x + 8, anchorBox!.y + anchorBox!.height / 2);
   await page.mouse.down();
@@ -81,7 +101,8 @@ test("T34.8 real Bass selection, clipboard, lock, preview and one-save boundary"
   const titlesMoved = (await selected.locator("title").allTextContents()).map(parseTitle);
   const tickDelta = titlesMoved[0].start - titlesBefore[0].start;
   expect(tickDelta).not.toBe(0);
-  expect(titlesMoved[0].start % 120).toBe(0);
+  expect(anchorIndex).toBeGreaterThanOrEqual(0);
+  expect(titlesMoved[anchorIndex].start % 120).toBe(0);
   expect(titlesMoved.map((note, index) => note.start - titlesBefore[index].start)).toEqual(
     Array(groupSize).fill(tickDelta),
   );

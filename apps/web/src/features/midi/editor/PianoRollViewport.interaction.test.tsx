@@ -96,6 +96,23 @@ describe("PianoRollViewport interaction", () => {
     expect(note.channel).toBe(0);
   });
 
+  it("drum semantic rows keep canonical MIDI pitch when adding", () => {
+    const add = vi.fn();
+    render(
+      <PianoRollViewport
+        {...baseProps}
+        notes={[]}
+        channel={9}
+        isDrum
+        pitchRange={{ minPitch: 36, maxPitch: 51 }}
+        onAddNote={add}
+      />,
+    );
+    const grid = document.querySelector(".midi-editor__grid")!;
+    fireEvent.doubleClick(grid, { clientX: 10, clientY: (51 - 38) * 12 + 1 });
+    expect(add).toHaveBeenCalledWith(expect.objectContaining({ pitch: 38, channel: 9 }));
+  });
+
   it("Ctrl/Cmd click toggles a note and Shift click appends", () => {
     const select = vi.fn();
     render(

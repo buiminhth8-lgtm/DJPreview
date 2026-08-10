@@ -3,6 +3,8 @@
 
 import type { MeterInfo } from "./midiEditorLayout";
 import { ticksPerBar, visibleBarCount } from "./midiEditorLayout";
+import { MusicTimelineOverlay } from "./MusicTimelineOverlay";
+import type { MidiEditorChordMarker, MidiEditorSectionMarker } from "./midiEditorMusicContext";
 
 export interface TimelineHeaderProps {
   ppq: number;
@@ -14,6 +16,10 @@ export interface TimelineHeaderProps {
   loopStartTick?: number;
   loopEndTick?: number;
   onSeek?: (tick: number) => void;
+  sections?: readonly MidiEditorSectionMarker[];
+  chords?: readonly MidiEditorChordMarker[];
+  showSections?: boolean;
+  showChords?: boolean;
 }
 
 export function TimelineHeader({
@@ -26,6 +32,10 @@ export function TimelineHeader({
   loopStartTick = 0,
   loopEndTick = 0,
   onSeek,
+  sections = [],
+  chords = [],
+  showSections = false,
+  showChords = false,
 }: TimelineHeaderProps) {
   const perBar = ticksPerBar(ppq, meter);
   const bars = visibleBarCount(Math.max(maxTick, currentTick, loopEndTick), ppq, meter);
@@ -50,25 +60,35 @@ export function TimelineHeader({
       aria-valuenow={Math.round(currentTick)}
       tabIndex={0}
     >
-      {loopEnabled && loopEndTick > loopStartTick && (
-        <div
-          className="midi-editor__loop-region"
-          data-testid="timeline-loop-region"
-          style={{
-            left: loopStartTick * pixelsPerTick,
-            width: (loopEndTick - loopStartTick) * pixelsPerTick,
-          }}
-        />
-      )}
-      {Array.from({ length: bars }, (_, i) => (
-        <div
-          key={i}
-          className="midi-editor__bar"
-          style={{ left: i * perBar * pixelsPerTick }}
-        >
-          <span className="midi-editor__bar-label">{i + 1}</span>
-        </div>
-      ))}
+      <MusicTimelineOverlay
+        sections={sections}
+        chords={chords}
+        pixelsPerTick={pixelsPerTick}
+        showSections={showSections}
+        showChords={showChords}
+        onSeek={onSeek}
+      />
+      <div className="midi-editor__timeline-bars">
+        {loopEnabled && loopEndTick > loopStartTick && (
+          <div
+            className="midi-editor__loop-region"
+            data-testid="timeline-loop-region"
+            style={{
+              left: loopStartTick * pixelsPerTick,
+              width: (loopEndTick - loopStartTick) * pixelsPerTick,
+            }}
+          />
+        )}
+        {Array.from({ length: bars }, (_, i) => (
+          <div
+            key={i}
+            className="midi-editor__bar"
+            style={{ left: i * perBar * pixelsPerTick }}
+          >
+            <span className="midi-editor__bar-label">{i + 1}</span>
+          </div>
+        ))}
+      </div>
       <div
         className="midi-editor__timeline-playhead"
         data-testid="timeline-playhead"

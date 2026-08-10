@@ -6,6 +6,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { MidiEditor } from "./MidiEditor";
 import type { MidiEditorDocument } from "./midiEditorTypes";
+import type { MusicSpec } from "../../../api/types";
 
 const docBass: MidiEditorDocument = {
   songId: "song-1",
@@ -50,6 +51,36 @@ const docBass: MidiEditorDocument = {
     },
   ],
 };
+
+function musicSpec(key = "C"): MusicSpec {
+  return {
+    version: "0.1",
+    title: `${key} project`,
+    seed: 1,
+    language: "zh-CN",
+    prompt: "test",
+    tempo: { bpm: 120, feel: null },
+    meter: { numerator: 4, denominator: 4 },
+    tonality: { key, mode: "major", scale: null },
+    length: { bars: 8 },
+    style: [],
+    mood: [],
+    form: [
+      { id: "intro", name: "Intro", start_bar: 1, bars: 2, energy: 0.3 },
+      { id: "verse", name: "Verse", start_bar: 3, bars: 6, energy: 0.7 },
+    ],
+    harmony: [
+      { section: "intro", progression: [key] },
+      { section: "verse", progression: [key, "G"] },
+    ],
+    tracks: [
+      { id: "melody", role: "melody", instrument: "piano", pattern: null, register: null, velocity: 90, enabled_sections: null },
+      { id: "bass", role: "bass", instrument: "electric_bass_finger", pattern: null, register: "low", velocity: 90, enabled_sections: null },
+      { id: "drums", role: "drums", instrument: "standard_drum_kit", pattern: null, register: null, velocity: 100, enabled_sections: null },
+    ],
+    notes: null,
+  };
+}
 
 let mockDocument: MidiEditorDocument | null = docBass;
 let mockIsLoading = false;
@@ -98,6 +129,9 @@ describe("MidiEditor", () => {
     fireEvent.click(trackList().getByRole("option", { name: /drums/ }));
     expect(trackList().getByRole("option", { selected: true })).toHaveTextContent(/drums/);
     expect(screen.getByText(/Track: drums/)).toBeInTheDocument();
+    for (const label of ["Kick", "Snare", "Closed Hat", "Open Hat", "Crash", "Ride"]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
   });
 
   it("notes render with canonical note.id as data attribute", () => {
@@ -147,5 +181,66 @@ describe("MidiEditor", () => {
     rerender(<MidiEditor songId="song-2" />);
     expect(screen.getByTestId("selected-note-count")).toHaveTextContent("Selected: 0");
     mockDocument = docBass;
+  });
+
+  it("renders session-only semantic toggles without crossing the manual MIDI edit boundary", () => {
+    const source = musicSpec();
+    const before = JSON.stringify(source);
+    render(<MidiEditor songId="song-1" musicSpec={source} />);
+    expect(screen.getByRole("button", { name: "Scale ✓" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Chords ✓" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Sections ✓" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("section-overlay")).toBeInTheDocument();
+    expect(screen.getByTestId("chord-overlay")).toBeInTheDocument();
+    expect(document.querySelector('.midi-editor__pitch-row[data-midi-pitch="72"]')).toHaveAttribute("data-scale-kind", "root");
+    fireEvent.click(screen.getByRole("button", { name: "Scale ✓" }));
+    expect(screen.getByRole("button", { name: "Scale" })).toHaveAttribute("aria-pressed", "false");
+    expect(document.querySelector('.midi-editor__pitch-row[data-midi-pitch="72"]')).not.toHaveAttribute("data-scale-kind");
+    expect(screen.getByRole("button", { name: "保存 MIDI 修改" })).toBeDisabled();
+    expect(JSON.stringify(source)).toBe(before);
+  });
+
+  it("replaces project/version music context without leaking the previous key", () => {
+    const { rerender } = render(<MidiEditor songId="song-1" musicSpec={musicSpec("C")} />);
+    expect(document.querySelector('.midi-editor__pitch-row[data-midi-pitch="72"]')).toHaveAttribute("data-scale-kind", "root");
+    mockDocument = { ...docBass, songId: "song-2", versionId: "v5" };
+    rerender(<MidiEditor songId="song-2" musicSpec={musicSpec("D")} />);
+    expect(screen.getByText("Scale: D major")).toBeInTheDocument();
+    expect(document.querySelector('.midi-editor__pitch-row[data-midi-pitch="72"]')).toHaveAttribute("data-scale-kind", "out-of-scale");
+    mockDocument = docBass;
+  });
+
+  it("rebuilds semantic context after restore/regenerate refresh", async () => {
+    const { rerender } = render(<MidiEditor songId="song-1" refreshKey={0} musicSpec={musicSpec("C")} />);
+    expect(screen.getByText("Scale: C major")).toBeInTheDocument();
+    mockDocument = { ...docBass, versionId: "v6" };
+    rerender(<MidiEditor songId="song-1" refreshKey={1} musicSpec={musicSpec("D")} />);
+    expect(await screen.findByText("Scale: D major")).toBeInTheDocument();
+    expect(screen.queryByText("Scale: C major")).toBeNull();
+    mockDocument = docBass;
+  });
+
+  it("shows overlap guidance only on the canonical Bass role", () => {
+    mockDocument = {
+      ...docBass,
+      tracks: docBass.tracks.map((track) => track.id === "bass"
+        ? { ...track, notes: [
+            { id: "b1", pitch: 40, startTick: 0, durationTick: 600, velocity: 110, channel: 2 },
+            { id: "b2", pitch: 43, startTick: 480, durationTick: 360, velocity: 95, channel: 2 },
+          ] }
+        : track),
+    };
+    render(<MidiEditor songId="song-1" musicSpec={musicSpec()} />);
+    expect(screen.queryByText(/低频浑浊/)).toBeNull();
+    fireEvent.click(trackList().getByRole("option", { name: /bass/ }));
+    expect(screen.getByText(/低频浑浊/)).toBeInTheDocument();
+    fireEvent.click(trackList().getByRole("option", { name: /melody/ }));
+    expect(screen.queryByText(/低频浑浊/)).toBeNull();
+    mockDocument = docBass;
+  });
+
+  it("hides unavailable music context features", () => {
+    render(<MidiEditor songId="song-1" />);
+    expect(screen.queryByLabelText("Music context overlays")).toBeNull();
   });
 });

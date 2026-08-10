@@ -202,6 +202,7 @@ export default function WorkspaceDashboard({
         {/* Piano Roll */}
         <PianoRollPanel
           songId={songId}
+          musicSpec={spec}
           hasMidi={Boolean(audioAssets.assets?.has_midi) || Boolean(audioAssets.midiResult)}
           hasMusicSpec={Boolean(spec)}
           isGeneratingMidi={audioAssets.loadingMidi}

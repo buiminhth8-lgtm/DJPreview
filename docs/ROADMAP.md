@@ -599,5 +599,13 @@
     selection span 偏移。Lock 允许 Select/Box/Copy/Preview，阻止 mutation。
   - 验证：Vitest 126 passed；build 139 modules；后端 MIDI/Version 边界 40 passed；真实 Chromium Bass
     全链路 1 passed（Copy/Paste/Duplicate/Preview/单次 Save/Version+1/WAV stale）。
-- T34.9 next：Drum semantic rows / note names、Velocity Lane 等编辑可视化增强；复用 T34.8 Selection/
-  Draft/History/Viewport，不引入跨轨多选。
+- T34.9 completed：AI-aware Piano Roll。
+  - 从真实 MusicSpec + MidiEditorDocument 派生只读 context；Scale root/in/out highlighting 兼容
+    major/minor 与 c-major/d-natural-minor 等现有 vocabulary。
+  - Chord progression 按 Composer 的一小节一个和弦规则映射 canonical tick；Section marker 使用
+    1-based start_bar/bars，修正 denominator 以支持 6/8、2/2；三类 overlay session toggle。
+  - 鼓轨展示 canonical GM 36–51 语义行且不改 pitch；Bass role 使用 O(n log n) overlap warning，只提示。
+  - Project/Version/Restore/Regenerate 无旧 context 泄漏；不改 MusicSpec、Draft/History、Version、WAV 或 renderer。
+  - 验证：Vitest 145 passed；build 141 modules；后端边界 56 passed；真实 Chromium T34.9 A/B smoke
+    1 passed，T34.8 Bass selection/Preview/Save 回归 1 passed。
+- T34.10 next：Final Regression（长曲目/大规模 SVG 性能预算 + MIDI/Version/Preview/Render 全链路关闭验收）。

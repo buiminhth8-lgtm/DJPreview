@@ -257,9 +257,52 @@
 
 .midi-editor__timeline {
   position: relative;
-  height: 28px;
+  min-height: 28px;
   cursor: pointer;
   user-select: none;
+}
+
+.midi-editor__timeline-bars {
+  position: relative;
+  height: 28px;
+}
+
+.midi-editor__semantic-row {
+  position: relative;
+  height: 22px;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.midi-editor__section-marker,
+.midi-editor__chord-marker {
+  position: absolute;
+  inset-block: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 2px 6px;
+  color: #e2e8f0;
+  font-size: 0.68rem;
+  text-align: left;
+}
+
+.midi-editor__section-marker {
+  background: rgba(14, 165, 233, 0.28);
+  cursor: pointer;
+}
+
+.midi-editor__section-marker:hover,
+.midi-editor__section-marker:focus-visible {
+  background: rgba(14, 165, 233, 0.46);
+}
+
+.midi-editor__chord-marker {
+  background: rgba(168, 85, 247, 0.2);
+  color: #e9d5ff;
+  pointer-events: none;
 }
 
 .midi-editor__loop-region {
@@ -301,13 +344,15 @@
 }
 
 .midi-editor__keyboard-scroll {
-  flex: 0 0 auto;
+  flex: 0 0 92px;
+  width: 92px;
   overflow-y: auto;
+  max-height: 420px;
   border-right: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.1));
 }
 
 .midi-editor__keyboard {
-  width: 56px;
+  width: 100%;
 }
 
 .midi-editor__key {
@@ -320,12 +365,25 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.midi-editor__key.is-drum {
+  background: rgba(255, 255, 255, 0.035);
+}
+
 .midi-editor__key-label {
   position: absolute;
   right: 4px;
   top: -1px;
   font-size: 0.6rem;
   color: var(--workspace-text-dim, #94a3b8);
+}
+
+.midi-editor__key-label.is-semantic {
+  left: 5px;
+  right: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #cbd5e1;
 }
 
 .midi-editor__viewport-scroll {
@@ -411,7 +469,8 @@
 }
 
 @media (max-width: 768px) {
-  .midi-editor__grid {
+  .midi-editor__grid,
+  .midi-editor__keyboard-scroll {
     max-height: 320px;
   }
 }
@@ -472,6 +531,28 @@
 .midi-editor__toolbar-hint {
   font-size: 0.78rem;
   color: var(--workspace-text-dim, #64748b);
+}
+
+.midi-editor__semantic-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.midi-editor__semantic-toggle {
+  padding: 5px 9px;
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 999px;
+  background: rgba(129, 140, 248, 0.08);
+  color: var(--workspace-text-dim, #cbd5e1);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.midi-editor__semantic-toggle[aria-pressed="true"] {
+  border-color: rgba(129, 140, 248, 0.72);
+  background: rgba(129, 140, 248, 0.2);
+  color: #eef2ff;
 }
 
 .midi-editor__note-group.is-selected .midi-editor__note {

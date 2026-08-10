@@ -33,6 +33,8 @@ export function useMidiEditorDocument(songId: string | undefined | null): UseMid
     }
     const controller = new AbortController();
     abortRef.current = controller;
+    // Never keep project A's document visible while project B is loading.
+    setDocument((current) => current?.songId === songId ? current : null);
     setIsLoading(true);
     setError(null);
     setNotFound(false);

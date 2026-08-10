@@ -155,8 +155,15 @@
   clamp；Paste 对齐 snapped playhead、生成新 temp IDs、强制目标 channel，拒绝 drum↔pitched 不安全粘贴。
   Locked Track 允许 Select/Box/Copy/Zoom/Pan/Preview，阻止所有 Note mutation。100/500-note 性能路径
   使用 Set/Map 单次扫描。验证：Vitest 126 passed；build 139 modules；后端边界 40 passed；真实 Chromium
-  Bass 全流程 1 passed（Preview 最新 Draft、Save 只请求一次、Version +1、WAV stale）。T34.9 next：
-  Drum semantic rows / note names 与 Velocity Lane 等可视化增强。
+  Bass 全流程 1 passed（Preview 最新 Draft、Save 只请求一次、Version +1、WAV stale）。
+- T34.9 completed：AI-aware Piano Roll。新增直接派生自真实 MusicSpec 的只读
+  `MidiEditorMusicContext`；Scale root/in/out highlighting（兼容 c-major/d-natural-minor 等真实词汇）、
+  一小节一个和弦的 tick overlay、1-based section markers 与非 4/4 映射、Scale/Chords/Sections session
+  toggles。鼓轨使用 canonical GM 36–51 semantic rows（Kick/Snare/Hat/Crash/Ride 等）且保持原 pitch；
+  canonical Bass role 增加 O(n log n) overlap guidance，只提示不修复。Project/Version/Restore/Regenerate
+  context 隔离，不进入 Draft/History/Save/Version/WAV/renderer。验证：Vitest 145 passed；build 141 modules；
+  后端边界 56 passed；真实 Chromium T34.9 A/B 语义隔离 1 passed + T34.8 全链路回归 1 passed。
+  T34.10 next：Final Regression / 长曲目与大规模 SVG 性能关闭验收。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
@@ -430,7 +437,7 @@
 
 ## Next Recommended Tasks（推荐下一步）
 
-1. 文档 / 测试分层：拆分慢速集成测试，缩短全量回归时间。
+1. T34.10 Final Regression：长曲目/大规模 SVG 性能预算、完整 MIDI/Version/Preview/Render 回归与文档关闭。
 2. Playwright 前端演示测试：从 prompt 到播放 / 编辑 / 版本 / 混音 / 导出的端到端覆盖。
 3. 生产级任务队列：Redis / Celery 替换进程内队列，支持多实例与任务恢复。
 4. 音乐质量与音色：真实 SoundFont 渲染体验优化、弦乐分部细化。
@@ -439,4 +446,4 @@
 
 ## 最近一次状态更新时间
 
-2026-08-06
+2026-08-10
