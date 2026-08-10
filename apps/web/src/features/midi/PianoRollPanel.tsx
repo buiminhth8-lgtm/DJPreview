@@ -1,9 +1,9 @@
 // PianoRollPanel：Piano Roll（常驻）。
-// 无 MIDI / songId 时 Empty State，绝不请求 piano-roll endpoint；
-// 有 MIDI 时才挂载真实 PianoRoll 组件。
+// 无 MIDI / songId 时 Empty State（保留生成 MIDI 入口），绝不请求；
+// 有 MIDI 时挂载新的只读 MIDI Editor（T34.3：轨道选择 + 音符查看）。
 
 import { ActionButton, ButtonRow, EmptyState, SectionCard } from "../../components/ui";
-import PianoRoll from "./PianoRoll";
+import { MidiEditor } from "./editor/MidiEditor";
 
 export interface PianoRollPanelProps {
   songId?: string | null;
@@ -23,7 +23,6 @@ export function PianoRollPanel({
   isGeneratingMidi = false,
   refreshKey = 0,
   onGenerateMidi,
-  onError,
 }: PianoRollPanelProps) {
   const canLoadRoll = Boolean(songId) && hasMidi;
 
@@ -53,7 +52,7 @@ export function PianoRollPanel({
   } else {
     body = (
       <div className="workspace-piano-roll">
-        <PianoRoll songId={songId!} refreshKey={refreshKey} onError={onError ?? (() => undefined)} />
+        <MidiEditor songId={songId} refreshKey={refreshKey} />
       </div>
     );
   }

@@ -185,3 +185,186 @@
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* ---------- MIDI Editor（T34.3） ---------- */
+.midi-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap-md, 16px);
+}
+
+.midi-editor__tracks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--workspace-gap-sm, 10px);
+}
+
+.midi-editor__track {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.14));
+  border-radius: var(--workspace-radius-sm, 8px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.05));
+  color: var(--workspace-text, #f8fafc);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.midi-editor__track:hover {
+  background: var(--workspace-surface-hover, rgba(255, 255, 255, 0.09));
+}
+
+.midi-editor__track.is-selected {
+  border-color: var(--workspace-primary, #818cf8);
+  background: var(--workspace-primary-soft, rgba(129, 140, 248, 0.16));
+}
+
+.midi-editor__track-role {
+  color: var(--workspace-text-dim, #94a3b8);
+}
+
+.midi-editor__track-count {
+  color: var(--workspace-text-dim, #64748b);
+  font-size: 0.75rem;
+}
+
+.midi-editor__board {
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--workspace-radius-sm, 8px);
+  overflow: hidden;
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.03));
+}
+
+.midi-editor__timeline-row {
+  display: flex;
+  border-bottom: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.1));
+}
+
+.midi-editor__timeline-spacer {
+  flex: 0 0 auto;
+  border-right: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.1));
+}
+
+.midi-editor__timeline-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  min-width: 0;
+}
+
+.midi-editor__timeline {
+  position: relative;
+  height: 28px;
+}
+
+.midi-editor__bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.midi-editor__bar-label {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-size: 0.72rem;
+  color: var(--workspace-text-dim, #94a3b8);
+}
+
+.midi-editor__roll-row {
+  display: flex;
+}
+
+.midi-editor__keyboard-scroll {
+  flex: 0 0 auto;
+  overflow-y: auto;
+  border-right: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.1));
+}
+
+.midi-editor__keyboard {
+  width: 56px;
+}
+
+.midi-editor__key {
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.midi-editor__key.is-black {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.midi-editor__key-label {
+  position: absolute;
+  right: 4px;
+  top: -1px;
+  font-size: 0.6rem;
+  color: var(--workspace-text-dim, #94a3b8);
+}
+
+.midi-editor__viewport-scroll {
+  overflow: auto;
+  flex: 1;
+  min-width: 0;
+  max-height: 420px;
+}
+
+.midi-editor__roll {
+  display: block;
+}
+
+.midi-editor__note {
+  fill: #6c8cff;
+  opacity: 0.9;
+  cursor: pointer;
+}
+
+.midi-editor__note:hover {
+  fill: #8ea4ff;
+}
+
+.midi-editor__note.is-selected {
+  fill: #22d3ee;
+  stroke: #ffffff;
+  stroke-width: 1;
+}
+
+.midi-editor__empty-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--workspace-text-dim, #94a3b8);
+  font-size: 0.9rem;
+}
+
+.midi-editor__meta {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  color: var(--workspace-text-dim, #64748b);
+  border-top: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.08));
+}
+
+.midi-editor__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: var(--workspace-text-dim, #cbd5e1);
+}
+
+.midi-editor__selected-note {
+  color: var(--workspace-primary, #818cf8);
+}
+
+@media (max-width: 768px) {
+  .midi-editor__viewport-scroll {
+    max-height: 320px;
+  }
+}

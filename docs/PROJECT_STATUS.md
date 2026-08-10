@@ -87,8 +87,20 @@
   deterministic（T34.1 §8 要求跨读取稳定）。测试：后端 `test_midi_editor_api.py` 11 passed、
   MIDI/version 回归 31 passed；前端 Vitest 23 passed（含 5 个 editor 测试）；npm build 通过。
   真实 composer MIDI smoke：5 tracks（melody/harmony/bass/drums/pad）、drums ch9、tick 正确、
-  track/note ID 跨读取稳定（1241 notes）。现有 PianoRoll 未改动。T34.2 next（Save API +
+  track/note   ID 跨读取稳定（1241 notes）。现有 PianoRoll 未改动。T34.2 next（Save API +
   Version Integration）。
+- T34.3 completed：MIDI Editor Shell + Track Selector + Read-only Piano Roll。新增
+  `features/midi/editor/`：`MidiEditor.tsx`（顶层组合 + 默认轨道规则 + 空/loading/error）、
+  `TrackSelector.tsx`（canonical track.id + role 辅助 + notes 计数）、`TimelineHeader.tsx`
+  （bar 编号，PPQ+meter）、`PianoKeyboard.tsx`（C/octave 标注）、`PianoRollViewport.tsx`
+  （tick→x / pitch→y / note.id key / 点击高亮）、`midiEditorLayout.ts`（纯函数坐标/PPQ）。
+  `PianoRollPanel` 在 hasMidi 时挂载 MidiEditor（保留无 MIDI EmptyState + 生成按钮），
+  旧 `PianoRoll.tsx` 不再被引用。默认轨道 = 第一个有 Notes 的轨道；切换本地 O(1)；
+  songId/refreshKey 变化 reload + 重选轨道 + 清空选择；无 MIDI → EmptyState、loading/error
+  正确处理；空轨道可选择；不实现编辑/缩放/undo。测试：Vitest 44 passed（含 13 个新 editor/
+  坐标测试：4/4 与 3/4、tick→px、pitch→row、默认选择、轨道切换、空轨、note.id、songId 隔离）；
+  npm build 通过（133 modules）。真实电子工程 smoke：5 tracks、bass pitch 36-52、drums ch9、
+  bass 114 notes 定位正确。T34.4 next（Note CRUD + Snap）。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

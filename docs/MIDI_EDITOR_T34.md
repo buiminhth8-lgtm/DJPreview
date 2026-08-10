@@ -616,3 +616,90 @@ pm test：23 passed（含 5 个新 editor 测试）
 - 后端：	est_midi_editor_api.py 11 passed；MIDI/version 回归 31 passed
 - 真实 composer MIDI smoke：5 tracks（melody/harmony/bass/drums/pad），drums ch9 is_drum，
   tick 语义正确；track/note ID 跨两次读取稳定（1241 notes）
+
+---
+
+## 31. T34.3 Editor Shell（Completed）
+
+### 31.1 Workspace integration
+
+- /projects/:songId → WorkspaceDashboard 的 Piano Roll 区（PianoRollPanel）。
+- PianoRollPanel 保留「无 MIDI → EmptyState + 生成 MIDI 按钮」逻辑；当 hasMidi 为真时，
+  渲染新的只读 MidiEditor（替代旧 PianoRoll）。
+- 数据流：PianoRollPanel → MidiEditor → useMidiEditorDocument(songId) → getMidiEditorDocument
+  （T34.1 Read API）。
+
+### 31.2 Component structure（features/midi/editor/）
+
+`	ext
+MidiEditor.tsx           # 顶层组合：selector + timeline + keyboard + viewport + footer
+TrackSelector.tsx        # 轨道选择（canonical track.id，role 辅助显示，notes 计数）
+TimelineHeader.tsx       # bar 编号（PPQ + time signature）
+PianoKeyboard.tsx        # 左侧琴键（只标 C/octave）
+PianoRollViewport.tsx    # 只读音符视图（tick→x, pitch→y, note.id key, 点击高亮）
+midiEditorLayout.ts      # 纯函数：tickToX/tickToWidth/pitchToRow/ticksPerBar/...
+`
+
+### 31.3 Track selection semantics
+
+- **默认轨道规则（确定性）**：若 selectedTrackId 仍存在于当前 document → 保持；否则选择
+  **第一个有 Notes 的轨道**；若全部为空 → 第一个轨道。
+- **切换**：仅更新本地 selectedTrackId state（O(1)），不重新 fetch document。
+- songId / document 变化 → 清空 selectedNoteId + 按规则重选轨道。
+
+### 31.4 Read-only Piano Roll
+
+- X = startTick * pixelsPerTick；宽度 = durationTick * pixelsPerTick（canonical tick 不变）。
+- Y = pitchToRow(pitch, maxPitch) * rowHeight（higher pitch 在上方；由 pitch 决定，非数组序）。
+- 初始 fit：按当前 Track notes 计算 computePitchRange（min/max + 25% padding）+ computeMaxTick。
+- React key / data-note-id = **note.id**（canonical）。
+- 点击 note → 单选高亮 + footer 显示 pitch/bar/beat/velocity（只读，非编辑）。
+- 空 Track 可选择并显示「当前轨道没有音符」。
+
+### 31.5 PPQ / meter
+
+- 全部经 midiEditorLayout.ts 纯函数：	icksPerBar = numerator * ppq（4/4 → 1920；3/4 → 1440），
+  	ickToBar 1-based，isibleBarCount 至少 4 小节。
+- time signature 来自 document（缺省 [4,4]）。
+
+### 31.6 Empty / loading / error
+
+- 无 MIDI（
+otFound）→ EmptyState「尚未生成 MIDI，生成 MIDI 后即可查看各轨道」。
+- loading → LoadingState；error → ErrorState + 重新加载；songId 变化旧数据立即失效（hook abort）。
+
+### 31.7 Version / regenerate refresh
+
+- efreshKey 变化（MIDI 重新生成 / 版本恢复）→ eload() 重新加载 document，并按新 document
+  重选轨道、清空 note 选择。未使用 window.reload。
+
+### 31.8 Old Piano Roll treatment
+
+- 旧 eatures/midi/PianoRoll.tsx 不再被 PianoRollPanel 引用（T34.1 后保留文件；
+  待 T34.6+ 确认无引用后删除）。旧 piano-roll endpoint 仍保留供其他只读用途。
+
+### 31.9 Drum display
+
+- drums 轨道正常显示 Notes（channel 9 / is_drum 正确）；pitch 行显示（36→Kick 等语义 UI 留 T34.9）。
+
+### 31.10 Known limitations
+
+- 无缩放/平移（T34.5）；无编辑/undo（T34.4/34.6）；无 preview（T34.7）。
+- selectedTrackId 为本地 state（不写 URL / project）。
+
+### 31.11 Files
+
+- 新增：eatures/midi/editor/{MidiEditor,TrackSelector,TimelineHeader,PianoKeyboard,PianoRollViewport,midiEditorLayout}.tsx/ts、
+  MidiEditor.test.tsx、PianoRollViewport.test.tsx、midiEditorLayout.test.ts
+- 修改：eatures/midi/PianoRollPanel.tsx（挂载 MidiEditor）、
+  eatures/midi/editor/index.ts、styles/workspace-structure.css（editor 样式）
+- 未改：后端、Composer、MIDI writer、Version、FluidSynth、MusicSpec。
+
+### 31.12 Verification
+
+- 
+pm test：44 passed（含 13 个新 editor/坐标测试）
+- 
+pm run build：PASS（133 modules）
+- 真实电子工程 smoke：5 tracks（melody/piano/bass/drums/pad），bass pitch 36-52（E1-G2），
+  drums ch9 is_drum，bass 114 notes tick 定位正确；dev server 路由 200

@@ -555,3 +555,10 @@
   - 验证：后端 11 passed + MIDI/version 回归 31 passed；Vitest 23 passed；npm build 通过；
     真实 composer MIDI 5 tracks（含 drums ch9）读取正确、ID 跨读取稳定。现有 PianoRoll 未改动。
 - T34.2 next：Save API + Version Integration（POST /midi/edit + MIDI 写回 + vN+1 + 409 conflict）。
+- T34.3 completed：MIDI Editor Shell + Track Selector + Read-only Piano Roll。
+  - features/midi/editor/：MidiEditor（组合 + 默认轨道规则 + 空/loading/error）、TrackSelector、
+    TimelineHeader、PianoKeyboard、PianoRollViewport（tick→x / pitch→y / note.id key / 点击高亮）、
+    midiEditorLayout（纯函数坐标/PPQ）。
+  - PianoRollPanel hasMidi 时挂载 MidiEditor；旧 PianoRoll 不再被引用。
+  - 验证：Vitest 44 passed；npm build 通过；真实电子工程 5 tracks（bass pitch 36-52、drums ch9、
+    bass 114 notes）读取正确。T34.4 next（Note CRUD + Snap）。
