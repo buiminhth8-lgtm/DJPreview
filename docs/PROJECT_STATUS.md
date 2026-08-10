@@ -113,6 +113,15 @@
   add/delete/move/resize/velocity、边界 clamp、scroll 坐标、轨道隔离、document reload 重置、
   键盘守卫、拖拽交互）；npm build 通过（135 modules）。代码审计确认编辑器无 save/version/
   render 调用；真实工程只读 smoke 稳定。T34.5 next（Zoom/Pan/Fit/Lock）。
+- T34.5 completed：MIDI Editor Viewport（Zoom/Pan/Fit/Track Lock）。新增 `useMidiViewport.ts`
+  （pixelsPerTick H zoom 0.25x-4x、rowHeight V zoom 6-28、scrollLeft/Top、fitTrack、resetZoom；
+  只改视觉映射不改 canonical tick/pitch）。PianoRollViewport 升级：Ctrl+Wheel H zoom、
+  Shift+Wheel 横滚、Space+Drag pan（优先于 add/move/resize）、locked 阻止 Add/Delete/Move/Resize
+  handler、scroll 回调；MidiEditor 增加 zoom 工具栏（H/V +/-、百分比、Fit）、每轨道 Lock
+  （lockedTrackIds，保留 Draft、Velocity input disabled）、Space 键 pan。document/songId 变化
+  清除 lock/selection/zoom。测试：Vitest 80 passed（zoom limits/percent/fit/empty fit/单 note
+  有界、lock 阻止 delete/velocity 且保留 draft、既有 CRUD/坐标/隔离回归）；npm build 通过
+  （136 modules）。无 save/version/render 调用。T34.6 next（Undo/Redo/Dirty/Save）。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

@@ -568,3 +568,8 @@
   - PianoRollViewport 可编辑（双击添加/拖移/右边缘 resize/网格）；MidiEditor Snap 工具栏 +
     Velocity 编辑 + Delete 键盘守卫；无 Save/Version/Render 调用。
   - 验证：Vitest 69 passed；npm build 通过（135 modules）。T34.5 next（Zoom/Pan/Fit/Lock）。
+- T34.5 completed：MIDI Editor Viewport（Zoom/Pan/Fit/Track Lock）。
+  - useMidiViewport（H/V zoom + scroll + fitTrack + reset）+ PianoRollViewport 升级
+    （Ctrl+Wheel/Shift+Wheel/Space+Pan/locked 阻止编辑）+ MidiEditor 工具栏
+    （zoom 按钮/Fit/每轨道 Lock）。
+  - 验证：Vitest 80 passed；npm build 通过（136 modules）。T34.6 next（Undo/Redo/Dirty/Save）。

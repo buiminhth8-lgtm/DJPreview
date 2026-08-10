@@ -12,5 +12,7 @@ export { TimelineHeader } from "./TimelineHeader";
 export { PianoKeyboard } from "./PianoKeyboard";
 export * from "./midiEditorLayout";
 export * from "./midiEditorGeometry";
+export { useMidiViewport } from "./useMidiViewport";
+export type { UseMidiViewportResult } from "./useMidiViewport";
 export { useMidiEditorDraft, notesDirty, tempNoteId } from "./useMidiEditorDraft";
 export type { UseMidiEditorDraftResult } from "./useMidiEditorDraft";

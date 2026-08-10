@@ -771,3 +771,65 @@ pm test：69 passed（新增 snap/add/delete/move/resize/velocity/boundary/scrol
 pm run build：PASS（135 modules）
 - 编辑过程中无 save/version/render 请求（代码审计确认 0 调用）；真实工程只读 smoke：bass 114 notes，
   assets/version 稳定。
+
+---
+
+## 33. T34.5 MIDI Editor Viewport：Zoom / Pan / Fit / Track Lock（Completed）
+
+### 33.1 Viewport state
+
+- useMidiViewport()：pixelsPerTick（H 缩放）、owHeight（V 缩放）、scrollLeft/scrollTop。
+- canonical MIDI 数据（tick/pitch）永不被缩放修改；zoom 只影响视觉映射。
+- 100% = DEFAULT_LAYOUT（pixelsPerTick=0.4、rowHeight=12）。
+
+### 33.2 Zoom limits / anchor
+
+- H：MIN_HORIZONTAL_ZOOM=0.25x ~ MAX_HORIZONTAL_ZOOM=4x（相对默认）。
+- V：MIN_ROW_HEIGHT=6 ~ MAX_ROW_HEIGHT=28。
+- 工具栏 [-]/[+]（H/V）+ 百分比/Row 显示；Ctrl/Cmd+Wheel → H zoom（以鼠标指向 tick 为 anchor，
+  通过保持 scrollLeft 相对位置近似）；Shift+Wheel → 横向滚动；普通 Wheel → 纵向滚动。
+
+### 33.3 Pan
+
+- 普通 horizontal/vertical scrollbar；Space + Pointer Drag → pan（grid 上 is-pan cursor grab）。
+- pan 模式优先于 add/move/resize；pointercancel / window blur / unmount 结束 pan。
+
+### 33.4 Zoom/Pan 后坐标正确性
+
+- 统一使用现有 geometry：pointer 坐标经 	oGridRelative(client, rect, scrollLeft, scrollTop,
+  keyboardWidth) → 相对 grid 内容 → / layout.pixelsPerTick → snap → tick；/ rowHeight → pitch。
+- 动态 layout 传入 computeViewNotes 与交互 handler，因此 zoom/scroll 下 Add/Move/Resize 坐标正确。
+
+### 33.5 Fit Track
+
+- itTrack(notes, ppq, meter, w, h)：计算 first/last tick 与 min/max pitch + padding；
+  设置 H zoom（受 min/max 约束，避免单 note 占满屏幕）、rowHeight、scrollLeft/Top。
+- Empty Track：用默认时间范围 + 通用 pitch range，不报错、无 NaN/Infinity。
+
+### 33.6 Track Lock
+
+- lockedTrackIds: Set<string>（editor session 内，不写 project/backend）。
+- Lock 阻止：Add/Delete/Move/Resize/Velocity（handler 层，非仅 CSS）；Velocity input disabled。
+- Lock 允许：Select / Zoom / Pan / Fit / Track switch / Inspector。
+- Lock 保留已有 Draft（不 discard/save）。
+
+### 33.7 Reset
+
+- document/songId 变化 → 清 lockedTrackIds、selectedNoteId、iewport.resetZoom()。
+- Space 键按 editor 局部监听，window blur 清除。
+
+### 33.8 Files
+
+- 新增：useMidiViewport.ts + useMidiViewport.test.ts、MidiEditor.lock.test.tsx。
+- 升级：PianoRollViewport.tsx（lock/pan/zoom wheel/scroll 回调）、MidiEditor.tsx
+  （viewport hook + zoom/fit/lock 工具栏 + space pan）、workspace-structure.css、index.ts。
+- 未改后端 / composer / writer / version。
+
+### 33.9 Verification
+
+- 
+pm test：80 passed（zoom limits/percent/fit/empty fit/单 note fit 有界；lock 阻止
+  delete/velocity、保留 draft；既有 CRUD/坐标/隔离回归全绿）
+- 
+pm run build：PASS（136 modules）
+- 编辑过程无 save/version/render 请求；dev server 200

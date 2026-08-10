@@ -32,10 +32,15 @@ export interface PianoRollViewportProps {
   isDrum: boolean;
   snap: SnapValue;
   selectedNoteId: string | null;
+  locked?: boolean;
+  panEnabled?: boolean;
   onSelectNote: (noteId: string | null) => void;
   onAddNote: (note: Omit<MidiEditorNote, "id">) => void;
   onMoveNote: (noteId: string, newStartTick: number, newPitch: number) => void;
   onResizeNote: (noteId: string, newDurationTick: number) => void;
+  onZoomH?: (dir: 1 | -1) => void;
+  onScrollLeftChange?: (v: number) => void;
+  onScrollTopChange?: (v: number) => void;
   gridRef?: (el: HTMLDivElement | null) => void;
   layout?: typeof DEFAULT_LAYOUT;
 }
@@ -91,10 +96,15 @@ export function PianoRollViewport({
   isDrum,
   snap = DEFAULT_SNAP,
   selectedNoteId,
+  locked = false,
+  panEnabled = false,
   onSelectNote,
   onAddNote,
   onMoveNote,
   onResizeNote,
+  onZoomH,
+  onScrollLeftChange,
+  onScrollTopChange,
   gridRef,
   layout = DEFAULT_LAYOUT,
 }: PianoRollViewportProps) {
@@ -109,7 +119,7 @@ export function PianoRollViewport({
 
   // drag state
   const dragRef = useRef<{
-    kind: "move" | "resize" | null;
+    kind: "move" | "resize" | "pan" | null;
     pointerId: number;
     startClientX: number;
     startClientY: number;
@@ -118,8 +128,12 @@ export function PianoRollViewport({
     startDuration: number;
     noteId: string;
     moved: boolean;
+    startScrollLeft: number;
+    startScrollTop: number;
   } | null>(null);
   const gridElRef = useRef<HTMLDivElement | null>(null);
+  const panEnabledRef = useRef(false);
+  panEnabledRef.current = panEnabled;
 
   const setGridRef = (el: HTMLDivElement | null) => {
     gridElRef.current = el;
@@ -127,6 +141,7 @@ export function PianoRollViewport({
   };
 
   const onPointerDown = (e: React.PointerEvent, note: ViewNote, kind: "move" | "resize") => {
+    if (locked) return; // lock blocks edit handlers
     e.preventDefault();
     e.stopPropagation();
     onSelectNote(note.id);
@@ -148,6 +163,8 @@ export function PianoRollViewport({
       startDuration: note.durationTick,
       noteId: note.id,
       moved: false,
+      startScrollLeft: 0,
+      startScrollTop: 0,
     };
   };
 
@@ -159,13 +176,23 @@ export function PianoRollViewport({
     if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
     drag.moved = true;
 
+    if (drag.kind === "pan") {
+      const el = gridElRef.current;
+      if (!el) return;
+      el.scrollLeft = Math.max(0, drag.startScrollLeft - dx);
+      el.scrollTop = Math.max(0, drag.startScrollTop - dy);
+      onScrollLeftChange?.(el.scrollLeft);
+      onScrollTopChange?.(el.scrollTop);
+      return;
+    }
+
     if (drag.kind === "move") {
       const dt = Math.round(dx / layout.pixelsPerTick);
       const dp = Math.round(dy / layout.rowHeight);
       const newStart = snapTick(Math.max(0, drag.startTick + dt), snap, ppq);
       const newPitch = Math.max(0, Math.min(127, drag.startPitch - dp));
       onMoveNote(drag.noteId, newStart, newPitch);
-    } else {
+    } else if (drag.kind === "resize") {
       const dt = Math.round(dx / layout.pixelsPerTick);
       const newDur = Math.max(1, drag.startDuration + dt);
       onResizeNote(drag.noteId, newDur);
@@ -187,6 +214,7 @@ export function PianoRollViewport({
   };
 
   const onGridDoubleClick = (e: React.MouseEvent) => {
+    if (locked) return; // lock blocks add
     const el = gridElRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -206,9 +234,47 @@ export function PianoRollViewport({
   };
 
   const onGridPointerDown = (e: React.PointerEvent) => {
-    // 点击空白 → 取消选中（但保留双击 add）
-    if (e.target === e.currentTarget) {
+    if (e.button !== 0) return;
+    // Space + drag → pan（允许 Select；不允许 add/move）
+    if (e.currentTarget === e.target) {
       onSelectNote(null);
+    }
+    if (panEnabledRef.current) {
+      e.preventDefault();
+      dragRef.current = {
+        kind: "pan",
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startTick: 0,
+        startPitch: 0,
+        startDuration: 0,
+        noteId: "",
+        moved: false,
+        startScrollLeft: gridElRef.current?.scrollLeft ?? 0,
+        startScrollTop: gridElRef.current?.scrollTop ?? 0,
+      };
+    }
+  };
+
+  const onGridPointerMove = (e: React.PointerEvent) => onPointerMove(e);
+  const onGridPointerUp = (e: React.PointerEvent) => endDrag(e);
+
+  const onWheel = (e: React.WheelEvent) => {
+    // Ctrl/Cmd + wheel → horizontal zoom；Shift + wheel → horizontal scroll；else vertical scroll
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      onZoomH?.(e.deltaY < 0 ? 1 : -1);
+      return;
+    }
+    const el = gridElRef.current;
+    if (!el) return;
+    if (e.shiftKey) {
+      el.scrollLeft += e.deltaY;
+      onScrollLeftChange?.(el.scrollLeft);
+    } else {
+      el.scrollTop += e.deltaY;
+      onScrollTopChange?.(el.scrollTop);
     }
   };
 
@@ -216,10 +282,14 @@ export function PianoRollViewport({
     <div className="midi-editor__viewport">
       <div
         ref={setGridRef}
-        className="midi-editor__grid"
+        className={`midi-editor__grid${locked ? " is-locked" : ""}${panEnabled ? " is-pan" : ""}`}
         style={{ position: "relative", overflow: "hidden" }}
         onDoubleClick={onGridDoubleClick}
         onPointerDown={onGridPointerDown}
+        onPointerMove={onGridPointerMove}
+        onPointerUp={onGridPointerUp}
+        onPointerCancel={onGridPointerUp}
+        onWheel={onWheel}
       >
         <svg
           className="midi-editor__roll"

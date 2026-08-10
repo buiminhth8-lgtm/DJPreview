@@ -438,3 +438,46 @@
   background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
   color: var(--workspace-text, #f8fafc);
 }
+
+/* MIDI Editor viewport（T34.5） */
+.midi-editor__zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.midi-editor__zoom button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--workspace-border, rgba(255, 255, 255, 0.16));
+  border-radius: var(--workspace-radius-sm, 6px);
+  background: var(--workspace-surface, rgba(255, 255, 255, 0.06));
+  color: var(--workspace-text, #f8fafc);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.midi-editor__zoom-label {
+  min-width: 52px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--workspace-text-dim, #94a3b8);
+}
+
+.midi-editor__grid.is-locked {
+  cursor: default;
+}
+
+.midi-editor__grid.is-locked .midi-editor__note {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.midi-editor__grid.is-pan {
+  cursor: grab;
+}
+
+.midi-editor__grid.is-pan:active {
+  cursor: grabbing;
+}
