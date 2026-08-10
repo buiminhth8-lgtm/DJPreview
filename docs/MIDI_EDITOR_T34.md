@@ -988,3 +988,78 @@ pm run build：PASS（136 modules）
 
 - T34.7 transport 与 Advanced Selection 解耦；T34.8 可在现有 Draft/History/Viewport 之上增加
   Multi-select、Box Selection、Velocity Lane 与 Drum semantic names，无需修改 Preview 数据边界。
+
+---
+
+## 36. T34.8 Advanced Selection & Batch Editing（Completed）
+
+### 36.1 Selection model
+
+- `selectedNoteId` 已升级为当前轨道独占的 `selectedNoteIds: Set<string>`；没有建立第二套 Note、Draft
+  或 History 模型。
+- 单击替换选择；Ctrl/Cmd+Click toggle；Shift+Click 追加；Ctrl/Cmd+A 只全选当前轨道；Esc 清空。
+- 切换 Track、Project 或加载新 Version document 时清空选择。所有快捷键继续复用 editable-target
+  guard，不干扰 input/textarea/select/contenteditable。
+
+### 36.2 Box selection / interaction priority
+
+- 空白 Roll Pointer Drag 显示 selection rectangle；松开后用矩形与 Note content rect 相交判断选择。
+  普通框选替换；Ctrl/Cmd 框选 toggle；框选只改 selection，不改 MIDI、dirty 或 history。
+- 框选坐标统一使用 Roll content coordinate（client rect + scrollLeft/scrollTop），因此 H/V zoom 与双轴
+  scroll 后仍正确。
+- Pointer 优先级固定为 Space+Drag Pan → Note body batch move / 单选 resize handle → Empty Grid box
+  select → Empty Grid double-click add；Timeline seek 是独立区域。多选时不显示 resize handle，MVP 不做
+  batch resize。
+
+### 36.3 Batch mutation / history
+
+- `useMidiEditorDraft` 新增 `insertNotes`、`deleteNotes`、`moveNotes`、`setNotesVelocity`。批量查找使用
+  Set/Map，一次扫描当前轨道，不做 selection×all-notes 嵌套扫描。
+- Batch Delete、Paste、Duplicate、Batch Velocity 都是一次 immutable update + 一个 undo snapshot；一次
+  Batch Move 的多次 pointermove 共享 pending-before，并在 pointerup commit，仍只有一个 Undo step。
+- Undo 回 saved baseline 时 dirty=false；Redo 恢复 dirty；Save 仍是 history boundary。所有 mutation 只写
+  frontend Draft，不自动 Save、Version 或 Render WAV，也不改其他轨道。
+
+### 36.4 Batch move / snap / boundary
+
+- 拖任意 selected Note 会移动完整 selection；duration、velocity、相对 timing、相对 pitch 保持不变。
+- 先以 dragged anchor Note 计算当前 Snap 下的 snapped start，再取得一个统一 tick delta 应用于全组；
+  不逐 Note 量化，保留原 groove。
+- tick/pitch boundary 先统计 selection 的 minStart/minPitch/maxPitch，再把统一 delta clamp 到
+  startTick>=0、pitch 0..127；不会因逐 Note clamp 破坏组内结构。
+
+### 36.5 Internal clipboard / paste / duplicate
+
+- Editor 内部 clipboard 只保存 `pitch / relativeStartTick / durationTick / velocity` 与源轨语义种类；
+  不依赖系统文本剪贴板，不保存 Note ID、路径、版本或 filesystem metadata。Copy 不改 Draft、dirty、history。
+- Paste 把复制组最早 Note 对齐到当前 playhead，并按当前 Snap 量化 anchor；目标 channel 强制使用当前轨
+  canonical channel；所有 Note 生成新 `draft:<uuid>`，保持相对 timing/pitch/duration/velocity，粘贴品成为
+  selection。鼓组轨与有调轨互贴会被拒绝并显示清晰提示。
+- Duplicate 使用 `offset=max(start+duration)-min(start)`，整组正向偏移；新 ID、复制品成为 selection，
+  一次 Duplicate 为一个 Undo step。
+
+### 36.6 Inspector / lock / preview-save boundary
+
+- 单选沿用 Note Inspector；多选显示 count、tick span、pitch range、average velocity，并提供 Batch Velocity
+  1..127 输入，一次设置统一写入全部 selected Notes。
+- Locked Track 允许 Select、Box Select、Copy、Zoom、Pan、Preview；禁止 Delete、Move、Paste、Duplicate、
+  Velocity mutation。已有 dirty Draft 仍可 Undo/Redo/Save/Discard。
+- Preview 无新架构，继续从 `draftNotesByTrack` 构建 scratch snapshot；浏览器 smoke 验证 locked Draft 可试听。
+  Save 仍只调用一次 `/midi/edit`，Version +1；正式 WAV 不自动重新渲染或删除，Workspace 标记“需重新渲染”。
+
+### 36.7 Performance / verification / limitations
+
+- 100/500 selected notes 自动测试覆盖 box lookup、group clamp、copy/materialize、insert/move/delete；核心路径
+  为 O(all notes + selected notes)。未引入 Redux/Zustand。
+- 前端：Vitest 22 files / 126 tests passed；`npm run build` passed（139 modules）。
+- 后端边界回归：MIDI Editor Read/Save/Preview + Version/Regenerate/Generate MIDI 共 40 passed。
+- Chromium 真实 Bass smoke：Box Select → Move → Undo/Redo → Copy → Seek → Paste → Duplicate → Batch
+  Velocity → Delete/Undo → Lock mutation guard → Preview → 单次 Save；Paste/Duplicate 使用新 ID，Preview
+  payload 包含最新 Draft，Save Version +1 且 WAV stale；1 passed。
+- 已知限制：无 batch resize、Velocity Lane、跨轨多选/组移动、复杂 drum↔pitched 转换、系统级 MIDI clipboard；
+  Preview 仍需后端 scratch 渲染往返。
+
+### 36.8 T34.9 readiness
+
+- T34.9 Next：Drum semantic rows / note names 与 Velocity Lane 等编辑可视化增强；继续复用现有
+  Selection、Draft、History、Viewport 与 Preview 边界。

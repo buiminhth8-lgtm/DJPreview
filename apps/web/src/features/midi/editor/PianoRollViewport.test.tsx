@@ -13,10 +13,10 @@ const baseProps = {
   channel: 0,
   isDrum: false,
   snap: "1/16" as const,
-  selectedNoteId: null,
-  onSelectNote: vi.fn(),
+  selectedNoteIds: new Set<string>(),
+  onSelectNotes: vi.fn(),
   onAddNote: vi.fn(),
-  onMoveNote: vi.fn(),
+  onMoveNotes: vi.fn(),
   onResizeNote: vi.fn(),
 };
 

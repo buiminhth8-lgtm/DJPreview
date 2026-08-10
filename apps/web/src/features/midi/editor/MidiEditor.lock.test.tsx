@@ -56,7 +56,7 @@ describe("MidiEditor track lock", () => {
     fireEvent.click(lockToggle());
     expect(lockToggle()).toHaveTextContent("🔒 已锁定");
     // Delete should NOT remove
-    fireEvent.keyDown(window, { key: "Delete" });
+    fireEvent.keyDown(document.querySelector(".midi-editor")!, { key: "Delete" });
     const roll = document.querySelector('[data-note-count="1"]');
     expect(roll).not.toBeNull();
     expect(roll!.querySelector('[data-note-id="b1"]')).not.toBeNull();

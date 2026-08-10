@@ -13,10 +13,10 @@ const baseProps = {
   channel: 0,
   isDrum: false,
   snap: "1/16" as const,
-  selectedNoteId: null,
-  onSelectNote: vi.fn(),
+  selectedNoteIds: new Set<string>(),
+  onSelectNotes: vi.fn(),
   onAddNote: vi.fn(),
-  onMoveNote: vi.fn(),
+  onMoveNotes: vi.fn(),
   onResizeNote: vi.fn(),
 };
 
@@ -35,14 +35,14 @@ describe("PianoRollViewport interaction", () => {
     renderViewport();
     const g = document.querySelector('[data-note-id="n1"]');
     fireEvent.pointerDown(g!);
-    expect(baseProps.onSelectNote).toHaveBeenCalledWith("n1");
+    expect(baseProps.onSelectNotes).toHaveBeenCalledWith(["n1"], "replace");
   });
 
   it("pointermove with delta triggers onMoveNote with canonical tick/pitch", () => {
     const move = vi.fn();
     render(
       <div style={{ width: 800, height: 300 }}>
-        <PianoRollViewport {...baseProps} notes={oneNote} onMoveNote={move} />
+        <PianoRollViewport {...baseProps} notes={oneNote} onMoveNotes={move} />
       </div>,
     );
     const g = document.querySelector('[data-note-id="n1"]')!;
@@ -51,10 +51,10 @@ describe("PianoRollViewport interaction", () => {
     fireEvent.pointerMove(g, { pointerId: 1, clientX: 220, clientY: 88 });
     fireEvent.pointerUp(g, { pointerId: 1 });
     expect(move).toHaveBeenCalled();
-    const [noteId, startTick, pitch] = move.mock.calls[0];
-    expect(noteId).toBe("n1");
-    expect(startTick).toBeGreaterThan(0);
-    expect(pitch).toBe(61); // 60 + 1 semitone up
+    const [changes] = move.mock.calls[0];
+    expect(changes[0].id).toBe("n1");
+    expect(changes[0].startTick).toBeGreaterThan(0);
+    expect(changes[0].pitch).toBe(61); // 60 + 1 semitone up
   });
 
   it("resize handle drag changes duration not start", () => {
@@ -94,5 +94,115 @@ describe("PianoRollViewport interaction", () => {
     expect(note.velocity).toBeGreaterThanOrEqual(1);
     expect(note.velocity).toBeLessThanOrEqual(127);
     expect(note.channel).toBe(0);
+  });
+
+  it("Ctrl/Cmd click toggles a note and Shift click appends", () => {
+    const select = vi.fn();
+    render(
+      <PianoRollViewport
+        {...baseProps}
+        notes={oneNote}
+        selectedNoteIds={new Set(["n1"])}
+        onSelectNotes={select}
+      />,
+    );
+    const note = document.querySelector('[data-note-id="n1"]')!;
+    fireEvent.pointerDown(note, { pointerId: 3, ctrlKey: true });
+    expect(select).toHaveBeenCalledWith(["n1"], "toggle");
+    fireEvent.pointerDown(note, { pointerId: 4, shiftKey: true });
+    expect(select).toHaveBeenCalledWith(["n1"], "append");
+  });
+
+  it("empty-grid drag reports a box selection and supports toggle intent", () => {
+    const select = vi.fn();
+    render(
+      <PianoRollViewport {...baseProps} notes={oneNote} onSelectNotes={select} />,
+    );
+    const svg = document.querySelector(".midi-editor__roll")!;
+    const grid = document.querySelector(".midi-editor__grid")!;
+    fireEvent.pointerDown(svg, { pointerId: 5, clientX: 0, clientY: 0, ctrlKey: true });
+    fireEvent.pointerMove(grid, { pointerId: 5, clientX: 210, clientY: 60, ctrlKey: true });
+    expect(document.querySelector('[data-testid="selection-box"]')).not.toBeNull();
+    fireEvent.pointerUp(grid, { pointerId: 5, clientX: 210, clientY: 60, ctrlKey: true });
+    expect(select).toHaveBeenLastCalledWith(["n1"], "toggle");
+  });
+
+  it("box selection stays correct after horizontal/vertical zoom and scroll", () => {
+    const select = vi.fn();
+    const zoomedLayout = { pixelsPerTick: 0.8, rowHeight: 24, keyboardWidth: 72 };
+    render(
+      <PianoRollViewport
+        {...baseProps}
+        notes={[{ ...oneNote[0], startTick: 240 }]}
+        layout={zoomedLayout}
+        onSelectNotes={select}
+      />,
+    );
+    const grid = document.querySelector(".midi-editor__grid") as HTMLDivElement;
+    const svg = document.querySelector(".midi-editor__roll")!;
+    Object.defineProperty(grid, "scrollLeft", { value: 100, writable: true });
+    Object.defineProperty(grid, "scrollTop", { value: 24, writable: true });
+    vi.spyOn(grid, "getBoundingClientRect").mockReturnValue({
+      left: 10,
+      top: 20,
+      right: 810,
+      bottom: 320,
+      width: 800,
+      height: 300,
+      x: 10,
+      y: 20,
+      toJSON: () => ({}),
+    });
+    fireEvent.pointerDown(svg, { pointerId: 8, clientX: 90, clientY: 60 });
+    fireEvent.pointerMove(grid, { pointerId: 8, clientX: 160, clientY: 90 });
+    fireEvent.pointerUp(grid, { pointerId: 8, clientX: 160, clientY: 90 });
+    expect(select).toHaveBeenLastCalledWith(["n1"], "replace");
+  });
+
+  it("dragging one selected note moves the full group with uniform deltas", () => {
+    const move = vi.fn();
+    const group = [
+      ...oneNote,
+      { id: "n2", pitch: 64, startTick: 480, durationTick: 240, velocity: 90, channel: 0 },
+    ];
+    render(
+      <PianoRollViewport
+        {...baseProps}
+        notes={group}
+        selectedNoteIds={new Set(["n1", "n2"])}
+        onMoveNotes={move}
+      />,
+    );
+    expect(document.querySelectorAll(".midi-editor__resize")).toHaveLength(0);
+    const note = document.querySelector('[data-note-id="n1"]')!;
+    fireEvent.pointerDown(note, { pointerId: 6, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(note, { pointerId: 6, clientX: 220, clientY: 88 });
+    const changes = move.mock.calls[0][0];
+    expect(changes).toHaveLength(2);
+    expect(changes[1].startTick - changes[0].startTick).toBe(480);
+    expect(changes[1].pitch - changes[0].pitch).toBe(4);
+  });
+
+  it("locked track still selects but blocks move and add", () => {
+    const select = vi.fn();
+    const move = vi.fn();
+    const add = vi.fn();
+    render(
+      <PianoRollViewport
+        {...baseProps}
+        notes={oneNote}
+        locked
+        onSelectNotes={select}
+        onMoveNotes={move}
+        onAddNote={add}
+      />,
+    );
+    const note = document.querySelector('[data-note-id="n1"]')!;
+    fireEvent.pointerDown(note, { pointerId: 7, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(note, { pointerId: 7, clientX: 220, clientY: 88 });
+    expect(select).toHaveBeenCalledWith(["n1"], "replace");
+    expect(move).not.toHaveBeenCalled();
+    fireEvent.doubleClick(document.querySelector(".midi-editor__grid")!, { clientX: 50, clientY: 50 });
+    expect(add).not.toHaveBeenCalled();
   });
 });

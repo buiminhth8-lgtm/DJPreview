@@ -33,6 +33,15 @@ const doc: MidiEditorDocument = {
       isDrum: false,
       notes: [{ id: "m1", pitch: 72, startTick: 0, durationTick: 480, velocity: 100, channel: 0 }],
     },
+    {
+      id: "drums",
+      role: "drums",
+      name: "drums",
+      channel: 9,
+      instrument: null,
+      isDrum: true,
+      notes: [{ id: "d1", pitch: 36, startTick: 0, durationTick: 120, velocity: 100, channel: 9 }],
+    },
   ],
 };
 
@@ -47,6 +56,8 @@ vi.mock("./useMidiEditorDocument", () => ({
 }));
 
 describe("MidiEditor keyboard guard", () => {
+  const editor = () => document.querySelector(".midi-editor")!;
+
   it("Delete removes the selected note", () => {
     render(<MidiEditor songId="s1" />);
     // select bass note b1 by clicking its rect
@@ -56,7 +67,7 @@ describe("MidiEditor keyboard guard", () => {
     const selectedSpan = document.querySelector(".midi-editor__selected-note");
     expect(selectedSpan?.textContent).toContain("E2");
     expect(selectedSpan?.textContent).toContain("40");
-    fireEvent.keyDown(window, { key: "Delete" });
+    fireEvent.keyDown(editor(), { key: "Delete" });
     const roll = document.querySelector('[data-note-count="0"]');
     expect(roll).not.toBeNull();
     expect(roll!.querySelector('[data-note-id="b1"]')).toBeNull();
@@ -76,5 +87,67 @@ describe("MidiEditor keyboard guard", () => {
     expect(roll!.querySelector('[data-note-id="b1"]')).not.toBeNull();
     // velocity updated to 100
     expect(screen.getByLabelText("Velocity 力度")).toHaveValue(100);
+  });
+
+  it("select all, internal copy/paste, duplicate, undo/redo and batch delete stay in draft history", () => {
+    render(<MidiEditor songId="s1" />);
+    fireEvent.pointerDown(document.querySelector('[data-note-id="b1"]')!);
+    fireEvent.keyDown(editor(), { key: "a", ctrlKey: true });
+    expect(screen.getByTestId("selected-note-count")).toHaveTextContent("Selected: 1");
+
+    fireEvent.keyDown(editor(), { key: "c", ctrlKey: true });
+    expect(document.querySelector('[data-note-count="1"]')).not.toBeNull();
+    expect(screen.queryByText("未保存草稿")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(editor(), { key: "v", ctrlKey: true });
+    expect(document.querySelector('[data-note-count="2"]')).not.toBeNull();
+    expect(screen.getByTestId("selected-note-count")).toHaveTextContent("Selected: 1");
+    fireEvent.keyDown(editor(), { key: "z", ctrlKey: true });
+    expect(document.querySelector('[data-note-count="1"]')).not.toBeNull();
+    fireEvent.keyDown(editor(), { key: "y", ctrlKey: true });
+    expect(document.querySelector('[data-note-count="2"]')).not.toBeNull();
+
+    fireEvent.pointerDown(document.querySelector('[data-note-id="b1"]')!);
+    fireEvent.keyDown(editor(), { key: "d", ctrlKey: true });
+    expect(document.querySelector('[data-note-count="3"]')).not.toBeNull();
+    fireEvent.keyDown(editor(), { key: "a", ctrlKey: true });
+    fireEvent.keyDown(editor(), { key: "Delete" });
+    expect(document.querySelector('[data-note-count="0"]')).not.toBeNull();
+    fireEvent.keyDown(editor(), { key: "z", ctrlKey: true });
+    expect(document.querySelector('[data-note-count="3"]')).not.toBeNull();
+  });
+
+  it("rejects drum-to-pitched clipboard paste with a clear message", () => {
+    render(<MidiEditor songId="s1" />);
+    fireEvent.pointerDown(document.querySelector('[data-note-id="b1"]')!);
+    fireEvent.keyDown(editor(), { key: "c", ctrlKey: true });
+    fireEvent.click(screen.getByRole("option", { name: /drums/ }));
+    fireEvent.keyDown(editor(), { key: "v", ctrlKey: true });
+    expect(screen.getByText("鼓组轨与有调轨之间不能直接粘贴音符")).toBeInTheDocument();
+    expect(document.querySelector('[data-note-count="1"]')).not.toBeNull();
+  });
+
+  it("Esc and track changes clear current-track selection", () => {
+    render(<MidiEditor songId="s1" />);
+    fireEvent.pointerDown(document.querySelector('[data-note-id="b1"]')!);
+    expect(screen.getByTestId("selected-note-count")).toHaveTextContent("Selected: 1");
+    fireEvent.keyDown(editor(), { key: "Escape" });
+    expect(screen.getByTestId("selected-note-count")).toHaveTextContent("Selected: 0");
+    fireEvent.pointerDown(document.querySelector('[data-note-id="b1"]')!);
+    fireEvent.click(screen.getByRole("option", { name: /melody/ }));
+    expect(screen.getByTestId("selected-note-count")).toHaveTextContent("Selected: 0");
+  });
+
+  it("locked track allows Copy but blocks Paste and Duplicate", () => {
+    render(<MidiEditor songId="s1" />);
+    fireEvent.pointerDown(document.querySelector('[data-note-id="b1"]')!);
+    fireEvent.click(screen.getByRole("button", { name: /编辑/ }));
+    fireEvent.keyDown(editor(), { key: "c", ctrlKey: true });
+    expect(screen.getByText("已复制 1 个音符")).toBeInTheDocument();
+    fireEvent.keyDown(editor(), { key: "v", ctrlKey: true });
+    expect(screen.getByText("当前轨道已锁定，不能粘贴")).toBeInTheDocument();
+    fireEvent.keyDown(editor(), { key: "d", ctrlKey: true });
+    expect(screen.getByText("当前轨道已锁定，不能复制音符")).toBeInTheDocument();
+    expect(document.querySelector('[data-note-count="1"]')).not.toBeNull();
   });
 });

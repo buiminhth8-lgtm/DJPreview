@@ -139,4 +139,86 @@ describe("useMidiEditorDraft history", () => {
     expect(result.current.canUndoTrack("bass")).toBe(false);
     expect(result.current.canRedoTrack("bass")).toBe(true);
   });
+
+  it("batch insert/delete/velocity each create one undo step", () => {
+    const { result } = renderDraft();
+    let ids: string[] = [];
+    act(() => {
+      ids = result.current.insertNotes("bass", [
+        { pitch: 42, startTick: 480, durationTick: 120, velocity: 80, channel: 2 },
+        { pitch: 45, startTick: 720, durationTick: 120, velocity: 90, channel: 2 },
+      ]);
+    });
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids.every((id) => id.startsWith("draft:"))).toBe(true);
+    act(() => result.current.undo("bass"));
+    expect(result.current.draftNotesByTrack.bass).toHaveLength(1);
+    act(() => result.current.redo("bass"));
+    expect(result.current.draftNotesByTrack.bass).toHaveLength(3);
+
+    act(() => result.current.deleteNotes("bass", new Set(ids)));
+    expect(result.current.draftNotesByTrack.bass).toHaveLength(1);
+    act(() => result.current.undo("bass"));
+    expect(result.current.draftNotesByTrack.bass).toHaveLength(3);
+
+    act(() => result.current.setNotesVelocity("bass", new Set(["b1", ...ids]), 55));
+    expect(result.current.draftNotesByTrack.bass.every((note) => note.velocity === 55)).toBe(true);
+    act(() => result.current.undo("bass"));
+    expect(result.current.draftNotesByTrack.bass.map((note) => note.velocity)).toEqual([110, 80, 90]);
+  });
+
+  it("batch drag updates selected notes in one scan and one undo step", () => {
+    const { result } = renderDraft();
+    let insertedId = "";
+    act(() => {
+      insertedId = result.current.insertNotes("bass", [
+        { pitch: 44, startTick: 240, durationTick: 120, velocity: 90, channel: 2 },
+      ])[0];
+    });
+    act(() => result.current.moveNotes("bass", [
+      { id: "b1", startTick: 480, pitch: 41 },
+      { id: insertedId, startTick: 720, pitch: 45 },
+    ]));
+    act(() => result.current.moveNotes("bass", [
+      { id: "b1", startTick: 960, pitch: 42 },
+      { id: insertedId, startTick: 1200, pitch: 46 },
+    ]));
+    act(() => result.current.commitEdit("bass"));
+    expect(result.current.draftNotesByTrack.bass.map((note) => [note.startTick, note.pitch])).toEqual([
+      [960, 42],
+      [1200, 46],
+    ]);
+    act(() => result.current.undo("bass"));
+    expect(result.current.draftNotesByTrack.bass.map((note) => [note.startTick, note.pitch])).toEqual([
+      [0, 40],
+      [240, 44],
+    ]);
+  });
+
+  it("handles 500-note insert, move and delete batches", () => {
+    const { result } = renderDraft();
+    const batch = Array.from({ length: 500 }, (_, index) => ({
+      pitch: 36 + (index % 48),
+      startTick: 480 + index * 30,
+      durationTick: 30,
+      velocity: 90,
+      channel: 2,
+    }));
+    let ids: string[] = [];
+    act(() => {
+      ids = result.current.insertNotes("bass", batch);
+    });
+    expect(result.current.draftNotesByTrack.bass).toHaveLength(501);
+    act(() => result.current.moveNotes(
+      "bass",
+      ids.map((id, index) => ({ id, startTick: 960 + index * 30, pitch: 37 + (index % 48) })),
+    ));
+    act(() => result.current.commitEdit("bass"));
+    expect(result.current.draftNotesByTrack.bass[1]).toMatchObject({ startTick: 960, pitch: 37 });
+    act(() => result.current.deleteNotes("bass", new Set(ids)));
+    expect(result.current.draftNotesByTrack.bass).toHaveLength(1);
+    act(() => result.current.undo("bass"));
+    expect(result.current.draftNotesByTrack.bass).toHaveLength(501);
+  });
 });

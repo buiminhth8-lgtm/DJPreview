@@ -1,6 +1,6 @@
 # 项目状态（Project Status）
 
-> 最近一次实测：2026-08-06（分支 `master`）。以下状态均以代码与测试实际结果为准，
+> 最近一次实测：2026-08-10（分支 `master`）。以下状态均以代码与测试实际结果为准，
 > 不保留已完成的“待办”描述。
 
 ## Completed（已完成）
@@ -147,8 +147,16 @@
   Preview+Save 12 passed、MIDI/Version/Regenerate 扩展回归 49 passed；前端 Vitest 107 passed；
   npm build 通过（138 modules）；真实 Chromium
   E2E 1 passed（未保存 Bass Draft、Current/All、Stop、Seek、Loop、Lock、无 Save/Version/Render、
-  Version/MIDI/WAV 状态不变）。T34.8 next（Advanced Selection /
-  Drum semantics）。
+  Version/MIDI/WAV 状态不变）。
+- T34.8 completed：Advanced Selection & Batch Editing。当前轨 selection 升级为 `Set<string>`；支持
+  单击替换、Ctrl/Cmd toggle、Shift 追加、Zoom/Scroll-safe Box Selection、Ctrl/Cmd+A、Esc；Batch
+  Delete/Move/Velocity、内部 Copy/Paste、Duplicate 均接入现有 per-track Draft/History，一次批量操作
+  只有一个 Undo step。Batch Move 使用 anchor 单次 Snap + 全组统一 tick/semitone delta 和 boundary
+  clamp；Paste 对齐 snapped playhead、生成新 temp IDs、强制目标 channel，拒绝 drum↔pitched 不安全粘贴。
+  Locked Track 允许 Select/Box/Copy/Zoom/Pan/Preview，阻止所有 Note mutation。100/500-note 性能路径
+  使用 Set/Map 单次扫描。验证：Vitest 126 passed；build 139 modules；后端边界 40 passed；真实 Chromium
+  Bass 全流程 1 passed（Preview 最新 Draft、Save 只请求一次、Version +1、WAV stale）。T34.9 next：
+  Drum semantic rows / note names 与 Velocity Lane 等可视化增强。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

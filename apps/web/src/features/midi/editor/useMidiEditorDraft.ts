@@ -62,6 +62,13 @@ export interface UseMidiEditorDraftResult {
   moveNote: (trackId: string, noteId: string, newStartTick: number, newPitch: number) => void;
   resizeNote: (trackId: string, noteId: string, newDurationTick: number) => void;
   setVelocity: (trackId: string, noteId: string, velocity: number) => void;
+  insertNotes: (trackId: string, notes: Array<Omit<MidiEditorNote, "id">>) => string[];
+  deleteNotes: (trackId: string, noteIds: ReadonlySet<string>) => void;
+  moveNotes: (
+    trackId: string,
+    changes: Array<{ id: string; startTick: number; pitch: number }>,
+  ) => void;
+  setNotesVelocity: (trackId: string, noteIds: ReadonlySet<string>, velocity: number) => void;
   undo: (trackId: string) => void;
   redo: (trackId: string) => void;
   discardTrack: (trackId: string) => void;
@@ -191,6 +198,61 @@ export function useMidiEditorDraft(document: MidiEditorDocument | null): UseMidi
     [recordBefore, updateTrack],
   );
 
+  const insertNotes = useCallback(
+    (trackId: string, notes: Array<Omit<MidiEditorNote, "id">>): string[] => {
+      if (notes.length === 0) return [];
+      recordBefore(trackId);
+      const inserted = notes.map((note) => ({ ...note, id: tempNoteId() }));
+      updateTrack(trackId, (current) => [...current, ...inserted]);
+      pendingBeforeRef.current.delete(trackId);
+      return inserted.map((note) => note.id);
+    },
+    [recordBefore, updateTrack],
+  );
+
+  const deleteNotes = useCallback(
+    (trackId: string, noteIds: ReadonlySet<string>) => {
+      if (noteIds.size === 0) return;
+      recordBefore(trackId);
+      updateTrack(trackId, (notes) => notes.filter((note) => !noteIds.has(note.id)));
+      pendingBeforeRef.current.delete(trackId);
+    },
+    [recordBefore, updateTrack],
+  );
+
+  const moveNotes = useCallback(
+    (trackId: string, changes: Array<{ id: string; startTick: number; pitch: number }>) => {
+      if (changes.length === 0) return;
+      recordBefore(trackId);
+      const byId = new Map(changes.map((change) => [change.id, change]));
+      updateTrack(trackId, (notes) =>
+        notes.map((note) => {
+          const change = byId.get(note.id);
+          if (!change) return note;
+          return {
+            ...note,
+            startTick: Math.max(0, Math.round(change.startTick)),
+            pitch: Math.max(0, Math.min(127, Math.round(change.pitch))),
+          };
+        }),
+      );
+    },
+    [recordBefore, updateTrack],
+  );
+
+  const setNotesVelocity = useCallback(
+    (trackId: string, noteIds: ReadonlySet<string>, velocity: number) => {
+      if (noteIds.size === 0) return;
+      recordBefore(trackId);
+      const clamped = Math.max(1, Math.min(127, Math.round(velocity)));
+      updateTrack(trackId, (notes) =>
+        notes.map((note) => (noteIds.has(note.id) ? { ...note, velocity: clamped } : note)),
+      );
+      pendingBeforeRef.current.delete(trackId);
+    },
+    [recordBefore, updateTrack],
+  );
+
   // 拖拽结束：提交（清除 pending），使该次拖动只产生一个 undo step
   const commitEdit = useCallback((trackId: string) => {
     pendingBeforeRef.current.delete(trackId);
@@ -299,6 +361,10 @@ export function useMidiEditorDraft(document: MidiEditorDocument | null): UseMidi
     moveNote,
     resizeNote,
     setVelocity,
+    insertNotes,
+    deleteNotes,
+    moveNotes,
+    setNotesVelocity,
     undo,
     redo,
     discardTrack,

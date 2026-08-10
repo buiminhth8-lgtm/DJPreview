@@ -356,6 +356,15 @@
   pointer-events: none;
 }
 
+.midi-editor__selection-box {
+  fill: rgba(34, 211, 238, 0.14);
+  stroke: #22d3ee;
+  stroke-width: 1;
+  stroke-dasharray: 5 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
 .midi-editor__note {
   fill: #6c8cff;
   opacity: 0.9;
@@ -476,7 +485,9 @@
 }
 
 .midi-editor__resize {
+  fill: rgba(34, 211, 238, 0.6);
   opacity: 0.9;
+  cursor: ew-resize;
 }
 
 .midi-editor__inspector {
@@ -511,6 +522,15 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+.midi-editor__selection-summary {
+  font-size: 0.82rem;
+  color: var(--workspace-text-dim, #cbd5e1);
+}
+
+.midi-editor:focus {
+  outline: none;
 }
 
 .midi-editor__zoom button {

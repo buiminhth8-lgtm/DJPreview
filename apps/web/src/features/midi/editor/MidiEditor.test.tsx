@@ -138,4 +138,14 @@ describe("MidiEditor", () => {
     mockDocument = docBass;
     mockError = null;
   });
+
+  it("clears selection when the loaded project/version document changes", () => {
+    const { rerender } = render(<MidiEditor songId="song-1" />);
+    fireEvent.pointerDown(document.querySelector('[data-note-id="m1"]')!);
+    expect(screen.getByTestId("selected-note-count")).toHaveTextContent("Selected: 1");
+    mockDocument = { ...docBass, songId: "song-2", versionId: "v5" };
+    rerender(<MidiEditor songId="song-2" />);
+    expect(screen.getByTestId("selected-note-count")).toHaveTextContent("Selected: 0");
+    mockDocument = docBass;
+  });
 });

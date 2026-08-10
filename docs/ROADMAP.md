@@ -590,5 +590,14 @@
     MIDI/Version/Regenerate 扩展回归 49 passed；Vitest
     107 passed；npm build（138 modules）；Playwright Chromium 1 passed；Preview 全程无 Save/Version/
     Render WAV，Version/MIDI/WAV metadata 不变。
-- T34.8 next：Advanced Selection / Drum semantics（Multi-select、Box Selection、Velocity Lane 等）；
-  T34.7 未提前实现这些能力。
+- T34.8 completed：Advanced Selection & Batch Editing。
+  - 当前 Track 使用 `Set<string>` 多选；单击/Ctrl/Cmd/Shift、Box Selection、Ctrl/Cmd+A、Esc 完整；
+    框选坐标兼容 H/V zoom 与 scroll，且不修改 MIDI。
+  - Batch Delete/Move/Velocity、内部 Copy/Paste、Duplicate 接入既有 per-track Draft/History；一次用户操作
+    一个 Undo step。Batch Move 以 dragged anchor 做单次 Snap，统一 delta + 整体 tick/pitch clamp。
+  - Paste 对齐 snapped playhead、生成新 temp IDs、使用目标 channel；drum↔pitched 拒绝；Duplicate 以完整
+    selection span 偏移。Lock 允许 Select/Box/Copy/Preview，阻止 mutation。
+  - 验证：Vitest 126 passed；build 139 modules；后端 MIDI/Version 边界 40 passed；真实 Chromium Bass
+    全链路 1 passed（Copy/Paste/Duplicate/Preview/单次 Save/Version+1/WAV stale）。
+- T34.9 next：Drum semantic rows / note names、Velocity Lane 等编辑可视化增强；复用 T34.8 Selection/
+  Draft/History/Viewport，不引入跨轨多选。

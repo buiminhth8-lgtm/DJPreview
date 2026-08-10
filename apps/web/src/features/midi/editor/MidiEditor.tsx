@@ -15,7 +15,16 @@ import { PianoKeyboard } from "./PianoKeyboard";
 import { PianoRollViewport } from "./PianoRollViewport";
 import type { MidiEditorDocument, MidiEditorNote, MidiEditorTrack } from "./midiEditorTypes";
 import { computePitchRange, DEFAULT_LAYOUT, tickToBar, tickToBeat, ticksPerBar } from "./midiEditorLayout";
-import { DEFAULT_SNAP, SNAP_OPTIONS, midiPitchToNoteName, type SnapValue } from "./midiEditorGeometry";
+import { DEFAULT_SNAP, SNAP_OPTIONS, midiPitchToNoteName, snapTick, type SnapValue } from "./midiEditorGeometry";
+import {
+  applySelection,
+  createMidiClipboard,
+  duplicateNotes,
+  materializeClipboard,
+  summarizeSelectedNotes,
+  type MidiClipboard,
+  type SelectionIntent,
+} from "./midiSelection";
 import { ActionButton, EmptyState, ErrorState, InlineNotice, LoadingState, SectionCard } from "../../../components/ui";
 import { getErrorMessage } from "../../../hooks/error";
 
@@ -47,7 +56,7 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   const draft = useMidiEditorDraft(document);
   const viewport = useMidiViewport();
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
   const [snap, setSnap] = useState<SnapValue>(DEFAULT_SNAP);
   const [lockedTrackIds, setLockedTrackIds] = useState<Set<string>>(new Set());
   const [spacePressed, setSpacePressed] = useState(false);
@@ -55,7 +64,11 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{ currentVersionId: string; baseVersionId: string } | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
   const dirtyRef = useRef(false);
+  const editorRootRef = useRef<HTMLDivElement | null>(null);
+  const editorActiveRef = useRef(false);
+  const clipboardRef = useRef<MidiClipboard | null>(null);
   const playback = useMidiPlayback({
     songId,
     document,
@@ -74,12 +87,13 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
 
   // songId 或 document 变化：重选有效轨道、清空 note 选择（draft hook 已自行重置）
   useEffect(() => {
-    setSelectedNoteId(null);
+    setSelectedNoteIds(new Set());
     setLockedTrackIds(new Set());
     viewport.resetZoom();
     setSaveError(null);
     setConflict(null);
     setConfirmDiscard(false);
+    setSelectionNotice(null);
     if (!document) {
       setSelectedTrackId(null);
       return;
@@ -122,7 +136,11 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   // Space 键 → pan 模式（松开时结束）
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.code === "Space" && !isEditableTarget(e.target)) {
+      if (
+        e.code === "Space" &&
+        !isEditableTarget(e.target) &&
+        editorRootRef.current?.contains(globalThis.document.activeElement)
+      ) {
         e.preventDefault();
         setSpacePressed(true);
       }
@@ -146,25 +164,6 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
     return document.tracks.find((t) => t.id === selectedTrackId) ?? null;
   }, [document, selectedTrackId]);
 
-  // Undo/Redo 快捷键（需在 selectedTrack 声明之后）
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target)) return;
-      if (!selectedTrack) return;
-      const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        if (e.shiftKey) draft.redo(selectedTrack.id);
-        else draft.undo(selectedTrack.id);
-      } else if (mod && e.key.toLowerCase() === "y") {
-        e.preventDefault();
-        draft.redo(selectedTrack.id);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [selectedTrack, draft]);
-
   // 当前轨道 draft notes（未编辑则 fallback 到 document notes）
   const trackDraftNotes: MidiEditorNote[] = useMemo(() => {
     if (!selectedTrack) return [];
@@ -172,10 +171,20 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
     return draftNotes ?? selectedTrack.notes;
   }, [selectedTrack, draft.draftNotesByTrack]);
 
-  const selectedNote: MidiEditorNote | null = useMemo(
-    () => trackDraftNotes.find((n) => n.id === selectedNoteId) ?? null,
-    [trackDraftNotes, selectedNoteId],
+  const selectedNotes = useMemo(
+    () => trackDraftNotes.filter((note) => selectedNoteIds.has(note.id)),
+    [trackDraftNotes, selectedNoteIds],
   );
+  const selectedNote = selectedNotes.length === 1 ? selectedNotes[0] : null;
+  const selectedSummary = useMemo(() => summarizeSelectedNotes(selectedNotes), [selectedNotes]);
+
+  useEffect(() => {
+    const validIds = new Set(trackDraftNotes.map((note) => note.id));
+    setSelectedNoteIds((current) => {
+      const next = new Set(Array.from(current).filter((id) => validIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [trackDraftNotes]);
 
   const pitchRange = useMemo(
     () =>
@@ -210,26 +219,123 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   const songMaxTick = playback.maxTick;
   const perBar = document ? ticksPerBar(document.ppq, meter) : 1;
 
-  // 删除选中 Note（Delete/Backspace，非输入框内；locked 时不删除）
+  const handleVelocityCommit = (value: number) => {
+    if (!selectedTrack || selectedNoteIds.size === 0 || isTrackLocked) return;
+    const clamped = Math.max(1, Math.min(127, Math.round(value)));
+    draft.setNotesVelocity(selectedTrack.id, selectedNoteIds, clamped);
+  };
+
+  const handleSelectNotes = useCallback((noteIds: string[], intent: SelectionIntent) => {
+    setSelectedNoteIds((current) => applySelection(current, noteIds, intent));
+    setSelectionNotice(null);
+  }, []);
+
+  const editorOwnsKeyboard = useCallback((event: KeyboardEvent) => {
+    const root = editorRootRef.current;
+    if (!root) return false;
+    const target = event.target;
+    return (
+      editorActiveRef.current &&
+      ((target instanceof Node && root.contains(target)) ||
+        root.contains(globalThis.document.activeElement) ||
+        target === window)
+    );
+  }, []);
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!selectedTrack || !selectedNoteId || isTrackLocked) return;
-      if (isEditableTarget(e.target)) return;
-      if (e.key === "Delete" || e.key === "Backspace") {
-        e.preventDefault();
-        draft.deleteNote(selectedTrack.id, selectedNoteId);
-        setSelectedNoteId(null);
+    const onKey = (event: KeyboardEvent) => {
+      if (!selectedTrack || !editorOwnsKeyboard(event) || isEditableTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      const primary = event.ctrlKey || event.metaKey;
+
+      if (primary && key === "a") {
+        event.preventDefault();
+        setSelectedNoteIds(new Set(trackDraftNotes.map((note) => note.id)));
+        return;
+      }
+      if (key === "escape") {
+        event.preventDefault();
+        setSelectedNoteIds(new Set());
+        return;
+      }
+      if (primary && key === "c") {
+        event.preventDefault();
+        const clipboard = createMidiClipboard(selectedNotes, selectedTrack.isDrum);
+        if (clipboard) clipboardRef.current = clipboard;
+        setSelectionNotice(clipboard ? `已复制 ${clipboard.notes.length} 个音符` : null);
+        return;
+      }
+      if (primary && key === "v") {
+        event.preventDefault();
+        if (isTrackLocked) {
+          setSelectionNotice("当前轨道已锁定，不能粘贴");
+          return;
+        }
+        const clipboard = clipboardRef.current;
+        if (!clipboard) {
+          setSelectionNotice("内部 MIDI 剪贴板为空");
+          return;
+        }
+        const targetKind = selectedTrack.isDrum ? "drum" : "pitched";
+        if (clipboard.sourceKind !== targetKind) {
+          setSelectionNotice("鼓组轨与有调轨之间不能直接粘贴音符");
+          return;
+        }
+        const anchor = snapTick(playback.currentTick, snap, document?.ppq ?? 480);
+        const ids = draft.insertNotes(
+          selectedTrack.id,
+          materializeClipboard(clipboard, anchor, selectedTrack.channel),
+        );
+        setSelectedNoteIds(new Set(ids));
+        setSelectionNotice(`已在 playhead 粘贴 ${ids.length} 个音符`);
+        return;
+      }
+      if (primary && key === "d") {
+        event.preventDefault();
+        if (isTrackLocked || selectedNotes.length === 0) {
+          if (isTrackLocked) setSelectionNotice("当前轨道已锁定，不能复制音符");
+          return;
+        }
+        const ids = draft.insertNotes(selectedTrack.id, duplicateNotes(selectedNotes, selectedTrack.channel));
+        setSelectedNoteIds(new Set(ids));
+        setSelectionNotice(`已复制 ${ids.length} 个音符`);
+        return;
+      }
+      if (primary && key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) draft.redo(selectedTrack.id);
+        else draft.undo(selectedTrack.id);
+        return;
+      }
+      if (primary && key === "y") {
+        event.preventDefault();
+        draft.redo(selectedTrack.id);
+        return;
+      }
+      if ((key === "delete" || key === "backspace") && selectedNoteIds.size > 0) {
+        event.preventDefault();
+        if (isTrackLocked) {
+          setSelectionNotice("当前轨道已锁定，不能删除音符");
+          return;
+        }
+        draft.deleteNotes(selectedTrack.id, selectedNoteIds);
+        setSelectedNoteIds(new Set());
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedTrack, selectedNoteId, isTrackLocked, draft]);
-
-  const handleVelocityCommit = (value: number) => {
-    if (!selectedTrack || !selectedNoteId || isTrackLocked) return;
-    const clamped = Math.max(1, Math.min(127, Math.round(value)));
-    draft.setVelocity(selectedTrack.id, selectedNoteId, clamped);
-  };
+  }, [
+    document?.ppq,
+    draft,
+    editorOwnsKeyboard,
+    isTrackLocked,
+    playback.currentTick,
+    selectedNoteIds,
+    selectedNotes,
+    selectedTrack,
+    snap,
+    trackDraftNotes,
+  ]);
 
   const handleFit = () => {
     if (!document || !selectedTrack) return;
@@ -263,21 +369,23 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
 
   const handleAddNote = useCallback(
     (note: Omit<MidiEditorNote, "id">) => {
-      if (selectedTrackId) draft.addNote(selectedTrackId, note);
+      if (!selectedTrackId || isTrackLocked) return;
+      const id = draft.insertNotes(selectedTrackId, [note])[0];
+      if (id) setSelectedNoteIds(new Set([id]));
     },
-    [draft.addNote, selectedTrackId],
+    [draft.insertNotes, isTrackLocked, selectedTrackId],
   );
-  const handleMoveNote = useCallback(
-    (noteId: string, start: number, pitch: number) => {
-      if (selectedTrackId) draft.moveNote(selectedTrackId, noteId, start, pitch);
+  const handleMoveNotes = useCallback(
+    (changes: Array<{ id: string; startTick: number; pitch: number }>) => {
+      if (selectedTrackId && !isTrackLocked) draft.moveNotes(selectedTrackId, changes);
     },
-    [draft.moveNote, selectedTrackId],
+    [draft.moveNotes, isTrackLocked, selectedTrackId],
   );
   const handleResizeNote = useCallback(
     (noteId: string, duration: number) => {
-      if (selectedTrackId) draft.resizeNote(selectedTrackId, noteId, duration);
+      if (selectedTrackId && !isTrackLocked) draft.resizeNote(selectedTrackId, noteId, duration);
     },
-    [draft.resizeNote, selectedTrackId],
+    [draft.resizeNote, isTrackLocked, selectedTrackId],
   );
   const handleDragEnd = useCallback(() => {
     if (selectedTrackId) draft.commitEdit(selectedTrackId);
@@ -332,7 +440,7 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   const handleDiscard = () => {
     if (!selectedTrack) return;
     draft.discardTrack(selectedTrack.id);
-    setSelectedNoteId(null);
+    setSelectedNoteIds(new Set());
     setConfirmDiscard(false);
     setSaveError(null);
   };
@@ -360,11 +468,31 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
   } else {
     const isDirty = draft.dirtyTracks.has(selectedTrack.id);
     body = (
-      <div className="midi-editor">
+      <div
+        className="midi-editor"
+        ref={editorRootRef}
+        tabIndex={0}
+        onPointerDownCapture={(event) => {
+          editorActiveRef.current = true;
+          if (!isEditableTarget(event.target)) editorRootRef.current?.focus({ preventScroll: true });
+        }}
+        onFocusCapture={() => {
+          editorActiveRef.current = true;
+        }}
+        onBlurCapture={(event) => {
+          if (!editorRootRef.current?.contains(event.relatedTarget as Node | null)) {
+            editorActiveRef.current = false;
+          }
+        }}
+      >
         <TrackSelector
           tracks={document.tracks}
           selectedTrackId={selectedTrack.id}
-          onSelect={setSelectedTrackId}
+          onSelect={(trackId) => {
+            setSelectedTrackId(trackId);
+            setSelectedNoteIds(new Set());
+            setSelectionNotice(null);
+          }}
         />
 
         <div className="midi-editor__toolbar">
@@ -496,7 +624,7 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
             Editor Preview · tick {Math.round(playback.currentTick)}
           </span>
           <span className="midi-editor__toolbar-hint">
-            时间轴点击定位 · Ctrl+滚轮缩放 · Shift+滚轮横滚 · Space+拖动平移 · 双击添加 · 右边缘拉长 · Delete 删除
+            Ctrl/Cmd+A 全选 · C/V 复制粘贴 · D 复制副本 · Shift/Ctrl 点击多选 · 空白拖动框选 · Delete 批量删除
           </span>
         </div>
 
@@ -542,12 +670,12 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
                 channel={selectedTrack.channel}
                 isDrum={selectedTrack.isDrum}
                 snap={snap}
-                selectedNoteId={selectedNoteId}
+                selectedNoteIds={selectedNoteIds}
                 locked={isTrackLocked}
                 panEnabled={spacePressed}
-                onSelectNote={setSelectedNoteId}
+                onSelectNotes={handleSelectNotes}
                 onAddNote={handleAddNote}
-                onMoveNote={handleMoveNote}
+                onMoveNotes={handleMoveNotes}
                 onResizeNote={handleResizeNote}
                 onDragEnd={handleDragEnd}
                 onZoomH={handleRollZoom}
@@ -570,6 +698,7 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
           <span>PPQ: {document.ppq}</span>
           <span>Playhead: {Math.round(playback.currentTick)} tick</span>
           <span>Version: {document.versionId ?? "—"}</span>
+          <span data-testid="selected-note-count">Selected: {selectedNoteIds.size}</span>
           {selectedNote && (
             <span className="midi-editor__selected-note">
               {midiPitchToNoteName(selectedNote.pitch)} ({selectedNote.pitch}) · bar{" "}
@@ -579,24 +708,37 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps)
           )}
         </div>
 
-        {selectedNote && selectedTrack && (
+        {selectedSummary && selectedTrack && (
           <div className="midi-editor__inspector">
+            {selectedSummary.count > 1 && (
+              <span className="midi-editor__selection-summary">
+                {selectedSummary.count} notes · tick {selectedSummary.startTick}–{selectedSummary.endTick} · pitch{" "}
+                {midiPitchToNoteName(selectedSummary.minPitch)}–{midiPitchToNoteName(selectedSummary.maxPitch)} · avg velocity{" "}
+                {selectedSummary.averageVelocity}
+              </span>
+            )}
             <label className="midi-editor__velocity">
-              Velocity
+              {selectedSummary.count > 1 ? "Batch velocity" : "Velocity"}
               <input
                 type="number"
                 min={1}
                 max={127}
-                value={selectedNote.velocity}
+                value={selectedNote?.velocity ?? selectedSummary.averageVelocity}
                 disabled={isTrackLocked}
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   if (!Number.isNaN(v)) handleVelocityCommit(v);
                 }}
-                aria-label="Velocity 力度"
+                aria-label={selectedSummary.count > 1 ? "Batch velocity 力度" : "Velocity 力度"}
               />
             </label>
           </div>
+        )}
+
+        {selectionNotice && (
+          <InlineNotice variant="warning" title="MIDI Selection">
+            {selectionNotice}
+          </InlineNotice>
         )}
 
         {saveError && (
