@@ -121,7 +121,20 @@
   （lockedTrackIds，保留 Draft、Velocity input disabled）、Space 键 pan。document/songId 变化
   清除 lock/selection/zoom。测试：Vitest 80 passed（zoom limits/percent/fit/empty fit/单 note
   有界、lock 阻止 delete/velocity 且保留 draft、既有 CRUD/坐标/隔离回归）；npm build 通过
-  （136 modules）。无 save/version/render 调用。T34.6 next（Undo/Redo/Dirty/Save）。
+  （136 modules）。  无 save/version/render 调用。T34.6 next（Undo/Redo/Dirty/Save）。
+- T34.6 completed：Undo/Redo + Dirty + Save + Version Integration。后端补齐 T34.2 Save API
+  （`POST /midi/edit`）：`write_midi_editor_track`（替换目标轨 note 保留他轨/meta/PPQ）、
+  `MidiEditorSaveRequest/Response`、创建新版本 kind=manual_midi_edit、base_version_id 校验
+  409 VERSION_CONFLICT（errors.py 新增 code）。前端：`useMidiEditorDraft` 内置 per-track
+  undo/redo（快照栈 80；recordBefore+commitEdit 保证一次拖拽=一次 undo）、dirty 深度比较、
+  discard/rebase；`MidiEditor` 增加 Undo/Redo 按钮+快捷键（Ctrl+Z/Shift+Z/Y，输入框守卫）、
+  Dirty 指示、Save/Discard（二次确认）、409 冲突弹窗、Save 失败保留 Draft、beforeunload（仅
+  dirty）；`saveMidiEditorTrack` client；`onMidiSaved` 经 PianoRollPanel/WorkspaceDashboard →
+  ProjectWorkspacePage `markAudioStale()` + refresh assets/versions。Save 后 reload document
+  （canonical notes 替换 temp IDs、history 清空、dirty=false）。不自动 Render WAV；
+  renderer/SoundFont/is_fallback 保持真实。测试：后端 7 passed + MIDI/version 回归 34 passed；
+  前端 Vitest 89 passed（history/dirty/save 语义）；npm build 通过（136 modules）。
+  T34.7 next（Preview/Transport/Loop）。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持

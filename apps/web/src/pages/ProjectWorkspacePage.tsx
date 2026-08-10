@@ -129,6 +129,12 @@ export default function ProjectWorkspacePage() {
     ws.handleMidiRegenerated();
   };
   const handleRenderAudio = () => void audioAssets.renderAudio();
+  const handleMidiSaved = () => {
+    // MIDI 保存成功 → 标记 WAV stale + 刷新版本/资产
+    ws.handleMidiRegenerated();
+    void audioAssets.refreshAssets();
+    void versions.refreshVersions();
+  };
 
   const handleApplyEdit = (instruction: string, autoRender = true) => {
     void (async () => {
@@ -215,6 +221,7 @@ export default function ProjectWorkspacePage() {
         onGenerateFromReference={handleGenerateFromReference}
         onImported={handleImported}
         onSoundFontChanged={ws.handleSoundFontChanged}
+        onMidiSaved={handleMidiSaved}
         onDeleteProject={handleRequestDelete}
       />
       <DeleteProjectDialog

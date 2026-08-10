@@ -1,12 +1,13 @@
-// features/midi/editor/MidiEditor.tsx（T34.4）
-// MIDI Editor：组合 TrackSelector + Snap 工具栏 + TimelineHeader + PianoKeyboard +
-// PianoRollViewport（可编辑 draft）+ NoteInspector（velocity）。
-// Draft 由 useMidiEditorDraft 管理；本阶段不调用 Save API。
+// features/midi/editor/MidiEditor.tsx（T34.6）
+// MIDI Editor：组合 TrackSelector + 工具栏（snap/undo/redo/save/discard/zoom/fit/lock）+
+// TimelineHeader + PianoKeyboard + PianoRollViewport（可编辑 draft）+ NoteInspector（velocity）。
+// Draft 由 useMidiEditorDraft 管理；Save 调 T34.6 API 创建新版本。
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMidiEditorDocument } from "./useMidiEditorDocument";
 import { useMidiEditorDraft } from "./useMidiEditorDraft";
 import { useMidiViewport } from "./useMidiViewport";
+import { saveMidiEditorTrack } from "./midiEditorApi";
 import { TrackSelector } from "./TrackSelector";
 import { TimelineHeader } from "./TimelineHeader";
 import { PianoKeyboard } from "./PianoKeyboard";
@@ -15,7 +16,14 @@ import type { MidiEditorDocument, MidiEditorNote, MidiEditorTrack } from "./midi
 import { computePitchRange, DEFAULT_LAYOUT, tickToBar, tickToBeat } from "./midiEditorLayout";
 import { DEFAULT_SNAP, SNAP_OPTIONS, midiPitchToNoteName, type SnapValue } from "./midiEditorGeometry";
 import { documentMaxTick } from "./midiEditorGeometry";
-import { EmptyState, ErrorState, LoadingState, SectionCard } from "../../../components/ui";
+import { ActionButton, EmptyState, ErrorState, InlineNotice, LoadingState, SectionCard } from "../../../components/ui";
+import { getErrorMessage } from "../../../hooks/error";
+
+export interface MidiEditorProps {
+  songId?: string | null;
+  refreshKey?: number;
+  onSaved?: (versionId: string) => void;
+}
 
 export interface MidiEditorProps {
   songId?: string | null;
@@ -39,7 +47,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-export function MidiEditor({ songId, refreshKey = 0 }: MidiEditorProps) {
+export function MidiEditor({ songId, refreshKey = 0, onSaved }: MidiEditorProps) {
   const { document, isLoading, error, notFound, reload } = useMidiEditorDocument(songId);
   const draft = useMidiEditorDraft(document);
   const viewport = useMidiViewport();
@@ -48,12 +56,20 @@ export function MidiEditor({ songId, refreshKey = 0 }: MidiEditorProps) {
   const [snap, setSnap] = useState<SnapValue>(DEFAULT_SNAP);
   const [lockedTrackIds, setLockedTrackIds] = useState<Set<string>>(new Set());
   const [spacePressed, setSpacePressed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{ currentVersionId: string; baseVersionId: string } | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const dirtyRef = useRef(false);
 
   // songId 或 document 变化：重选有效轨道、清空 note 选择（draft hook 已自行重置）
   useEffect(() => {
     setSelectedNoteId(null);
     setLockedTrackIds(new Set());
     viewport.resetZoom();
+    setSaveError(null);
+    setConflict(null);
+    setConfirmDiscard(false);
     if (!document) {
       setSelectedTrackId(null);
       return;
@@ -64,6 +80,25 @@ export function MidiEditor({ songId, refreshKey = 0 }: MidiEditorProps) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [document]);
+
+  // 同步 dirtyRef（beforeunload / 离开守卫用）
+  useEffect(() => {
+    dirtyRef.current = draft.dirtyTracks.size > 0;
+  }, [draft.dirtyTracks]);
+
+  // beforeunload：仅 dirty 时注册
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  // Undo/Redo 快捷键（Ctrl/Cmd+Z、Ctrl/Cmd+Shift+Z、Ctrl+Y）；输入框聚焦时不触发
+  // 放在 selectedTrack 声明之后，见下方。
 
   // refreshKey 变化（MIDI 重新生成 / 版本恢复）→ 重新加载 document
   useEffect(() => {
@@ -99,6 +134,25 @@ export function MidiEditor({ songId, refreshKey = 0 }: MidiEditorProps) {
     if (!document) return null;
     return document.tracks.find((t) => t.id === selectedTrackId) ?? null;
   }, [document, selectedTrackId]);
+
+  // Undo/Redo 快捷键（需在 selectedTrack 声明之后）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return;
+      if (!selectedTrack) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) draft.redo(selectedTrack.id);
+        else draft.undo(selectedTrack.id);
+      } else if (mod && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        draft.redo(selectedTrack.id);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedTrack, draft]);
 
   // 当前轨道 draft notes（未编辑则 fallback 到 document notes）
   const trackDraftNotes: MidiEditorNote[] = useMemo(() => {
@@ -159,6 +213,45 @@ export function MidiEditor({ songId, refreshKey = 0 }: MidiEditorProps) {
   // 供 fit 使用的容器 ref
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
+  const handleSave = useCallback(async () => {
+    if (!document || !selectedTrack || saving) return;
+    const notes = draft.draftNotesByTrack[selectedTrack.id];
+    if (!notes) return;
+    setSaving(true);
+    setSaveError(null);
+    setConflict(null);
+    try {
+      const result = await saveMidiEditorTrack(songId ?? "", {
+        trackId: selectedTrack.id,
+        baseVersionId: document.versionId,
+        notes,
+      });
+      // Save 成功后：reload document（后端 canonical notes + 新 version）
+      await reload();
+      onSaved?.(result.versionId);
+    } catch (e) {
+      const err = e as { status?: number; details?: Record<string, unknown>; code?: string };
+      if (err.status === 409) {
+        setConflict({
+          currentVersionId: String(err.details?.current_version_id ?? "?") ,
+          baseVersionId: String(err.details?.base_version_id ?? "?"),
+        });
+      } else {
+        setSaveError(getErrorMessage(e));
+      }
+    } finally {
+      setSaving(false);
+    }
+  }, [document, selectedTrack, draft, songId, saving, reload, onSaved]);
+
+  const handleDiscard = () => {
+    if (!selectedTrack) return;
+    draft.discardTrack(selectedTrack.id);
+    setSelectedNoteId(null);
+    setConfirmDiscard(false);
+    setSaveError(null);
+  };
+
   let body;
   if (isLoading && !document) {
     body = <LoadingState title="正在加载 MIDI…" />;
@@ -213,9 +306,34 @@ export function MidiEditor({ songId, refreshKey = 0 }: MidiEditorProps) {
             </select>
           </label>
 
+          <span className="midi-editor__history">
+            <ActionButton variant="ghost" onClick={() => draft.undo(selectedTrack.id)} disabled={!draft.canUndoTrack(selectedTrack.id)} title="撤销 (Ctrl+Z)">
+              Undo
+            </ActionButton>
+            <ActionButton variant="ghost" onClick={() => draft.redo(selectedTrack.id)} disabled={!draft.canRedoTrack(selectedTrack.id)} title="重做 (Ctrl+Shift+Z)">
+              Redo
+            </ActionButton>
+          </span>
+
           <button type="button" className="ui-action-button ui-action-button--secondary" onClick={toggleTrackLock} aria-pressed={isTrackLocked}>
             {isTrackLocked ? "🔒 已锁定" : "🔓 编辑"}
           </button>
+
+          {isDirty && <span className="status-chip status-warning">● 未保存修改</span>}
+
+          <span className="midi-editor__save">
+            <ActionButton
+              variant="primary"
+              onClick={() => void handleSave()}
+              disabled={!isDirty || saving || !document?.versionId}
+              loading={saving}
+            >
+              {saving ? "保存中…" : "保存 MIDI 修改"}
+            </ActionButton>
+            <ActionButton variant="ghost" onClick={() => setConfirmDiscard(true)} disabled={!isDirty}>
+              放弃修改
+            </ActionButton>
+          </span>
 
           <span className="midi-editor__zoom">
             <button type="button" onClick={viewport.zoomHOut} aria-label="横向缩小">−</button>
@@ -275,6 +393,7 @@ export function MidiEditor({ songId, refreshKey = 0 }: MidiEditorProps) {
                 }}
                 onMoveNote={(noteId, start, pitch) => draft.moveNote(selectedTrack.id, noteId, start, pitch)}
                 onResizeNote={(noteId, duration) => draft.resizeNote(selectedTrack.id, noteId, duration)}
+                onDragEnd={() => draft.commitEdit(selectedTrack.id)}
                 onZoomH={(dir) => (dir > 0 ? viewport.zoomHIn() : viewport.zoomHOut())}
                 layout={layout}
               />
@@ -313,6 +432,40 @@ export function MidiEditor({ songId, refreshKey = 0 }: MidiEditorProps) {
                 aria-label="Velocity 力度"
               />
             </label>
+          </div>
+        )}
+
+        {saveError && (
+          <InlineNotice variant="danger" title="保存失败">
+            {saveError}
+          </InlineNotice>
+        )}
+
+        {conflict && (
+          <div className="ui-dialog-backdrop" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && setConflict(null)}>
+            <div className="ui-dialog" role="dialog" aria-modal="true">
+              <h2 className="ui-dialog__title">版本冲突</h2>
+              <p className="ui-dialog__body">
+                工程已更新到 {conflict.currentVersionId}，当前 MIDI 草稿基于 {conflict.baseVersionId}，无法直接保存。
+              </p>
+              <div className="ui-dialog__actions ui-button-row">
+                <ActionButton variant="secondary" onClick={() => setConflict(null)}>继续查看草稿</ActionButton>
+                <ActionButton variant="primary" onClick={() => void reload()}>重新加载最新版本</ActionButton>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {confirmDiscard && (
+          <div className="ui-dialog-backdrop" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && setConfirmDiscard(false)}>
+            <div className="ui-dialog" role="dialog" aria-modal="true">
+              <h2 className="ui-dialog__title">放弃修改？</h2>
+              <p className="ui-dialog__body">放弃当前未保存的 MIDI 修改？此操作无法撤销。</p>
+              <div className="ui-dialog__actions ui-button-row">
+                <ActionButton variant="secondary" onClick={() => setConfirmDiscard(false)}>取消</ActionButton>
+                <ActionButton variant="danger" onClick={handleDiscard}>放弃修改</ActionButton>
+              </div>
+            </div>
           </div>
         )}
       </div>

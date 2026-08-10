@@ -56,3 +56,21 @@ class MidiEditorDocument(BaseModel):
     time_signature: tuple[int, int] = (4, 4)
     total_bars: float = 0.0
     tracks: list[MidiEditorTrack] = Field(default_factory=list)
+
+
+class MidiEditorSaveRequest(BaseModel):
+    """保存被编辑轨道（T34.6）：只提交被编辑 Track 的完整 notes + base_version_id。"""
+
+    track_id: str = Field(min_length=1)
+    base_version_id: str | None = None
+    notes: list[MidiEditorNote] = Field(default_factory=list)
+
+
+class MidiEditorSaveResponse(BaseModel):
+    """保存成功响应。"""
+
+    song_id: str
+    version_id: str
+    music_spec: object | None = None
+    assets: dict | None = None
+    warnings: list[str] = Field(default_factory=list)

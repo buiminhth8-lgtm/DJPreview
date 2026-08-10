@@ -573,3 +573,8 @@
     （Ctrl+Wheel/Shift+Wheel/Space+Pan/locked 阻止编辑）+ MidiEditor 工具栏
     （zoom 按钮/Fit/每轨道 Lock）。
   - 验证：Vitest 80 passed；npm build 通过（136 modules）。T34.6 next（Undo/Redo/Dirty/Save）。
+- T34.6 completed：Undo/Redo + Dirty + Save + Version Integration。
+  - 后端补齐 T34.2 Save API（POST /midi/edit：写回 + 版本 + 409）；前端 useMidiEditorDraft
+    per-track history/dirty/discard/rebase + MidiEditor Save/Discard/Undo/Redo/冲突/beforeunload +
+    onMidiSaved → markAudioStale。
+  - 验证：后端 7+34 passed；Vitest 89 passed；npm build 通过。T34.7 next（Preview/Transport/Loop）。

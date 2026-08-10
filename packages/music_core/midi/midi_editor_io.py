@@ -193,3 +193,95 @@ def build_midi_editor_document(
         total_bars=round(total_beats / time_signature[0], 2) if time_signature[0] else 0.0,
         tracks=editor_tracks,
     )
+
+
+def write_midi_editor_track(
+    midi_path: str | Path,
+    output_path: str | Path,
+    *,
+    track_id: str,
+    notes: list[MidiEditorNote],
+    spec_track_ids: set[str],
+) -> Path:
+    """写回：把 MIDI 中目标轨道 note 事件替换为编辑后的 notes，保留他轨/其余消息。
+
+    - track 定位：track_name == track_id（或 divisi 前缀）→ 用该 MIDI 轨道；
+      external（ext_{index}）→ 用索引。
+    - 目标轨重建：只保留 track_name/program_change/CC10/CC11/CC7/end_of_track，
+      删除其 note_on/note_off，写入新 notes（tick 直接写入，不再 round(beat*tpb)）。
+    - 其他轨：原样保留全部 message。
+    - 输出 PPQ 与输入一致。
+    """
+    midi = mido.MidiFile(str(midi_path))
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    tpb = midi.ticks_per_beat or 480
+
+    def _matches(target_name: str | None) -> bool:
+        if not target_name:
+            return False
+        if target_name == track_id:
+            return True
+        # external track
+        if track_id.startswith("ext_") and target_name == track_id:
+            return True
+        # divisi 派生：track_id 是主轨 id，匹配 {id}_ 前缀轨道
+        if track_id in spec_track_ids and target_name.startswith(f"{track_id}_"):
+            return True
+        return False
+
+    def _match_by_index(index: int) -> bool:
+        return track_id.startswith("ext_") and index == int(track_id.split("_", 1)[1])
+
+    new_midi = mido.MidiFile(ticks_per_beat=tpb)
+    target_replaced = False
+
+    for track_index, mido_track in enumerate(midi.tracks):
+        is_target = False
+        target_name = None
+        # 先扫 track_name 判断是否目标轨
+        for msg in mido_track:
+            if msg.type == "track_name":
+                target_name = msg.name
+        if _matches(target_name) or _match_by_index(track_index):
+            is_target = True
+
+        if not is_target:
+            new_midi.tracks.append(mido_track)
+            continue
+
+        # 重建目标轨
+        new_track = mido.MidiTrack()
+        for msg in mido_track:
+            if msg.type in ("note_on", "note_off"):
+                continue
+            new_track.append(msg)
+        # 写入新 notes（events: (tick, kind) 0=off 1=on）
+        events: list[tuple[int, int, int, int]] = []
+        for note in notes:
+            events.append((note.start_tick, 1, note.pitch, note.velocity))
+            events.append((note.start_tick + note.duration_tick, 0, note.pitch, 0))
+        events.sort(key=lambda e: (e[0], -e[1]))
+        last = 0
+        for tick, kind, pitch, velocity in events:
+            delta = max(0, tick - last)
+            last = tick
+            if kind == 1:
+                new_track.append(mido.Message("note_on", note=pitch, velocity=velocity, time=delta, channel=channel_of(notes) or 0))
+            else:
+                new_track.append(mido.Message("note_off", note=pitch, velocity=0, time=delta, channel=channel_of(notes) or 0))
+        # end_of_track 可能已从原轨道保留；确保存在
+        if not any(getattr(m, "type", None) == "end_of_track" for m in new_track):
+            new_track.append(mido.MetaMessage("end_of_track"))
+        new_midi.tracks.append(new_track)
+        target_replaced = True
+
+    if not target_replaced:
+        raise ValueError(f"MIDI 中找不到目标轨道：{track_id}")
+
+    new_midi.save(str(output))
+    return output
+
+
+def channel_of(notes: list[MidiEditorNote]) -> int:
+    return notes[0].channel if notes else 0

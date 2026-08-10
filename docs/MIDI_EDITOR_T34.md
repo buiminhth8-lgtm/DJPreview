@@ -833,3 +833,72 @@ pm test：80 passed（zoom limits/percent/fit/empty fit/单 note fit 有界；lo
 - 
 pm run build：PASS（136 modules）
 - 编辑过程无 save/version/render 请求；dev server 200
+
+---
+
+## 34. T34.6 Undo / Redo + Dirty + Save + Version Integration（Completed）
+
+> 注意：T34.2 的 Save API 在代码库中**原本缺失**（只有 T34.1 读取）。本阶段按 T34.0 Final
+> Decisions 补齐了后端 POST /api/v1/songs/{song_id}/midi/edit（写回 + 版本 + 409）。
+
+### 34.1 History（per-track snapshot）
+
+- useMidiEditorDraft 内置 per-track undo/redo（快照栈，上限 80）。
+- 每个逻辑操作（含一次完整 Drag）只产生一个 undo step：
+  - ecordBefore 在变更前记录 before；commitEdit（pointerup）清除 pending。
+  - 拖拽期间多次 moveNote/resizeNote 共享同一个 pending before → 一次 undo。
+- Undo/Redo：Ctrl/Cmd+Z、Ctrl/Cmd+Shift+Z、Ctrl+Y；按钮 disabled 按栈空判定。
+- 输入框聚焦时（isEditableTarget）不触发快捷键。
+
+### 34.2 Dirty semantics
+
+- dirty = draftNotes 与 saved baseline 不一致（深度比较）。
+- Undo 回 baseline → dirty=false；Redo → dirty=true；Save → dirty=false。
+- dirtyTracks: Set<trackId> 支持多轨道独立 dirty。
+
+### 34.3 Save lifecycle
+
+- Save 调 saveMidiEditorTrack(songId, {trackId, baseVersionId=document.versionId, notes})。
+- 成功：后端创建新版本（kind=manual_midi_edit）→ reload document → draft hook 自动重置
+  （canonical notes + history 清空 + dirty=false + temp IDs 被 canonical 替换）→ onSaved
+  回调 → Workspace markAudioStale() + refresh assets/versions。
+- 失败：Draft/dirty/history 保留，显示可重试错误。
+- 409 version_conflict：不覆盖 Draft，弹窗「重新加载最新版本 / 继续查看草稿」。
+- 防重复提交（saving 状态禁用）。
+
+### 34.4 Discard
+
+- 二次确认后 discardTrack(trackId)：draft=saved、history 清空、selection 清、dirty=false；不调后端。
+
+### 34.5 Guards
+
+- eforeunload：仅 dirty 时注册（浏览器原生离开保护）。
+- Project/Regenerate/Restore：SPA 导航会触发 document 变化 → draft 自动重置；浏览器离开由
+  beforeunload 保护。
+
+### 34.6 Version boundary / WAV stale
+
+- Save 是 history boundary（Save 后不可 Undo 跨版本；回旧版用 Version Restore）。
+- Save 后 WAV stale（markAudioStale）；不自动 Render；renderer/SoundFont/is_fallback 保持真实。
+
+### 34.7 Track Lock 兼容
+
+- Locked 阻止新 note mutation；已有 dirty Draft 仍可 Save/Discard/Undo/Redo（Lock 不阻止
+  Draft 管理）。
+
+### 34.8 Files
+
+- 后端：midi_editor_io.write_midi_editor_track（替换目标轨 note、保留他轨/meta）、
+  schemas/midi_editor.py（SaveRequest/Response）、outes/songs.py（POST /midi/edit + 409 +
+  版本）、errors.py（VERSION_CONFLICT）。
+- 前端：midiEditorApi.ts（saveMidiEditorTrack）、useMidiEditorDraft.ts（history/dirty/
+  discard/rebase）、MidiEditor.tsx（Undo/Redo/Save/Discard/conflict/dirty/beforeunload）、
+  PianoRollPanel.tsx（onMidiSaved）、WorkspaceDashboard.tsx/ProjectWorkspacePage.tsx
+  （onMidiSaved → markAudioStale）。
+- 测试：	est_midi_editor_save_api.py（7）、useMidiEditorDraft.history.test.ts（9）。
+
+### 34.9 Verification
+
+- 后端：	est_midi_editor_save_api.py 7 passed；MIDI/version 回归 34 passed。
+- 前端：Vitest 89 passed；npm build 通过（136 modules）。
+- 真实 smoke：save→v2（≠v1）、bass pitch 36→37、stale base→409、has_audio=false、current=v2。

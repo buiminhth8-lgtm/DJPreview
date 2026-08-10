@@ -29,7 +29,7 @@ from packages.music_core.evaluation.eval_fixtures import get_eval_cases
 from packages.music_core.evaluation.eval_models import EvalCase, EvalReport
 from packages.music_core.evaluation.eval_runner import run_generation_eval
 from packages.music_core.midi.midi_writer import write_midi
-from packages.music_core.midi.midi_editor_io import build_midi_editor_document
+from packages.music_core.midi.midi_editor_io import build_midi_editor_document, write_midi_editor_track
 from packages.music_core.mix.mix_engine import (
     apply_mix_to_composition,
     create_default_mix_spec,
@@ -156,7 +156,7 @@ from services.api.storage.project_store import (
     save_optimize_report,
     save_quality_report,
 )
-from services.api.schemas.midi_editor import MidiEditorDocument
+from services.api.schemas.midi_editor import MidiEditorDocument, MidiEditorSaveRequest, MidiEditorSaveResponse
 from services.api.schemas.music_edit_spec import MusicEditSpec
 from services.api.schemas.music_spec import MusicSpec
 
@@ -952,6 +952,79 @@ def get_midi_editor_document(song_id: str) -> MidiEditorDocument:
         )
     except (ValueError, OSError, EOFError) as exc:
         raise invalid_request(f"MIDI 解析失败：{exc}") from None
+
+
+@router.post(
+    "/songs/{song_id}/midi/edit",
+    response_model=MidiEditorSaveResponse,
+    summary="保存被编辑 MIDI 轨道（T34.6，创建新版本）",
+)
+def save_midi_editor_track(song_id: str, req: MidiEditorSaveRequest) -> MidiEditorSaveResponse:
+    """把被编辑 Track 的 notes 写回 MIDI 并创建新版本（kind=manual_midi_edit）。
+
+    - 不反向修改 MusicSpec、不重新作曲、不渲染 WAV。
+    - base_version_id 与当前版本不一致 → 409 version_conflict。
+    """
+    try:
+        spec = get_project(song_id)
+        midi_path = get_midi_path(song_id)
+    except FileNotFoundError as exc:
+        if "output.mid" in str(exc) or "MIDI" in str(exc):
+            raise asset_not_found("output.mid", message="当前工程尚未生成 MIDI，请先生成 MIDI") from None
+        raise project_not_found(song_id) from None
+    except ValueError as exc:
+        raise invalid_request(str(exc)) from None
+
+    current = get_current_version(song_id)
+    current_version_id = current.get("version_id") if current else None
+    if req.base_version_id and current_version_id and req.base_version_id != current_version_id:
+        raise api_error(
+            409,
+            ApiErrorCode.VERSION_CONFLICT,
+            "工程已更新到新版本，当前 MIDI 草稿基于旧版本，无法直接保存",
+            details={"current_version_id": current_version_id, "base_version_id": req.base_version_id},
+        )
+
+    spec_track_ids = {t.id for t in spec.tracks}
+    if req.track_id not in spec_track_ids and not req.track_id.startswith("ext_"):
+        raise invalid_request(f"未知 track_id：{req.track_id}")
+
+    # 写回目标轨 → output.mid
+    tmp_midi = _project_dir_for(song_id) / "output.midi_edit.tmp"
+    try:
+        write_midi_editor_track(
+            midi_path,
+            tmp_midi,
+            track_id=req.track_id,
+            notes=req.notes,
+            spec_track_ids=spec_track_ids,
+        )
+    except ValueError as exc:
+        tmp_midi.unlink(missing_ok=True)
+        raise invalid_request(str(exc)) from None
+    except (OSError, EOFError) as exc:
+        tmp_midi.unlink(missing_ok=True)
+        raise invalid_request(f"MIDI 写回失败：{exc}") from None
+
+    # 创建新版本（music_spec 不变）+ 写回 MIDI
+    role = next((t.role for t in spec.tracks if t.id == req.track_id), None)
+    version = create_version(song_id, spec, f"Manual MIDI edit: {req.track_id}", None)
+    try:
+        save_midi_file(song_id, tmp_midi)
+    finally:
+        tmp_midi.unlink(missing_ok=True)
+
+    warnings: list[str] = []
+    if req.track_id.startswith("ext_"):
+        warnings.append("外部轨道已保存，但未关联 MusicSpec 角色。")
+
+    return MidiEditorSaveResponse(
+        song_id=song_id,
+        version_id=version["version_id"],
+        music_spec=spec.model_dump(mode="json"),
+        assets=_assets_response(song_id).model_dump(mode="json"),
+        warnings=warnings,
+    )
 
 
 @router.get("/songs/{song_id}/piano-roll", response_model=PianoRollResponse, summary="获取钢琴卷帘数据")

@@ -13,6 +13,7 @@ export interface PianoRollPanelProps {
   isGeneratingMidi?: boolean;
   refreshKey?: number;
   onGenerateMidi?: () => void;
+  onMidiSaved?: (versionId: string) => void;
   onError?: (message: string) => void;
 }
 
@@ -23,6 +24,7 @@ export function PianoRollPanel({
   isGeneratingMidi = false,
   refreshKey = 0,
   onGenerateMidi,
+  onMidiSaved,
 }: PianoRollPanelProps) {
   const canLoadRoll = Boolean(songId) && hasMidi;
 
@@ -52,7 +54,7 @@ export function PianoRollPanel({
   } else {
     body = (
       <div className="workspace-piano-roll">
-        <MidiEditor songId={songId} refreshKey={refreshKey} />
+        <MidiEditor songId={songId} refreshKey={refreshKey} onSaved={onMidiSaved} />
       </div>
     );
   }

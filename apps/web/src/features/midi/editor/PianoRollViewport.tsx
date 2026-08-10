@@ -38,6 +38,7 @@ export interface PianoRollViewportProps {
   onAddNote: (note: Omit<MidiEditorNote, "id">) => void;
   onMoveNote: (noteId: string, newStartTick: number, newPitch: number) => void;
   onResizeNote: (noteId: string, newDurationTick: number) => void;
+  onDragEnd?: () => void;
   onZoomH?: (dir: 1 | -1) => void;
   onScrollLeftChange?: (v: number) => void;
   onScrollTopChange?: (v: number) => void;
@@ -102,6 +103,7 @@ export function PianoRollViewport({
   onAddNote,
   onMoveNote,
   onResizeNote,
+  onDragEnd,
   onZoomH,
   onScrollLeftChange,
   onScrollTopChange,
@@ -211,6 +213,7 @@ export function PianoRollViewport({
         // ignore
       }
     }
+    onDragEnd?.();
   };
 
   const onGridDoubleClick = (e: React.MouseEvent) => {

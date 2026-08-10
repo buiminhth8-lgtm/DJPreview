@@ -80,3 +80,48 @@ export function getMidiEditorDocument(
     options?.signal,
   ).then(mapMidiEditorDocument);
 }
+
+export interface SaveMidiEditorTrackInput {
+  trackId: string;
+  baseVersionId: string | null;
+  notes: MidiEditorNote[];
+}
+
+export interface SaveMidiEditorTrackResult {
+  songId: string;
+  versionId: string;
+  warnings: string[];
+}
+
+export function saveMidiEditorTrack(
+  songId: string,
+  input: SaveMidiEditorTrackInput,
+  options?: { signal?: AbortSignal },
+): Promise<SaveMidiEditorTrackResult> {
+  const encoded = encodeURIComponent(songId);
+  return requestJson<{
+    song_id: string;
+    version_id: string;
+    warnings?: string[];
+  }>(
+    `/api/v1/songs/${encoded}/midi/edit`,
+    "POST",
+    {
+      track_id: input.trackId,
+      base_version_id: input.baseVersionId,
+      notes: input.notes.map((n) => ({
+        id: n.id,
+        pitch: n.pitch,
+        start_tick: n.startTick,
+        duration_tick: n.durationTick,
+        velocity: n.velocity,
+        channel: n.channel,
+      })),
+    },
+    options?.signal,
+  ).then((data) => ({
+    songId: data.song_id,
+    versionId: data.version_id,
+    warnings: data.warnings ?? [],
+  }));
+}

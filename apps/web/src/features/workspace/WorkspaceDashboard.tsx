@@ -63,6 +63,7 @@ export interface WorkspaceDashboardProps {
   onGenerateFromReference: (result: GenerateFromReferenceResponse) => void;
   onImported: (songId: string) => void;
   onSoundFontChanged: () => void;
+  onMidiSaved: (versionId: string) => void;
   onDeleteProject: () => void;
 }
 
@@ -88,6 +89,7 @@ export default function WorkspaceDashboard({
   onGenerateFromReference,
   onImported,
   onSoundFontChanged,
+  onMidiSaved,
   onDeleteProject,
 }: WorkspaceDashboardProps) {
   const songId = songProject.songId;
@@ -205,6 +207,7 @@ export default function WorkspaceDashboard({
           isGeneratingMidi={audioAssets.loadingMidi}
           refreshKey={pianoRefreshKey}
           onGenerateMidi={onGenerateMidi}
+          onMidiSaved={onMidiSaved}
           onError={songProject.setError}
         />
 
