@@ -534,3 +534,16 @@
   Flow A/B/C PASS、Playwright 12 passed、Vitest 13 passed、后端关键 76 passed、
   真实 FluidSynth 渲染 PASS）。详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
 - T33.9：回归收尾（待办，见 T33-R1）
+
+## T34 MIDI Track Editor（设计阶段）
+
+- T34.0 completed：技术扫描与数据模型设计（无代码改动）。
+  - 确认当前 MIDI 架构 / Piano Roll 数据流 / canonical source of truth（output.mid）/
+    track identity（MusicSpec track.id）/ note identity（会话级 UUID）/
+    时间模型（integer tick，PPQ 480）/ drum（channel 9 + pitch）/
+    save 粒度（只提交被编辑 Track）/ write-back（替换目标轨保留他轨）/
+    version（kind=manual_midi_edit）/ WAV stale（markAudioStale）/
+    preview（后端 scratch）/ Piano Roll（继续 SVG）。
+  - 设计详见 [docs/MIDI_EDITOR_T34.md](docs/MIDI_EDITOR_T34.md)。
+  - 验证：npm build 通过；MIDI/version 相关 28 passed。
+- T34.1 next：Editable Note Model + Read API（midiEditorTypes + GET /midi/editor）。

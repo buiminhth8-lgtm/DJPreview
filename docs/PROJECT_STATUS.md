@@ -73,6 +73,16 @@
 - T33-UI1：工程库批量选择/删除（checkbox、全选当前结果、indeterminate、BatchDeleteDialog 二次确认、
   Promise.allSettled 部分失败处理）；Workspace 完整 song_id + 复制；宽屏主体
   `min(1680px, 100vw-48px)` 与统一 padding/gap；无重复 Header；build + 18 前端测试 + E2E 11 passed。
+- T34.0 started / completed：MIDI Track Editor 技术扫描与数据模型设计（设计阶段，无代码改动）。
+  已确认：Piano Roll 数据来自 `GET /songs/{id}/piano-roll`（parse output.mid → beat 语义）；
+  MIDI source of truth = `output.mid`（+ music_spec.json，无 note sidecar）；track_id = MusicSpec
+  track.id（稳定）；Note 用会话级 UUID；canonical 时间 = integer tick（PPQ 480/保留文件值）；
+  编辑保存只提交被编辑 Track + baseVersionId（409 conflict）；写回 = 读当前 MIDI → 替换目标轨
+  note → 保留 tempo/ts/program/pan/cc/他轨；Manual Edit 不反向改 MusicSpec、创建
+  kind=manual_midi_edit 版本；WAV stale 复用 markAudioStale；preview 用后端 scratch 方案；
+  Piano Roll 继续 SVG。设计详见
+  [docs/MIDI_EDITOR_T34.md](docs/MIDI_EDITOR_T34.md)。验证：npm build 通过、
+  test_midi_writer/parser/versions/generate_midi 28 passed。T34.1 next（Editable Note Model + Read API）。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
