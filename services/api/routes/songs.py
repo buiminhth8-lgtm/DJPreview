@@ -29,6 +29,7 @@ from packages.music_core.evaluation.eval_fixtures import get_eval_cases
 from packages.music_core.evaluation.eval_models import EvalCase, EvalReport
 from packages.music_core.evaluation.eval_runner import run_generation_eval
 from packages.music_core.midi.midi_writer import write_midi
+from packages.music_core.midi.midi_editor_io import build_midi_editor_document
 from packages.music_core.mix.mix_engine import (
     apply_mix_to_composition,
     create_default_mix_spec,
@@ -155,6 +156,7 @@ from services.api.storage.project_store import (
     save_optimize_report,
     save_quality_report,
 )
+from services.api.schemas.midi_editor import MidiEditorDocument
 from services.api.schemas.music_edit_spec import MusicEditSpec
 from services.api.schemas.music_spec import MusicSpec
 
@@ -917,6 +919,40 @@ def apply_mix(song_id: str) -> ApplyMixResponse:
 
 
 # ---------- Piano Roll / 质量 / 优化 / stems ----------
+
+@router.get("/songs/{song_id}/midi/editor", response_model=MidiEditorDocument, summary="MIDI 编辑器文档（只读，T34.1）")
+def get_midi_editor_document(song_id: str) -> MidiEditorDocument:
+    """读取当前工程 MIDI，转换为编辑器文档（tick 语义，稳定 track/note ID）。
+
+    不自动生成 MIDI：工程尚无 MIDI 时返回明确 404（midi_not_found）。
+    """
+    try:
+        spec = get_project(song_id)
+        midi_path = get_midi_path(song_id)
+    except FileNotFoundError as exc:
+        if "output.mid" in str(exc) or "MIDI" in str(exc):
+            raise asset_not_found("output.mid", message="当前工程尚未生成 MIDI，请先生成 MIDI") from None
+        raise project_not_found(song_id) from None
+    except ValueError as exc:
+        raise invalid_request(str(exc)) from None
+
+    spec_track_ids = {t.id for t in spec.tracks}
+    role_by_track_id = {t.id: t.role for t in spec.tracks}
+    instrument_by_track_id = {t.id: t.instrument for t in spec.tracks}
+    current = get_current_version(song_id)
+    version_id = current.get("version_id") if current else None
+    try:
+        return build_midi_editor_document(
+            midi_path,
+            song_id=song_id,
+            version_id=version_id,
+            spec_track_ids=spec_track_ids,
+            role_by_track_id=role_by_track_id,
+            instrument_by_track_id=instrument_by_track_id,
+        )
+    except (ValueError, OSError, EOFError) as exc:
+        raise invalid_request(f"MIDI 解析失败：{exc}") from None
+
 
 @router.get("/songs/{song_id}/piano-roll", response_model=PianoRollResponse, summary="获取钢琴卷帘数据")
 def get_piano_roll(

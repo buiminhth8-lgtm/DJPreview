@@ -544,3 +544,75 @@ Legacy compatibility:        无 sidecar → 旧工程/旧 bundle 直接从 .mid
 - preview 有服务往返延迟；MVP 接受，后续可加 note 点击即时音。
 - 手动编辑 MIDI 与 MusicSpec 分离：重新生成（generate-midi）会覆盖手动编辑（回到 composer
   输出）；用户需在编辑后「保存」为版本，或用 regenerate 重建。文档明确这一行为。
+
+---
+
+## 30. T34.1 实现记录（Completed）
+
+> 实现与 T34.0 Final Decisions 的唯一差异：
+> **Note ID 从「会话级 UUID」改为 deterministic hash（跨读取稳定）**。
+> Decision changed because：T34.1 §8 要求同一未修改 MIDI 重复读取时 Note ID 稳定，
+> 以便 selection / undo / diff；UUID 每次读取变化，无法满足。实现为
+> sha1(track_name|channel|pitch|start_tick|occurrence)[:16]，同位置连续 note 用出现序号区分。
+
+### 30.1 最终 API
+
+`	ext
+GET /api/v1/songs/{song_id}/midi/editor
+→ MidiEditorDocument（只读）
+404 project_not_found / midi_not_found（工程未生成 MIDI）
+400 invalid_request（MIDI 解析失败 / 非法 song_id）
+`
+
+### 30.2 最终 Pydantic Models（services/api/schemas/midi_editor.py）
+
+- MidiEditorDocument: song_id, version_id?, ppq(>0), bpm?, time_signature, total_bars, tracks[]
+- MidiEditorTrack: id, role?, name, channel(0..15), instrument?, is_drum, notes[]
+- MidiEditorNote: id, pitch(0..127), start_tick(>=0), duration_tick(>0), velocity(1..127), channel(0..15)
+
+### 30.3 最终 TS Types（apps/web/src/features/midi/editor/midiEditorTypes.ts）
+
+camelCase 镜像后端：MidiEditorDocument / MidiEditorTrack / MidiEditorNote。
+
+### 30.4 Track ID 实现
+
+- 优先 MusicSpec.tracks[].id（MIDI track_name 精确或 divisi 前缀 {id}_ 匹配）。
+- 无法匹配 → ext_{track_index}（external 轨道，按 MIDI 轨道索引稳定）。
+
+### 30.5 Note ID 实现
+
+- deterministic：sha1(track_name|channel|pitch|start_tick|occurrence)[:16]。
+- 同 (channel, pitch, start_tick) 连续 note 用出现序号区分（FIFO 配对，与现有 parser 一致）。
+
+### 30.6 Legacy behavior
+
+- 无 sidecar；直接从 output.mid + music_spec.json 重建 → 旧工程自动兼容。
+- 无 MIDI 工程 → 404 midi_not_found（不自动生成、不伪造）。
+
+### 30.7 Parser limitations
+
+- 每个 track 最多 10000 notes（防滥用）。
+- 未配对 note_off 忽略（不崩溃）。
+- tempo 取文件首个 set_tempo；bpm = round(60M/tempo)。
+- time_signature 取首个；denominator 固定 4 显示（与现有 parser 一致）。
+- 非 note 事件（program_change/CC/meta）读取时保留在解析过程，但 editor document 当前不暴露；
+  T34.2 写回时将以「读取当前 MIDI 保留其他事件」策略保证不丢失。
+
+### 30.8 文件清单
+
+- 后端：services/api/schemas/midi_editor.py（模型）、
+  packages/music_core/midi/midi_editor_io.py（读取适配）、
+  services/api/routes/songs.py（route）
+- 前端：eatures/midi/editor/midiEditorTypes.ts、midiEditorApi.ts、
+  useMidiEditorDocument.ts、index.ts、midiEditorApi.test.ts
+- 测试：	ests/test_midi_editor_api.py（11 用例）
+
+### 30.9 验证
+
+- 
+pm run build：PASS
+- 
+pm test：23 passed（含 5 个新 editor 测试）
+- 后端：	est_midi_editor_api.py 11 passed；MIDI/version 回归 31 passed
+- 真实 composer MIDI smoke：5 tracks（melody/harmony/bass/drums/pad），drums ch9 is_drum，
+  tick 语义正确；track/note ID 跨两次读取稳定（1241 notes）

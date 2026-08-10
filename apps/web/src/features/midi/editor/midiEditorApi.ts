@@ -1,0 +1,82 @@
+// features/midi/editor/midiEditorApi.ts（T34.1）
+// MIDI 编辑器读取 API：后端 snake_case → 前端 camelCase 边界归一化。
+
+import { requestJson } from "../../../api/client";
+import type { MidiEditorDocument, MidiEditorNote, MidiEditorTrack } from "./midiEditorTypes";
+
+interface RawMidiEditorNote {
+  id: string;
+  pitch: number;
+  start_tick: number;
+  duration_tick: number;
+  velocity: number;
+  channel: number;
+}
+
+interface RawMidiEditorTrack {
+  id: string;
+  role: string | null;
+  name: string;
+  channel: number;
+  instrument: string | null;
+  is_drum: boolean;
+  notes: RawMidiEditorNote[];
+}
+
+interface RawMidiEditorDocument {
+  song_id: string;
+  version_id: string | null;
+  ppq: number;
+  bpm: number | null;
+  time_signature: [number, number];
+  total_bars: number;
+  tracks: RawMidiEditorTrack[];
+}
+
+function mapNote(raw: RawMidiEditorNote): MidiEditorNote {
+  return {
+    id: raw.id,
+    pitch: raw.pitch,
+    startTick: raw.start_tick,
+    durationTick: raw.duration_tick,
+    velocity: raw.velocity,
+    channel: raw.channel,
+  };
+}
+
+function mapTrack(raw: RawMidiEditorTrack): MidiEditorTrack {
+  return {
+    id: raw.id,
+    role: raw.role,
+    name: raw.name,
+    channel: raw.channel,
+    instrument: raw.instrument,
+    isDrum: raw.is_drum,
+    notes: raw.notes.map(mapNote),
+  };
+}
+
+export function mapMidiEditorDocument(raw: RawMidiEditorDocument): MidiEditorDocument {
+  return {
+    songId: raw.song_id,
+    versionId: raw.version_id,
+    ppq: raw.ppq,
+    bpm: raw.bpm,
+    timeSignature: raw.time_signature,
+    totalBars: raw.total_bars,
+    tracks: raw.tracks.map(mapTrack),
+  };
+}
+
+export function getMidiEditorDocument(
+  songId: string,
+  options?: { signal?: AbortSignal },
+): Promise<MidiEditorDocument> {
+  const encoded = encodeURIComponent(songId);
+  return requestJson<RawMidiEditorDocument>(
+    `/api/v1/songs/${encoded}/midi/editor`,
+    "GET",
+    undefined,
+    options?.signal,
+  ).then(mapMidiEditorDocument);
+}

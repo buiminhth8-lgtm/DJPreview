@@ -546,4 +546,12 @@
     preview（后端 scratch）/ Piano Roll（继续 SVG）。
   - 设计详见 [docs/MIDI_EDITOR_T34.md](docs/MIDI_EDITOR_T34.md)。
   - 验证：npm build 通过；MIDI/version 相关 28 passed。
-- T34.1 next：Editable Note Model + Read API（midiEditorTypes + GET /midi/editor）。
+- T34.1 completed：Editable MIDI Note Model + Read API。
+  - 后端：services/api/schemas/midi_editor.py（MidiEditorDocument/Track/Note）+ 
+    packages/music_core/midi/midi_editor_io.py（只读适配，tick 语义、稳定 track/note ID、
+    FIFO 重叠配对、velocity=0 当 note_off）+ GET /songs/{id}/midi/editor（404 project/midi_not_found）。
+  - 前端：features/midi/editor/（midiEditorTypes / midiEditorApi / useMidiEditorDocument + Vitest）。
+  - 设计变更：Note ID 改为 deterministic（T34.1 §8 要求跨读取稳定）。
+  - 验证：后端 11 passed + MIDI/version 回归 31 passed；Vitest 23 passed；npm build 通过；
+    真实 composer MIDI 5 tracks（含 drums ch9）读取正确、ID 跨读取稳定。现有 PianoRoll 未改动。
+- T34.2 next：Save API + Version Integration（POST /midi/edit + MIDI 写回 + vN+1 + 409 conflict）。
