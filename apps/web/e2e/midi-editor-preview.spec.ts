@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const API = "http://127.0.0.1:8000/api/v1";
+const API = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 
 function withoutRequestId<T extends Record<string, unknown>>(value: T): Omit<T, "request_id"> {
   const { request_id: _requestId, ...rest } = value;
@@ -77,7 +77,15 @@ test("T34.7 draft preview, transport, seek, loop and state boundary", async ({ p
   // Seek remains canonical under the current zoom/scroll geometry.
   const timeline = editor.getByRole("slider", { name: /MIDI 时间轴/ });
   const beforeSeek = Number(await timeline.getAttribute("aria-valuenow"));
-  await timeline.click({ position: { x: 420, y: 14 } });
+  const timelineBox = await timeline.boundingBox();
+  expect(timelineBox).not.toBeNull();
+  await timeline.click({
+    position: {
+      x: Math.min(420, timelineBox!.width - 8),
+      // T34.9 adds Section/Chord rows above the canonical transport seek row.
+      y: timelineBox!.height - 8,
+    },
+  });
   const afterSeek = Number(await timeline.getAttribute("aria-valuenow"));
   expect(afterSeek).toBeGreaterThan(beforeSeek);
 

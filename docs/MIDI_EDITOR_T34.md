@@ -980,6 +980,9 @@ pm run build：PASS（136 modules）
 - Chromium smoke：未保存 Bass Move → Current Track Play → Stop → Seek → Loop → Locked Preview →
   All Tracks；Preview payload 包含 Draft，其他轨保留；无 `/midi/edit`、`/audio/render`、Version mutation；
   前后 Version/MIDI/WAV/renderer state 不变。
+- 2026-08-11 在 T34.9 Section/Chord semantic rows 合入后复验：Transport seek 明确点击底部 canonical
+  bar row，避免把 Section marker 点击误判为普通 seek；真实页面与 Playwright smoke 均通过。当前全量
+  Vitest 26 files / 145 tests、后端 MIDI/Preview/Version 回归 56 passed、build 141 modules。
 - 已知限制：首次 Play 有后端 scratch 渲染往返；播放中编辑需 Stop→Play 才生效；无 Pause、follow
   playhead、tempo-map UI、Solo/Mute。本阶段未实现 Multi-select/Copy-Paste/Velocity Lane/Scale/
   Chord/Section/AI MIDI Edit。

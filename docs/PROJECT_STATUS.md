@@ -1,6 +1,6 @@
 # 项目状态（Project Status）
 
-> 最近一次实测：2026-08-10（分支 `master`）。以下状态均以代码与测试实际结果为准，
+> 最近一次实测：2026-08-11（分支 `master`）。以下状态均以代码与测试实际结果为准，
 > 不保留已完成的“待办”描述。
 
 ## Completed（已完成）
@@ -148,6 +148,8 @@
   npm build 通过（138 modules）；真实 Chromium
   E2E 1 passed（未保存 Bass Draft、Current/All、Stop、Seek、Loop、Lock、无 Save/Version/Render、
   Version/MIDI/WAV 状态不变）。
+  2026-08-11 在 T34.9 semantic timeline 合入后再次复验：Seek smoke 改为点击 canonical bar row，避免
+  Section marker 的专用定位语义干扰；真实页面 + Playwright 1 passed，Vitest 145、后端 56、build 141 modules。
 - T34.8 completed：Advanced Selection & Batch Editing。当前轨 selection 升级为 `Set<string>`；支持
   单击替换、Ctrl/Cmd toggle、Shift 追加、Zoom/Scroll-safe Box Selection、Ctrl/Cmd+A、Esc；Batch
   Delete/Move/Velocity、内部 Copy/Paste、Duplicate 均接入现有 per-track Draft/History，一次批量操作

@@ -590,6 +590,8 @@
     MIDI/Version/Regenerate 扩展回归 49 passed；Vitest
     107 passed；npm build（138 modules）；Playwright Chromium 1 passed；Preview 全程无 Save/Version/
     Render WAV，Version/MIDI/WAV metadata 不变。
+  - 2026-08-11 跨阶段复验：T34.9 semantic rows 加入后，Transport smoke 明确点击底部 canonical bar row；
+    真实页面 + Playwright 1 passed，当前全量 Vitest 145、后端边界 56、build 141 modules。
 - T34.8 completed：Advanced Selection & Batch Editing。
   - 当前 Track 使用 `Set<string>` 多选；单击/Ctrl/Cmd/Shift、Box Selection、Ctrl/Cmd+A、Esc 完整；
     框选坐标兼容 H/V zoom 与 scroll，且不修改 MIDI。
