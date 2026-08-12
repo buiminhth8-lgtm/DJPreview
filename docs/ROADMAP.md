@@ -644,7 +644,13 @@
   editorSessionId/draftRevision 与 MidiEditor scopeRevision；无 route/LLM/Plan/Transformer/UI/Apply。
   验证：T35.1 + T34 MIDI API 42 passed；前端 27 files / 160 passed；build 142 modules；
   后端全量 715 passed / 1 个既有 deprecation warning。
-- T35.2 next：MidiEditPlan strict operation union + semantic PlanValidator；不执行 Plan、不调用 Provider。
+- T35.2 completed：`packages/music_core/midi_editing/models.py` 新增 canonical `MidiEditPlan` 与
+  11-way strict discriminated operation union；`plan_validator.py` 新增集中 Scope/pitched/drum
+  applicability、PPQ semantic gates 与稳定 fail-closed domain errors。Plan 无 Track/Notes 定位权，
+  JSON Schema 可用于后续 structured output；新增 94 项边界/roundtrip/security/context tests。
+  T35.1+T35.2 相关回归 112 passed；后端全量 809 passed / 1 warning。未执行 Plan、未调用
+  Provider、未创建 API/UI/Frontend allowlist。
+- T35.3 next：Deterministic Transformer；严格按 operation array 顺序执行并保持 Scope/invariant。
 - 后续冻结切片：T35.2 MidiEditPlan；T35.3 Deterministic Transformer；T35.4 Proposal/Diff；
   T35.5 LLM Planner；T35.6 AI Edit UI；T35.7 Scope/Stale Safety；T35.8 Musical Role-aware Editing；
   T35.9 Provenance/Evaluation；T35.10 Final Integration；T35-R Final Audit。

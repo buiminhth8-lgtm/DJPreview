@@ -406,6 +406,35 @@ Plan 出现以下内容均因 unknown field/type 被拒绝：
 - project/version/save/render 指令；
 - trackId/noteIds 或扩大 Scope 的声明。
 
+### 7.4 T35.2 canonical implementation
+
+T35.2 已在唯一 domain source of truth `packages/music_core/midi_editing/models.py` 实现：
+
+```text
+MidiEditPlan
+  schema_version: Literal["1.0"]
+  summary: stripped string, 1..200 chars
+  operations: ordered MidiEditOperation[], 1..8
+```
+
+Plan 与每个 operation 均使用 Pydantic strict model、`extra="forbid"` 与 non-finite number gate；
+operation union 以 `type` 为 discriminator。正式 Plan schema 没有 Scope、song/project/track/note/
+section 定位字段，没有 path/URL/API route/code/shell 等可执行或外部定位字段。任何未知字段、未知
+discriminator、错误类型、非法范围、NaN/Infinity、空或超大 operations 均拒绝整个 Plan，不 clamp、
+不丢 operation、不返回部分结果。
+
+`packages/music_core/midi_editing/plan_validator.py` 是 semantic validation 的单一入口：
+
+```text
+PlanValidator.parse(untrusted value) -> typed MidiEditPlan
+PlanValidator.validate(typed plan, authoritative context) -> same plan or domain error
+PlanValidator.parse_and_validate(value, context)
+```
+
+validator 只读取 `context.ppq`、`context.is_drum` 与 `context.scope`，不接收/解析 Notes，不修改
+MIDI。`OPERATION_APPLICABILITY` 集中定义四种 Scope 与 pitched/drum policy，避免 execution 层散落
+条件分支。
+
 ## 8. Operation Allowlist
 
 所有 operation 可用于四种 Scope；实际 Note 集永远由 Scope 固定。pitch operation 对 drum track
@@ -432,6 +461,24 @@ Plan 出现以下内容均因 unknown field/type 被拒绝：
 - Note ID 与 channel 永远不由 operation 修改。
 - Transformer 输出按 `(startTick, pitch, channel, id)` canonical sort。
 - 有效 Plan 最终产生空 diff 时不返回空 Proposal，而返回 `AI_MIDI_NO_CHANGES`。
+
+T35.2 静态 no-op gate：`transpose.semitones`、`octave_shift.octaves`、`velocity_delta.delta`、
+`shift_timing.delta_ticks` 不能为 0；`velocity_scale.factor` 与 `duration_scale.factor` 不能为 1。
+Context gate：`legato.overlap_ticks <= 2*PPQ`，`abs(shift_timing.delta_ticks) <= 4*PPQ`；
+transpose/octave_shift 对 drum 整 Plan 拒绝，其余 9 种 operation 支持 pitched/drum。所有 11 种
+operation 支持 selected_notes/track/section/tick_range，Note membership 仍只由 Scope 决定。
+
+Operation array order 是 semantic order，parse/dump/parse 必须保持原顺序；T35.3 必须逐项按该
+顺序执行。T35.2 不实现任何随机或 MIDI 算法，`reduce_density` 的 server seed contract 保持不变。
+
+Schema/domain errors 使用稳定小写 code：`invalid_plan`、`unknown_operation`、
+`invalid_parameter`、`too_many_operations`、`empty_plan`、`operation_not_applicable`。错误 issue
+只暴露 type/location/message，不回显被拒绝的原始输入（尤其 path、code 或 secret-like 内容）。未来
+Proposal API 再把这些 domain code 映射为既定 `AI_MIDI_INVALID_PLAN`，T35.2 不提前新增 endpoint。
+
+`MidiEditPlan.model_json_schema()` 已验证可作为 T35.5 structured output contract：根和全部 operation
+schema 均关闭 `additionalProperties`，11-way discriminator mapping 完整，required fields 明确。
+Frontend 本阶段不复制 Plan union/allowlist，待 OpenAPI/API 接入时生成或映射，避免双 source of truth。
 
 ## 9. Transformer Architecture
 
@@ -885,12 +932,20 @@ Implementation record（2026-08-12）：
 - T35.1 targeted evidence：Backend Scope/Context + T34 MIDI API 42 passed；Frontend 全量
   27 files / 160 passed；build 142 modules；Backend full 715 passed / 1 个既有 deprecation warning。
 
-### T35.2 MidiEditPlan
+### T35.2 MidiEditPlan — completed
 
 - Goal：实现 operation discriminated union 与 strict PlanValidator。
 - Dependency：T35.1。
 - Non-goals：执行 Plan、Provider call。
 - Acceptance：allowlist/range/drum/unknown field/empty/oversized/组合 tests；非法整体拒绝。
+- Implementation（2026-08-12）：canonical `MidiEditPlan` + 11-way strict discriminated union 位于
+  `packages/music_core/midi_editing/models.py`；集中 applicability、稳定 domain error 与 PPQ/drum
+  semantic gates 位于 `plan_validator.py`。Plan/Scope 强制分离；无 Notes mutation、Transformer、
+  Proposal、Provider、route 或 Frontend mirror。
+- Evidence：新增 `tests/test_midi_edit_plan.py` 94 项，覆盖每种 operation parse/boundary/roundtrip、
+  order/default/schema export、unknown/extra/authority/code/path injection、NaN/Infinity、empty/oversized、
+  drum 与 PPQ fail-closed；T35.1+T35.2 相关回归 112 passed，Backend full 809 passed / 1 个既有
+  deprecation warning。
 
 ### T35.3 Deterministic Transformer
 

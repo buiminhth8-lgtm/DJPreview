@@ -199,7 +199,14 @@
   editorSessionId + monotonic draftRevision，在 MidiEditor 建立 selected Track/Notes scopeRevision；
   未实现 route/Plan/Transformer/Proposal/UI/Apply。验证：T35.1 + T34 MIDI API 42 passed；前端
   27 files / 160 passed；build 142 modules；后端全量 715 passed / 1 个既有 deprecation warning。
-  T35.2 MidiEditPlan next。
+- T35.2 MidiEditPlan completed：在 `packages/music_core/midi_editing/models.py` 实现唯一 canonical
+  `MidiEditPlan` 与 11-way strict `type` discriminated operation union（ordered 1..8、extra forbid、
+  静态范围/no-op/non-finite gates）；`plan_validator.py` 集中定义四种 Scope、pitched/drum applicability、
+  PPQ 动态边界与稳定 domain error。Plan 完全不含 song/project/track/note/section/path/URL/route/code
+  等定位或执行字段，任何未知/非法输入整 Plan fail closed。JSON Schema discriminator、required 与
+  additionalProperties contract 已锁定；未接 LLM、未执行 Transform、未生成 Proposal、未新增 API/UI。
+  新增 94 项 security/schema/context tests；T35.1+T35.2 相关回归 112 passed；后端全量
+  809 passed / 1 个既有 deprecation warning。T35.3 Deterministic Transformer next。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
@@ -460,7 +467,7 @@
 ## 当前测试与构建结果（2026-08-12 实测）
 
 ```text
-后端：pytest -q → 715 passed，1 warning（LLM_PROVIDER=mock）
+后端：pytest -q → 809 passed，1 warning（LLM_PROVIDER=mock）
 前端：npm test → 27 files / 160 passed
 前端：npm run build → passed（tsc + Vite，142 modules）
 T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/selection/drum CRUD）
@@ -472,8 +479,8 @@ T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/s
 
 ## Next Recommended Tasks（推荐下一步）
 
-1. T35.2 MidiEditPlan：实现 strict discriminated operation union 与 semantic PlanValidator；
-   不执行 Plan、不调用 Provider。
+1. T35.3 Deterministic Transformer：严格按已验证 Plan 顺序实现 11 种 operation、seed 与 invariant；
+   不接 API/LLM/UI。
 2. P2 性能：若 3000+ notes 成为常态，增加真实 viewport virtualization 或评估 Canvas。
 3. P2 部署：若启用多 worker/多实例共享文件存储，将 Version transaction 升级为 OS lock/数据库事务。
 4. 生产级任务队列：Redis / Celery 替换进程内队列，支持多实例与任务恢复。
