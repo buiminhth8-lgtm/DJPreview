@@ -158,6 +158,8 @@
   Locked Track 允许 Select/Box/Copy/Zoom/Pan/Preview，阻止所有 Note mutation。100/500-note 性能路径
   使用 Set/Map 单次扫描。验证：Vitest 126 passed；build 139 modules；后端边界 40 passed；真实 Chromium
   Bass 全流程 1 passed（Preview 最新 Draft、Save 只请求一次、Version +1、WAV stale）。
+  2026-08-12 跨阶段复验：真实页面 4-note Box/Move/Undo/Redo 与隔离 Playwright 全链路均通过；当前全量
+  Vitest 145、后端边界 56、build 141 modules，T34.9/T34.7 后续变更未破坏 Selection/Draft/Save 边界。
 - T34.9 completed：AI-aware Piano Roll。新增直接派生自真实 MusicSpec 的只读
   `MidiEditorMusicContext`；Scale root/in/out highlighting（兼容 c-major/d-natural-minor 等真实词汇）、
   一小节一个和弦的 tick overlay、1-based section markers 与非 4/4 映射、Scale/Chords/Sections session

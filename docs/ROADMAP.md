@@ -601,6 +601,8 @@
     selection span 偏移。Lock 允许 Select/Box/Copy/Preview，阻止 mutation。
   - 验证：Vitest 126 passed；build 139 modules；后端 MIDI/Version 边界 40 passed；真实 Chromium Bass
     全链路 1 passed（Copy/Paste/Duplicate/Preview/单次 Save/Version+1/WAV stale）。
+  - 2026-08-12 跨阶段复验：真实页面 4-note Box/Move/Undo/Redo + 隔离 Playwright 全链路 1 passed；当前
+    全量 Vitest 145、后端边界 56、build 141 modules，Selection/Draft/Preview/Save contract 保持稳定。
 - T34.9 completed：AI-aware Piano Roll。
   - 从真实 MusicSpec + MidiEditorDocument 派生只读 context；Scale root/in/out highlighting 兼容
     major/minor 与 c-major/d-natural-minor 等现有 vocabulary。

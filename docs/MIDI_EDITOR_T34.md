@@ -1059,6 +1059,9 @@ pm run build：PASS（136 modules）
 - Chromium 真实 Bass smoke：Box Select → Move → Undo/Redo → Copy → Seek → Paste → Duplicate → Batch
   Velocity → Delete/Undo → Lock mutation guard → Preview → 单次 Save；Paste/Duplicate 使用新 ID，Preview
   payload 包含最新 Draft，Save Version +1 且 WAV stale；1 passed。
+- 2026-08-12 在 T34.9 music context 与 T34.7 canonical seek 修正后再次复验：真实页面完成 4-note Box
+  Select、统一 Batch Move、单步 Undo/Redo；隔离 MockProvider Playwright 全链路 1 passed。当前全量 Vitest
+  26 files / 145 tests、后端 MIDI/Preview/Version 边界 56 passed、build 141 modules。
 - 已知限制：无 batch resize、Velocity Lane、跨轨多选/组移动、复杂 drum↔pitched 转换、系统级 MIDI clipboard；
   Preview 仍需后端 scratch 渲染往返。
 
