@@ -242,6 +242,7 @@ export interface AssetsResponse {
   has_mix: boolean;
   has_quality_report: boolean;
   has_stems: boolean;
+  audio_needs_render?: boolean;
   midi: { download_url: string } | null;
   audio: {
     stream_url: string;

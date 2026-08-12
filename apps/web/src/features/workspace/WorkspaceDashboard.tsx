@@ -50,6 +50,7 @@ export interface WorkspaceDashboardProps {
   styleStrength: number;
   setStyleStrength: (value: number) => void;
   pianoRefreshKey: number;
+  midiEditorSessionKey: number;
   lastDiff: DiffItem[] | null;
   onGenerate: () => void;
   onGenerateMidi: () => void;
@@ -64,6 +65,8 @@ export interface WorkspaceDashboardProps {
   onImported: (songId: string) => void;
   onSoundFontChanged: () => void;
   onMidiSaved: (versionId: string) => void;
+  onMidiDirtyChange: (dirty: boolean) => void;
+  onRequestMidiMutation: (label: string, action: () => void) => void;
   onDeleteProject: () => void;
 }
 
@@ -76,6 +79,7 @@ export default function WorkspaceDashboard({
   styleStrength,
   setStyleStrength,
   pianoRefreshKey,
+  midiEditorSessionKey,
   lastDiff,
   onGenerate,
   onGenerateMidi,
@@ -90,6 +94,8 @@ export default function WorkspaceDashboard({
   onImported,
   onSoundFontChanged,
   onMidiSaved,
+  onMidiDirtyChange,
+  onRequestMidiMutation,
   onDeleteProject,
 }: WorkspaceDashboardProps) {
   const songId = songProject.songId;
@@ -207,8 +213,10 @@ export default function WorkspaceDashboard({
           hasMusicSpec={Boolean(spec)}
           isGeneratingMidi={audioAssets.loadingMidi}
           refreshKey={pianoRefreshKey}
+          editorSessionKey={midiEditorSessionKey}
           onGenerateMidi={onGenerateMidi}
           onMidiSaved={onMidiSaved}
+          onMidiDirtyChange={onMidiDirtyChange}
           onError={songProject.setError}
         />
 
@@ -218,6 +226,7 @@ export default function WorkspaceDashboard({
             <QualityReportPanel
               songId={songId}
               onOptimized={onOptimized}
+              onBeforeOptimize={(action) => onRequestMidiMutation("自动优化", action)}
               onError={songProject.setError}
             />
           </SectionCard>
@@ -236,6 +245,7 @@ export default function WorkspaceDashboard({
           musicSpec={spec}
           refreshKey={pianoRefreshKey}
           onApplied={onMixApplied}
+          onBeforeApply={(action) => onRequestMidiMutation("应用混音并重新渲染", action)}
           onError={songProject.setError}
         />
 
@@ -306,6 +316,7 @@ export default function WorkspaceDashboard({
               songId={songId}
               spec={spec}
               onRegenerated={onRegenerated}
+              onBeforeRegenerate={(action) => onRequestMidiMutation("局部重生成", action)}
               onError={songProject.setError}
             />
           </SectionCard>

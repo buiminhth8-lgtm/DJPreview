@@ -8,6 +8,7 @@ interface RegenerationPanelProps {
   songId: string;
   spec: MusicSpec;
   onRegenerated: (result: RegenerationResult) => void;
+  onBeforeRegenerate?: (action: () => void) => void;
   onError: (message: string) => void;
 }
 
@@ -15,6 +16,7 @@ export default function RegenerationPanel({
   songId,
   spec,
   onRegenerated,
+  onBeforeRegenerate,
   onError,
 }: RegenerationPanelProps) {
   const [scope, setScope] = useState<RegenerationRequest["scope"]>("section");
@@ -38,7 +40,7 @@ export default function RegenerationPanel({
     }
   }, [spec, sectionId, trackId]);
 
-  const handleRegenerate = async () => {
+  const regenerate = async () => {
     setBusy(true);
     try {
       const request: RegenerationRequest = {
@@ -60,6 +62,12 @@ export default function RegenerationPanel({
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleRegenerate = () => {
+    const action = () => void regenerate();
+    if (onBeforeRegenerate) onBeforeRegenerate(action);
+    else action();
   };
 
   return (

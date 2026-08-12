@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,7 +34,22 @@ def _read_json(path: Path) -> dict:
 
 def _write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary.write_text(content, encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _canonical_version_id(version_id: str | None, number: int) -> str:
@@ -112,7 +128,7 @@ def _migrate_one_version(
 
 def _write_current_pointer(project_dir: Path, current_version_id: str | None) -> None:
     """写入 current_version_id.txt 与 current.json（根目录兼容指针）。"""
-    (project_dir / "current_version_id.txt").write_text(current_version_id or "", encoding="utf-8")
+    _write_text(project_dir / "current_version_id.txt", current_version_id or "")
     _write_json(
         project_dir / "current.json",
         {

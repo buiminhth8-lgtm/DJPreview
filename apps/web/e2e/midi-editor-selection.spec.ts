@@ -35,11 +35,9 @@ test("T34.8 real Bass selection, clipboard, lock, preview and one-save boundary"
   });
 
   await page.goto(`/projects/${songId}`);
-  const editor = page.locator(".midi-editor");
-  await page.waitForTimeout(500);
-  if (!(await editor.isVisible())) {
-    await page.getByRole("button", { name: "生成 MIDI" }).first().click();
-  }
+  const editor = page.locator(".midi-editor:visible").first();
+  // The API setup already generated canonical MIDI. A slow page load must not
+  // regenerate it and silently alter the version chain under test.
   await expect(editor).toBeVisible({ timeout: 30_000 });
   await editor.getByRole("option", { name: /bass/i }).first().click();
   const roll = editor.locator("[data-note-count]");

@@ -1,6 +1,7 @@
 """T12：目录式版本资产结构测试（项目存储层）。"""
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 from packages.music_core.versioning.version_migration import ensure_version_layout
 from services.api.storage import project_store
@@ -87,6 +88,33 @@ def test_edit_creates_v2_directory(tmp_path, monkeypatch):
     # 根目录兼容镜像同步
     root_spec = json.loads((project_dir / "music_spec.json").read_text(encoding="utf-8"))
     assert root_spec["tempo"]["bpm"] == 82
+
+
+def test_concurrent_version_reads_and_creates_keep_index_atomic(tmp_path, monkeypatch):
+    """T34.10：Workspace 并发读与版本创建不能暴露半写 JSON 或重复 vN。"""
+    projects = _setup(tmp_path, monkeypatch)
+    song_id = create_project(_new_spec())
+    spec = _new_spec()
+
+    def read_current() -> str:
+        for _ in range(20):
+            assert project_store.init_version_if_needed(song_id)["current_version_id"]
+            assert project_store.get_current_version(song_id) is not None
+        return "ok"
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        assert list(executor.map(lambda _: read_current(), range(8))) == ["ok"] * 8
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        created = list(executor.map(
+            lambda index: create_version(song_id, spec, f"concurrent {index}", None)["version_id"],
+            range(8),
+        ))
+
+    assert sorted(created, key=lambda value: int(value[1:])) == [f"v{number}" for number in range(2, 10)]
+    index = json.loads((projects / song_id / "versions" / "index.json").read_text(encoding="utf-8"))
+    assert [entry["version_id"] for entry in index["versions"]] == [f"v{number}" for number in range(1, 10)]
+    assert index["current_version_id"] == "v9"
 
 
 def test_midi_asset_synced_to_version_dir(tmp_path, monkeypatch):

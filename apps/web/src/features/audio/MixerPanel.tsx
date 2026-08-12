@@ -10,6 +10,7 @@ export interface MixerPanelProps {
   musicSpec?: MusicSpec | null;
   refreshKey?: number;
   onApplied: (assets: AssetsResponse) => void;
+  onBeforeApply?: (action: () => void) => void;
   onError: (message: string) => void;
 }
 
@@ -18,8 +19,10 @@ export function MixerPanel({
   musicSpec,
   refreshKey = 0,
   onApplied,
+  onBeforeApply,
   onError,
-}: MixerPanelProps) {  const tracks = musicSpec?.tracks ?? [];
+}: MixerPanelProps) {
+  const tracks = musicSpec?.tracks ?? [];
   const hasTracks = tracks.length > 0;
 
   let body;
@@ -38,7 +41,15 @@ export function MixerPanel({
       />
     );
   } else {
-    body = <MixerPanelInner songId={songId} refreshKey={refreshKey} onApplied={onApplied} onError={onError} />;
+    body = (
+      <MixerPanelInner
+        songId={songId}
+        refreshKey={refreshKey}
+        onApplied={onApplied}
+        onBeforeApply={onBeforeApply}
+        onError={onError}
+      />
+    );
   }
 
   return (

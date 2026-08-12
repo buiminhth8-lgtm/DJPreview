@@ -2,8 +2,8 @@
 // songId 必须来自 URL；页面级 loading / 404 / error 处理；
 // 工作台数据经 useProjectWorkspace(songId) 协调（useProject + 业务 hooks）。
 
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { useState } from "react";
+import { Link, useBlocker, useNavigate, useParams } from "react-router-dom";
+import { useCallback, useState } from "react";
 import { useProjectWorkspace } from "../features/workspace/useProjectWorkspace";
 import WorkspaceHeader from "../features/workspace/WorkspaceHeader";
 import WorkspaceDashboard from "../features/workspace/WorkspaceDashboard";
@@ -11,6 +11,12 @@ import { DeleteProjectDialog } from "../features/projects/DeleteProjectDialog";
 import { deleteProject } from "../features/projects/projectApi";
 import { ErrorState, LoadingState } from "../components/ui";
 import type { AssetsResponse, DiffItem, GenerateFromReferenceResponse, OptimizeResponse, RegenerationResult } from "../api/types";
+import { ActionButton } from "../components/ui";
+
+interface PendingMidiMutation {
+  label: string;
+  action: () => void;
+}
 
 export default function ProjectWorkspacePage() {
   const { songId } = useParams<{ songId: string }>();
@@ -19,6 +25,32 @@ export default function ProjectWorkspacePage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [midiDraftDirty, setMidiDraftDirty] = useState(false);
+  const [midiEditorSessionKey, setMidiEditorSessionKey] = useState(0);
+  const [pendingMidiMutation, setPendingMidiMutation] = useState<PendingMidiMutation | null>(null);
+  const navigationBlocker = useBlocker(midiDraftDirty);
+
+  const requestMidiMutation = useCallback((label: string, action: () => void) => {
+    if (midiDraftDirty) {
+      setPendingMidiMutation({ label, action });
+      return;
+    }
+    action();
+  }, [midiDraftDirty]);
+
+  const discardDraftAndRun = () => {
+    const pending = pendingMidiMutation;
+    if (!pending) return;
+    setPendingMidiMutation(null);
+    setMidiDraftDirty(false);
+    setMidiEditorSessionKey((key) => key + 1);
+    pending.action();
+  };
+
+  const discardDraftAndNavigate = () => {
+    setMidiDraftDirty(false);
+    navigationBlocker.proceed?.();
+  };
 
   const handleRequestDelete = () => {
     setDeleteOpen(true);
@@ -114,19 +146,23 @@ export default function ProjectWorkspacePage() {
   };
 
   const handleGenerate = () => {
-    void (async () => {
+    requestMidiMutation("生成新工程", () => void (async () => {
       audioAssets.resetAssets();
       versions.resetVersions();
       const result = await songProject.generate(songProject.prompt, styles.selectedStyleId, ws.styleStrength);
       if (result?.song_id) {
         navigate(`/projects/${encodeURIComponent(result.song_id)}`);
       }
-    })();
+    })());
   };
 
   const handleGenerateMidi = () => {
-    void audioAssets.generateMidi();
-    ws.handleMidiRegenerated();
+    requestMidiMutation("重新生成 MIDI", () => {
+      void (async () => {
+        const result = await audioAssets.generateMidi();
+        if (result) ws.handleMidiRegenerated();
+      })();
+    });
   };
   const handleRenderAudio = () => void audioAssets.renderAudio();
   const handleMidiSaved = () => {
@@ -137,26 +173,29 @@ export default function ProjectWorkspacePage() {
   };
 
   const handleApplyEdit = (instruction: string, autoRender = true) => {
-    void (async () => {
+    requestMidiMutation("AI 修改工程", () => void (async () => {
       const result = await songProject.edit(instruction, autoRender);
       if (!result) return;
       audioAssets.updateFromAssets(result.assets);
+      if (result.audio_rendered) audioAssets.clearAudioStale();
+      else audioAssets.markAudioStale();
       await versions.refreshVersions();
       ws.refreshPiano();
-    })();
+    })());
   };
 
   const handleLoadVersions = () => void versions.refreshVersions();
 
   const handleRestore = (versionId: string) => {
-    void (async () => {
+    if (!midiDraftDirty && !window.confirm("确认恢复到该版本？")) return;
+    requestMidiMutation("恢复版本", () => void (async () => {
       const result = await versions.restoreVersion(versionId);
       if (!result) return;
       songProject.setMusicSpec(result.music_spec);
       audioAssets.updateFromAssets(result.assets);
       await versions.refreshVersions();
       ws.refreshPiano();
-    })();
+    })());
   };
 
   const handleMixApplied = (assets: AssetsResponse) => {
@@ -208,6 +247,7 @@ export default function ProjectWorkspacePage() {
         styleStrength={ws.styleStrength}
         setStyleStrength={ws.setStyleStrength}
         pianoRefreshKey={ws.pianoRefreshKey}
+        midiEditorSessionKey={midiEditorSessionKey}
         lastDiff={lastDiff}
         onGenerate={handleGenerate}
         onGenerateMidi={handleGenerateMidi}
@@ -222,8 +262,34 @@ export default function ProjectWorkspacePage() {
         onImported={handleImported}
         onSoundFontChanged={ws.handleSoundFontChanged}
         onMidiSaved={handleMidiSaved}
+        onMidiDirtyChange={setMidiDraftDirty}
+        onRequestMidiMutation={requestMidiMutation}
         onDeleteProject={handleRequestDelete}
       />
+      {navigationBlocker.state === "blocked" && (
+        <div className="ui-dialog-backdrop" role="presentation">
+          <div className="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="midi-navigation-guard-title">
+            <h2 id="midi-navigation-guard-title" className="ui-dialog__title">保留 MIDI 草稿？</h2>
+            <p className="ui-dialog__body">当前有未保存的 MIDI 修改。继续离开会放弃这些草稿。</p>
+            <div className="ui-dialog__actions ui-button-row">
+              <ActionButton variant="secondary" onClick={() => navigationBlocker.reset?.()}>继续编辑</ActionButton>
+              <ActionButton variant="danger" onClick={discardDraftAndNavigate}>放弃草稿并离开</ActionButton>
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingMidiMutation && (
+        <div className="ui-dialog-backdrop" role="presentation">
+          <div className="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="midi-mutation-guard-title">
+            <h2 id="midi-mutation-guard-title" className="ui-dialog__title">放弃 MIDI 草稿？</h2>
+            <p className="ui-dialog__body">{pendingMidiMutation.label}会替换当前 MIDI。请选择继续编辑或放弃草稿后继续。</p>
+            <div className="ui-dialog__actions ui-button-row">
+              <ActionButton variant="secondary" onClick={() => setPendingMidiMutation(null)}>继续编辑</ActionButton>
+              <ActionButton variant="danger" onClick={discardDraftAndRun}>放弃草稿并继续</ActionButton>
+            </div>
+          </div>
+        </div>
+      )}
       <DeleteProjectDialog
         open={deleteOpen}
         project={

@@ -182,6 +182,7 @@ class AssetsResponse(BaseModel):
     has_mix: bool = False
     has_quality_report: bool = False
     has_stems: bool = False
+    audio_needs_render: bool = False
     midi: MidiAssetInfo | None = None
     audio: AudioAssetInfo | None = None
     current_version: VersionInfo | None = None

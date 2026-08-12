@@ -9,10 +9,11 @@ import type { OptimizeResponse, QualityReport as QualityReportData } from "../..
 interface QualityReportProps {
   songId: string;
   onOptimized: (result: OptimizeResponse) => void;
+  onBeforeOptimize?: (action: () => void) => void;
   onError: (message: string) => void;
 }
 
-export default function QualityReportPanel({ songId, onOptimized, onError }: QualityReportProps) {
+export default function QualityReportPanel({ songId, onOptimized, onBeforeOptimize, onError }: QualityReportProps) {
   const [report, setReport] = useState<QualityReportData | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -40,7 +41,7 @@ export default function QualityReportPanel({ songId, onOptimized, onError }: Qua
     }
   };
 
-  const handleOptimize = async () => {
+  const optimize = async () => {
     setBusy(true);
     try {
       const result = await optimizeArrangement(songId, true);
@@ -51,6 +52,12 @@ export default function QualityReportPanel({ songId, onOptimized, onError }: Qua
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleOptimize = () => {
+    const action = () => void optimize();
+    if (onBeforeOptimize) onBeforeOptimize(action);
+    else action();
   };
 
   return (

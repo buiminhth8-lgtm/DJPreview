@@ -135,33 +135,35 @@ from services.api.schemas.api_models import (
 from services.api.storage.project_store import (
     AUDIO_FILENAME,
     AUDIO_GENERATOR_VERSION,
-      create_project,
-      create_version,
-      delete_project,
-      get_audio_metadata,
-      get_current_version,
-      get_midi_path,
-      get_mix_spec,
-      get_project,
-      get_project_dir,
-      get_project_soundfont,
-      get_project_summary,
-      get_quality_report as get_quality_report_store,
-      get_stems_dir,
-      get_stems_zip_path,
-      get_version_detail as get_version_detail_store,
-      get_version_diff as get_version_diff_store,
-      get_wav_path,
-      init_version_if_needed,
-      is_valid_song_id,
-      list_project_ids,
-      list_versions,
+    audio_needs_render,
+    create_project,
+    create_version,
+    delete_project,
+    get_audio_metadata,
+    get_current_version,
+    get_midi_path,
+    get_mix_spec,
+    get_project,
+    get_project_dir,
+    get_project_soundfont,
+    get_project_summary,
+    get_quality_report as get_quality_report_store,
+    get_stems_dir,
+    get_stems_zip_path,
+    get_version_detail as get_version_detail_store,
+    get_version_diff as get_version_diff_store,
+    get_wav_path,
+    init_version_if_needed,
+    is_valid_song_id,
+    list_project_ids,
+    list_versions,
     restore_version,
     save_audio_metadata,
     save_midi_file,
     save_mix_spec,
     save_optimize_report,
     save_quality_report,
+    version_transaction,
 )
 from services.api.schemas.midi_editor import (
     MidiEditorDocument,
@@ -496,6 +498,7 @@ def _assets_response(song_id: str) -> AssetsResponse:
         has_mix=has_mix,
         has_quality_report=has_quality_report,
         has_stems=has_stems,
+        audio_needs_render=audio_needs_render(song_id),
         midi=MidiAssetInfo(download_url=f"/api/v1/songs/{song_id}/midi/download") if has_midi else None,
         audio=(
             AudioAssetInfo(
@@ -1154,54 +1157,54 @@ def save_midi_editor_track(song_id: str, req: MidiEditorSaveRequest) -> MidiEdit
     - 不反向修改 MusicSpec、不重新作曲、不渲染 WAV。
     - base_version_id 与当前版本不一致 → 409 version_conflict。
     """
-    try:
-        spec = get_project(song_id)
-        midi_path = get_midi_path(song_id)
-    except FileNotFoundError as exc:
-        if "output.mid" in str(exc) or "MIDI" in str(exc):
-            raise asset_not_found("output.mid", message="当前工程尚未生成 MIDI，请先生成 MIDI") from None
-        raise project_not_found(song_id) from None
-    except ValueError as exc:
-        raise invalid_request(str(exc)) from None
+    with version_transaction(song_id):
+        try:
+            spec = get_project(song_id)
+            midi_path = get_midi_path(song_id)
+        except FileNotFoundError as exc:
+            if "output.mid" in str(exc) or "MIDI" in str(exc):
+                raise asset_not_found("output.mid", message="当前工程尚未生成 MIDI，请先生成 MIDI") from None
+            raise project_not_found(song_id) from None
+        except ValueError as exc:
+            raise invalid_request(str(exc)) from None
 
-    current = get_current_version(song_id)
-    current_version_id = current.get("version_id") if current else None
-    if req.base_version_id and current_version_id and req.base_version_id != current_version_id:
-        raise api_error(
-            409,
-            ApiErrorCode.VERSION_CONFLICT,
-            "工程已更新到新版本，当前 MIDI 草稿基于旧版本，无法直接保存",
-            details={"current_version_id": current_version_id, "base_version_id": req.base_version_id},
-        )
+        current = get_current_version(song_id)
+        current_version_id = current.get("version_id") if current else None
+        if req.base_version_id and current_version_id and req.base_version_id != current_version_id:
+            raise api_error(
+                409,
+                ApiErrorCode.VERSION_CONFLICT,
+                "工程已更新到新版本，当前 MIDI 草稿基于旧版本，无法直接保存",
+                details={"current_version_id": current_version_id, "base_version_id": req.base_version_id},
+            )
 
-    spec_track_ids = {t.id for t in spec.tracks}
-    if req.track_id not in spec_track_ids and not req.track_id.startswith("ext_"):
-        raise invalid_request(f"未知 track_id：{req.track_id}")
+        spec_track_ids = {t.id for t in spec.tracks}
+        if req.track_id not in spec_track_ids and not req.track_id.startswith("ext_"):
+            raise invalid_request(f"未知 track_id：{req.track_id}")
 
-    # 写回目标轨 → output.mid
-    tmp_midi = _project_dir_for(song_id) / "output.midi_edit.tmp"
-    try:
-        write_midi_editor_track(
-            midi_path,
-            tmp_midi,
-            track_id=req.track_id,
-            notes=req.notes,
-            spec_track_ids=spec_track_ids,
-        )
-    except ValueError as exc:
-        tmp_midi.unlink(missing_ok=True)
-        raise invalid_request(str(exc)) from None
-    except (OSError, EOFError) as exc:
-        tmp_midi.unlink(missing_ok=True)
-        raise invalid_request(f"MIDI 写回失败：{exc}") from None
+        # 写回目标轨 → output.mid
+        tmp_midi = _project_dir_for(song_id) / "output.midi_edit.tmp"
+        try:
+            write_midi_editor_track(
+                midi_path,
+                tmp_midi,
+                track_id=req.track_id,
+                notes=req.notes,
+                spec_track_ids=spec_track_ids,
+            )
+        except ValueError as exc:
+            tmp_midi.unlink(missing_ok=True)
+            raise invalid_request(str(exc)) from None
+        except (OSError, EOFError) as exc:
+            tmp_midi.unlink(missing_ok=True)
+            raise invalid_request(f"MIDI 写回失败：{exc}") from None
 
-    # 创建新版本（music_spec 不变）+ 写回 MIDI
-    role = next((t.role for t in spec.tracks if t.id == req.track_id), None)
-    version = create_version(song_id, spec, f"Manual MIDI edit: {req.track_id}", None)
-    try:
-        save_midi_file(song_id, tmp_midi)
-    finally:
-        tmp_midi.unlink(missing_ok=True)
+        # 创建新版本（music_spec 不变）+ 写回 MIDI
+        version = create_version(song_id, spec, f"Manual MIDI edit: {req.track_id}", None)
+        try:
+            save_midi_file(song_id, tmp_midi)
+        finally:
+            tmp_midi.unlink(missing_ok=True)
 
     warnings: list[str] = []
     if req.track_id.startswith("ext_"):

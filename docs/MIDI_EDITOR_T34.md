@@ -1126,7 +1126,44 @@ pm run build：PASS（136 modules）
   恰好一次 `/midi/edit`、Version +1 且 MusicSpec 深比较保持不变；慢加载时不再用 Regenerate 作为
   editor-ready fallback，避免覆盖预置 canonical MIDI 或污染版本边界。
 
-### 37.6 T34.10 Next
+## 38. T34.10 Final Integration（Completed）
 
-- T34.10 Final Regression：全量性能预算、长曲目/大规模 SVG 压测、完整 MIDI/Version/Preview/Render
-  回归与最终文档关闭；Velocity Lane 仍作为独立后续可视化，不混入本次只读语义上下文。
+### 38.1 Final regression scope
+
+- 独立复核 T34.0–T34.9 的 canonical tick/PPQ、Draft/History、Save/Version/409、Preview scratch、
+  Project/Restore isolation、WAV stale、Drum/AI-aware 与 bundle contract。
+- Workspace dirty 状态上提到页面协调层，覆盖 SPA navigation、Regenerate/AI Edit/Partial Regenerate、
+  Auto Optimize/Apply Mix、Restore 与 browser beforeunload；放弃草稿后 keyed remount，避免旧
+  Draft/History/Selection 残留。
+- Version index 改为 atomic replace，base check → MIDI write → create version → current update 进入同一
+  per-project transaction；并发 same-base Save 必须得到一个 200 与一个 409。
+- Assets API 返回可跨刷新的 `audio_needs_render`，由 current MIDI/SoundFont 与 WAV mtime 推导；旧
+  renderer/SoundFont metadata 保持真实，仅成功重渲染后 stale=false。
+
+### 38.2 Verification
+
+- 前端：`npm test` **26 files / 149 tests PASS**；`npm run build` **141 modules PASS**。
+- 后端：`pytest -q` **697 passed**（1 个 TestClient/httpx deprecation warning）。
+- Chromium T34 final isolated suite：**6 passed**（final regression / music context / performance /
+  preview / selection / drum CRUD）。
+- 真浏览器：direct project refresh、Bass/Drum CRUD、H/V zoom + two-axis scroll、Undo/Redo、Preview/
+  Seek/Loop/Stop、Save/Conflict/Restore、dirty guards、Project A→B 均通过。
+- 真实渲染：FluidSynth 2.4.7 + GeneralUser-GS.sf2；manual edit 后 WAV stale，重渲染后 WAV SHA 改变、
+  `audio_needs_render=false`、`renderer=fluidsynth`、`is_fallback=false`、SoundFont metadata 真实。
+- 500/1000/3000-note E2E：1000 notes 正常可编辑；3000 notes degraded but usable（最终 zoom ≈948ms、
+  batch move ≈864ms），作为 P2 性能优化候选，不阻塞 MVP。
+- Legacy/version migration 与 manual-edit `.aimusic.zip` export/import/read roundtrip 通过。
+
+### 38.3 Final verdict
+
+```text
+T34-R RESULT: PASS
+T34 OVERALL: COMPLETED
+Stages: 11/11 PASS
+Critical Gates: 16/16 PASS
+Open P0: 0
+Open P1: 0
+```
+
+详细证据、P2/P3 与 NOT_VERIFIED 边界见 `docs/T34_RETROSPECTIVE.md`。MIDI Track Editor MVP 冻结；
+Velocity Lane 仍作为独立后续可视化，不回填本阶段 contract。

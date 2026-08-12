@@ -38,6 +38,7 @@ export interface MidiEditorProps {
   songId?: string | null;
   refreshKey?: number;
   onSaved?: (versionId: string) => void;
+  onDirtyChange?: (dirty: boolean) => void;
   musicSpec?: MusicSpec | null;
 }
 
@@ -58,7 +59,13 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-export function MidiEditor({ songId, refreshKey = 0, onSaved, musicSpec = null }: MidiEditorProps) {
+export function MidiEditor({
+  songId,
+  refreshKey = 0,
+  onSaved,
+  onDirtyChange,
+  musicSpec = null,
+}: MidiEditorProps) {
   const { document, isLoading, error, notFound, reload } = useMidiEditorDocument(songId);
   const draft = useMidiEditorDraft(document);
   const viewport = useMidiViewport();
@@ -80,6 +87,8 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved, musicSpec = null }
   const editorRootRef = useRef<HTMLDivElement | null>(null);
   const editorActiveRef = useRef(false);
   const clipboardRef = useRef<MidiClipboard | null>(null);
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
   const playback = useMidiPlayback({
     songId,
     document,
@@ -119,7 +128,13 @@ export function MidiEditor({ songId, refreshKey = 0, onSaved, musicSpec = null }
   // 同步 dirtyRef（beforeunload / 离开守卫用）
   useEffect(() => {
     dirtyRef.current = draft.dirtyTracks.size > 0;
-  }, [draft.dirtyTracks]);
+    onDirtyChange?.(dirtyRef.current);
+  }, [draft.dirtyTracks, onDirtyChange]);
+
+  useEffect(
+    () => () => onDirtyChangeRef.current?.(false),
+    [],
+  );
 
   // beforeunload：仅 dirty 时注册
   useEffect(() => {

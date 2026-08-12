@@ -52,6 +52,53 @@ def test_export_and_import_project():
     assert restore.json()["version_id"] == "v1"
 
 
+def test_export_import_preserves_manual_midi_edit_version():
+    """T34.10：Manual MIDI Edit 版本经 bundle roundtrip 后仍是 current 且 Editor 可读。"""
+    resp = client.post("/api/v1/songs/generate", json={"prompt": "带 Bass 与 Drums 的最终验收配乐"})
+    song_id = resp.json()["song_id"]
+    assert client.post(f"/api/v1/songs/{song_id}/midi/generate").status_code == 200
+
+    before = client.get(f"/api/v1/songs/{song_id}/midi/editor").json()
+    bass = next(track for track in before["tracks"] if track["role"] == "bass")
+    edited_notes = [
+        {
+            **bass["notes"][0],
+            "pitch": max(0, bass["notes"][0]["pitch"] - 1),
+            "velocity": 77,
+        }
+    ]
+    save = client.post(
+        f"/api/v1/songs/{song_id}/midi/edit",
+        json={"track_id": bass["id"], "base_version_id": before["version_id"], "notes": edited_notes},
+    )
+    assert save.status_code == 200
+    manual_version_id = save.json()["version_id"]
+
+    export = client.get(f"/api/v1/songs/{song_id}/project/export")
+    assert export.status_code == 200
+    imported = client.post(
+        "/api/v1/projects/import",
+        files={"file": ("manual.aimusic.zip", export.content, "application/zip")},
+    )
+    assert imported.status_code == 200
+    imported_data = imported.json()
+    assert imported_data["current_version_id"] == manual_version_id
+    assert imported_data["version_count"] == 2
+    assert imported_data["assets"]["has_midi"] is True
+
+    imported_id = imported_data["song_id"]
+    imported_doc = client.get(f"/api/v1/songs/{imported_id}/midi/editor")
+    assert imported_doc.status_code == 200
+    imported_body = imported_doc.json()
+    assert imported_body["version_id"] == manual_version_id
+    imported_bass = next(track for track in imported_body["tracks"] if track["id"] == bass["id"])
+    assert len(imported_bass["notes"]) == 1
+    assert imported_bass["notes"][0]["pitch"] == edited_notes[0]["pitch"]
+    assert imported_bass["notes"][0]["velocity"] == 77
+    assert imported_bass["notes"][0]["channel"] == bass["channel"]
+    assert client.get(f"/api/v1/songs/{imported_id}").json()["music_spec"] == resp.json()["music_spec"]
+
+
 def test_import_invalid_zip_400():
     resp = client.post(
         "/api/v1/projects/import",

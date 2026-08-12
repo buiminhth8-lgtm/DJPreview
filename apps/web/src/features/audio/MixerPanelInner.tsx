@@ -11,10 +11,11 @@ interface MixerPanelProps {
   songId: string;
   refreshKey?: number;
   onApplied: (assets: AssetsResponse) => void;
+  onBeforeApply?: (action: () => void) => void;
   onError: (message: string) => void;
 }
 
-export default function MixerPanel({ songId, refreshKey = 0, onApplied, onError }: MixerPanelProps) {
+export default function MixerPanel({ songId, refreshKey = 0, onApplied, onBeforeApply, onError }: MixerPanelProps) {
   const [mix, setMix] = useState<MixSpec | null>(null);
   const [busy, setBusy] = useState(false);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -56,7 +57,7 @@ export default function MixerPanel({ songId, refreshKey = 0, onApplied, onError 
   };
 
   // apply=false：仅保存；apply=true：保存后调用 /mix/apply 一次性重渲染
-  const handleApply = async (apply: boolean) => {
+  const applyChanges = async (apply: boolean) => {
     if (!mix) return;
     setBusy(true);
     setWarnings([]);
@@ -74,6 +75,12 @@ export default function MixerPanel({ songId, refreshKey = 0, onApplied, onError 
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleApply = (apply: boolean) => {
+    const action = () => void applyChanges(apply);
+    if (apply && onBeforeApply) onBeforeApply(action);
+    else action();
   };
 
   if (!mix) {

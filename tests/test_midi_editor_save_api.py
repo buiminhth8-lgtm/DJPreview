@@ -1,6 +1,7 @@
 """T34.6：MIDI Editor Save API 测试（写回 + 版本 + 409 + validation）。"""
 
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import mido
@@ -99,6 +100,32 @@ def test_save_version_conflict_409():
     assert resp.status_code == 409
     body = resp.json()
     assert body["error"]["code"] == "VERSION_CONFLICT"
+
+
+def test_concurrent_saves_with_same_base_create_one_version_and_one_conflict():
+    """T34.10：并发 Save 的 base check + vN + MIDI 写回必须是同一事务。"""
+    song_id = _create_song()
+    base = client.get(f"/api/v1/songs/{song_id}/midi/editor").json()["version_id"]
+
+    def save(velocity: int):
+        notes = [
+            {"id": "x1", "pitch": 41, "start_tick": 0, "duration_tick": 480, "velocity": velocity, "channel": 2}
+        ]
+        return client.post(
+            f"/api/v1/songs/{song_id}/midi/edit",
+            json=_edit_payload(notes=notes, base_version_id=base),
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(executor.map(save, (80, 100)))
+
+    assert sorted(response.status_code for response in responses) == [200, 409]
+    versions = client.get(f"/api/v1/songs/{song_id}/versions").json()
+    assert [version["version_id"] for version in versions["versions"]] == ["v1", "v2"]
+    document = client.get(f"/api/v1/songs/{song_id}/midi/editor").json()
+    bass = next(track for track in document["tracks"] if track["id"] == "bass")
+    assert len(bass["notes"]) == 1
+    assert bass["notes"][0]["velocity"] in {80, 100}
 
 
 def test_save_unknown_track_400():

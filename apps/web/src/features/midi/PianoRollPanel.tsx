@@ -13,8 +13,10 @@ export interface PianoRollPanelProps {
   midiUrl?: string | null;
   isGeneratingMidi?: boolean;
   refreshKey?: number;
+  editorSessionKey?: number;
   onGenerateMidi?: () => void;
   onMidiSaved?: (versionId: string) => void;
+  onMidiDirtyChange?: (dirty: boolean) => void;
   onError?: (message: string) => void;
   musicSpec?: MusicSpec | null;
 }
@@ -25,8 +27,10 @@ export function PianoRollPanel({
   hasMusicSpec = false,
   isGeneratingMidi = false,
   refreshKey = 0,
+  editorSessionKey = 0,
   onGenerateMidi,
   onMidiSaved,
+  onMidiDirtyChange,
   musicSpec = null,
 }: PianoRollPanelProps) {
   const canLoadRoll = Boolean(songId) && hasMidi;
@@ -57,7 +61,14 @@ export function PianoRollPanel({
   } else {
     body = (
       <div className="workspace-piano-roll">
-        <MidiEditor songId={songId} refreshKey={refreshKey} onSaved={onMidiSaved} musicSpec={musicSpec} />
+        <MidiEditor
+          key={`${songId}:${editorSessionKey}`}
+          songId={songId}
+          refreshKey={refreshKey}
+          onSaved={onMidiSaved}
+          onDirtyChange={onMidiDirtyChange}
+          musicSpec={musicSpec}
+        />
       </div>
     );
   }

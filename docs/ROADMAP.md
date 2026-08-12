@@ -535,7 +535,7 @@
   真实 FluidSynth 渲染 PASS）。详见 [docs/T33_RETROSPECTIVE.md](docs/T33_RETROSPECTIVE.md)
 - T33.9：回归收尾（待办，见 T33-R1）
 
-## T34 MIDI Track Editor（设计阶段）
+## T34 MIDI Track Editor ✅
 
 - T34.0 completed：技术扫描与数据模型设计（无代码改动）。
   - 确认当前 MIDI 架构 / Piano Roll 数据流 / canonical source of truth（output.mid）/
@@ -554,7 +554,8 @@
   - 设计变更：Note ID 改为 deterministic（T34.1 §8 要求跨读取稳定）。
   - 验证：后端 11 passed + MIDI/version 回归 31 passed；Vitest 23 passed；npm build 通过；
     真实 composer MIDI 5 tracks（含 drums ch9）读取正确、ID 跨读取稳定。现有 PianoRoll 未改动。
-- T34.2 next：Save API + Version Integration（POST /midi/edit + MIDI 写回 + vN+1 + 409 conflict）。
+- T34.2 completed：Save API + Version Integration（`POST /midi/edit` + MIDI 写回 + vN+1 + 409 conflict；
+  随 T34.6 UI workflow 一并集成与回归）。
 - T34.3 completed：MIDI Editor Shell + Track Selector + Read-only Piano Roll。
   - features/midi/editor/：MidiEditor（组合 + 默认轨道规则 + 空/loading/error）、TrackSelector、
     TimelineHeader、PianoKeyboard、PianoRollViewport（tick→x / pitch→y / note.id key / 点击高亮）、
@@ -616,4 +617,9 @@
     section seek 下共享 canonical tick geometry，GM drum rows 正确；隔离 E2E 覆盖 A(C major) → B(D minor)、
     Bass overlap warning → Undo、toggle 零保存，以及单次 Save 后 Version +1 / MusicSpec 不变。测试 helper
     不再用 Regenerate 兜底 editor readiness，确保预置 MIDI 和版本边界不被 smoke 自身改写。
-- T34.10 next：Final Regression（长曲目/大规模 SVG 性能预算 + MIDI/Version/Preview/Render 全链路关闭验收）。
+- T34.10 completed：Final Regression / T34-R 关闭验收。
+  - T34.0–T34.10 Stage 11/11 PASS；Critical Gates 16/16 PASS；open P0=0 / P1=0。
+  - 前端 149 tests + build；后端 697 passed；Chromium T34 final 6 passed；真实浏览器 smoke PASS。
+  - FluidSynth 2.4.7 + GeneralUser-GS 真实重渲染 PASS；manual edit → stale → 新 WAV hash → stale=false。
+  - 500/1000 notes usable；3000 notes degraded but usable，保留 SVG/Canvas 策略为 P2 后续。
+  - 详情：[docs/T34_RETROSPECTIVE.md](docs/T34_RETROSPECTIVE.md)。MIDI Track Editor MVP 已冻结。

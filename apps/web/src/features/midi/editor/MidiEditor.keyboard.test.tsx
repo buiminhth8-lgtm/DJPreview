@@ -150,4 +150,17 @@ describe("MidiEditor keyboard guard", () => {
     expect(screen.getByText("当前轨道已锁定，不能复制音符")).toBeInTheDocument();
     expect(document.querySelector('[data-note-count="1"]')).not.toBeNull();
   });
+
+  it("reports dirty state to the Workspace guard and clears it on unmount", () => {
+    const onDirtyChange = vi.fn();
+    const { unmount } = render(<MidiEditor songId="s1" onDirtyChange={onDirtyChange} />);
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+
+    fireEvent.pointerDown(document.querySelector('[data-note-id="b1"]')!);
+    fireEvent.keyDown(editor(), { key: "Delete" });
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    unmount();
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
 });

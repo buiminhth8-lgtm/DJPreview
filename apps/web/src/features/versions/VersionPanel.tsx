@@ -86,11 +86,7 @@ export function VersionPanel({
                   {!isCurrent && onRestore && (
                     <ActionButton
                       variant="danger"
-                      onClick={() => {
-                        if (window.confirm("确认恢复到该版本？当前未保存改动可能被覆盖。")) {
-                          onRestore(v.version_id);
-                        }
-                      }}
+                      onClick={() => onRestore(v.version_id)}
                       disabled={restoring}
                       loading={restoring}
                     >

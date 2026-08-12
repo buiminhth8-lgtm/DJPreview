@@ -44,7 +44,48 @@ def test_audio_render_stream_download_assets():
     assert payload["has_music_spec"] is True
     assert payload["has_midi"] is True
     assert payload["has_audio"] is True
+    assert payload["audio_needs_render"] is False
     assert payload["audio"]["metadata"]["renderer"] == "fallback"
+
+
+def test_audio_stale_state_persists_across_assets_refresh_after_manual_midi_save():
+    """Manual MIDI save must remain stale after a fresh GET until WAV is rendered again."""
+    song_id = _create_song()
+    assert client.post(f"/api/v1/songs/{song_id}/midi/generate").status_code == 200
+    assert client.post(f"/api/v1/songs/{song_id}/audio/render").status_code == 200
+    document = client.get(f"/api/v1/songs/{song_id}/midi/editor").json()
+    bass = next(track for track in document["tracks"] if track["role"] == "bass")
+    notes = [dict(note) for note in bass["notes"]]
+    notes[0]["velocity"] = 61 if notes[0]["velocity"] != 61 else 62
+
+    saved = client.post(
+        f"/api/v1/songs/{song_id}/midi/edit",
+        json={"track_id": bass["id"], "base_version_id": document["version_id"], "notes": notes},
+    )
+    assert saved.status_code == 200
+    stale = client.get(f"/api/v1/songs/{song_id}/assets").json()
+    assert stale["has_audio"] is True
+    assert stale["audio_needs_render"] is True
+
+    assert client.post(f"/api/v1/songs/{song_id}/audio/render").status_code == 200
+    current = client.get(f"/api/v1/songs/{song_id}/assets").json()
+    assert current["audio_needs_render"] is False
+
+
+def test_soundfont_change_stays_stale_until_the_next_render():
+    song_id = _create_song()
+    assert client.post(f"/api/v1/songs/{song_id}/midi/generate").status_code == 200
+    assert client.post(f"/api/v1/songs/{song_id}/audio/render").status_code == 200
+
+    selected = client.put(
+        f"/api/v1/songs/{song_id}/soundfont",
+        json={"soundfont_id": "missing-but-persisted"},
+    )
+    assert selected.status_code == 200
+    assert client.get(f"/api/v1/songs/{song_id}/assets").json()["audio_needs_render"] is True
+
+    assert client.post(f"/api/v1/songs/{song_id}/audio/render").status_code == 200
+    assert client.get(f"/api/v1/songs/{song_id}/assets").json()["audio_needs_render"] is False
 
 
 def test_audio_metadata_file_saved():

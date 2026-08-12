@@ -96,4 +96,47 @@ describe("useAudioAssets stale state", () => {
     expect(result.current.audioNeedsRender).toBe(true);
     expect(result.current.audioRenderMetadata?.soundfontName).toBe("GeneralUser-GS");
   });
+
+  it("keeps WAV stale when re-render fails", async () => {
+    const { result } = renderHook(() => useAudioAssets("s1"));
+    act(() => result.current.markAudioStale());
+    (audioApi.renderAudio as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("render failed"));
+
+    await act(async () => {
+      expect(await result.current.renderAudio()).toBeNull();
+    });
+
+    expect(result.current.audioNeedsRender).toBe(true);
+  });
+
+  it("can clear stale after authoritative restore assets are applied", () => {
+    const { result } = renderHook(() => useAudioAssets("s1"));
+    act(() => result.current.markAudioStale());
+    expect(result.current.audioNeedsRender).toBe(true);
+    act(() => result.current.clearAudioStale());
+    expect(result.current.audioNeedsRender).toBe(false);
+  });
+
+  it("restores persisted stale state from a fresh assets response", async () => {
+    (audioApi.getAssets as ReturnType<typeof vi.fn>).mockResolvedValue({
+      song_id: "s1",
+      has_music_spec: true,
+      has_midi: true,
+      has_audio: true,
+      has_mix: false,
+      has_quality_report: false,
+      has_stems: false,
+      audio_needs_render: true,
+      midi: null,
+      audio: null,
+      current_version: null,
+    });
+    const { result } = renderHook(() => useAudioAssets("s1"));
+
+    await act(async () => {
+      await result.current.refreshAssets();
+    });
+
+    expect(result.current.audioNeedsRender).toBe(true);
+  });
 });

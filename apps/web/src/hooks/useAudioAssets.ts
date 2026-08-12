@@ -67,6 +67,7 @@ export function useAudioAssets(songId: string | null | undefined) {
     try {
       const result = await getAssets(songId);
       setAssets(result);
+      setAudioNeedsRender(Boolean(result.audio_needs_render));
       return result;
     } catch (e) {
       setError(getErrorMessage(e));
@@ -86,6 +87,7 @@ export function useAudioAssets(songId: string | null | undefined) {
         setAudioStreamUrl(null);
       }
       setAssets(assetsData);
+      setAudioNeedsRender(Boolean(assetsData.audio_needs_render));
     },
     [songId],
   );
@@ -113,12 +115,12 @@ export function useAudioAssets(songId: string | null | undefined) {
     if (!songId) return null;
     setLoadingAudio(true);
     setError(null);
-    setAudioNeedsRender(false);
     try {
       const result = await renderAudioApi(songId);
       setAudioResult(result);
       setAudioStreamUrl(`${resolveUrl(result.stream_url)}?t=${Date.now()}`);
       await refreshAssets();
+      setAudioNeedsRender(false);
       return result;
     } catch (e) {
       setError(getErrorMessage(e));
@@ -138,6 +140,10 @@ export function useAudioAssets(songId: string | null | undefined) {
 
   const markAudioStale = useCallback(() => {
     setAudioNeedsRender(true);
+  }, []);
+
+  const clearAudioStale = useCallback(() => {
+    setAudioNeedsRender(false);
   }, []);
 
   const audioRenderMetadata = toAudioRenderMetadata(
@@ -165,6 +171,7 @@ export function useAudioAssets(songId: string | null | undefined) {
     refreshAssets,
     updateFromAssets,
     markAudioStale,
+    clearAudioStale,
     generateMidi,
     renderAudio,
     resetAssets,

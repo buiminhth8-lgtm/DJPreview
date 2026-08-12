@@ -87,8 +87,9 @@
   deterministic（T34.1 §8 要求跨读取稳定）。测试：后端 `test_midi_editor_api.py` 11 passed、
   MIDI/version 回归 31 passed；前端 Vitest 23 passed（含 5 个 editor 测试）；npm build 通过。
   真实 composer MIDI smoke：5 tracks（melody/harmony/bass/drums/pad）、drums ch9、tick 正确、
-  track/note   ID 跨读取稳定（1241 notes）。现有 PianoRoll 未改动。T34.2 next（Save API +
-  Version Integration）。
+  track/note ID 跨读取稳定（1241 notes）。现有 PianoRoll 未改动。
+- T34.2 completed（随 T34.6 集成关闭）：`POST /midi/edit` 写回目标 Track、保留其他 Track/meta/PPQ，
+  创建 `manual_midi_edit` 新 Version，并以 `base_version_id` + 409 防止旧 Draft 覆盖 current。
 - T34.3 completed：MIDI Editor Shell + Track Selector + Read-only Piano Roll。新增
   `features/midi/editor/`：`MidiEditor.tsx`（顶层组合 + 默认轨道规则 + 空/loading/error）、
   `TrackSelector.tsx`（canonical track.id + role 辅助 + notes 计数）、`TimelineHeader.tsx`
@@ -171,7 +172,17 @@
   canonical 对齐，以及 GM drum labels；隔离 E2E 验证 A(C major) → B(D minor)、Bass warning → Undo、
   toggle 零保存、单次 Save 后 Version +1 且 MusicSpec 不变。E2E editor-ready helper 不再在慢加载时自动
   Regenerate，避免覆盖已准备的 canonical MIDI 或引入额外版本副作用。
-  T34.10 next：Final Regression / 长曲目与大规模 SVG 性能关闭验收。
+- T34.10 / T34-R completed：**MIDI Track Editor MVP 整体关闭，T34 OVERALL = COMPLETED**。
+  - Stage 11/11 PASS，Critical Gates 16/16 PASS，open P0=0 / P1=0 / P2=2 / P3=2。
+  - 修复并回归 dirty guard 全路径（含 Auto Optimize/Apply Mix）、Version index atomic write + same-base
+    transaction、刷新后 WAV stale 持久语义；Manual Save 后旧 renderer/SoundFont metadata 不伪造，
+    成功 re-render 才清 stale。
+  - 前端 26 files / 149 tests，build 141 modules；后端全量 697 passed（1 warning）；隔离 Chromium
+    T34 final 6 passed；可见真浏览器 direct refresh/Bass/Drum/Preview/Restore/A→B smoke PASS。
+  - 真实 FluidSynth 2.4.7 + GeneralUser-GS.sf2 产品链 PASS：manual edit 后 WAV hash 改变，
+    `renderer=fluidsynth` / `is_fallback=false` / stale=false。
+  - 500/1000 notes usable；3000 notes degraded but usable（P2）。详细证据见
+    [docs/T34_RETROSPECTIVE.md](docs/T34_RETROSPECTIVE.md)。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
@@ -426,32 +437,30 @@
 
 - 音乐生成质量精细调参（旋律动机、和声进行、能量曲线的更多参数暴露）。
 - 更细的弦乐真实分部、CC11/CC7 expression 自动化、混音母带实验。
-- 前端 Playwright 演示测试（当前只有后端 pytest 与前端 build 门禁）。
+- T34：3000+ notes 的 SVG viewport virtualization / Canvas 评估；多 worker 共享文件存储时引入
+  OS file lock 或数据库 transaction。
 
-## 当前测试与构建结果（2026-08-06 实测）
+## 当前测试与构建结果（2026-08-12 实测）
 
 ```text
-后端：pytest -q → 642 passed（LLM_PROVIDER=mock、AUDIO_RENDERER=fallback）
-快速回归：pytest -m "not slow" → 469 passed（约 22s）
-慢速集成：pytest -m slow → 173 passed
-前端：npm ci → passed（vite 7.3.6）
-前端：npm run build → passed（tsc 无错误）
-前端：npm audit → 0 vulnerabilities
-前端 E2E：Playwright 用例已就绪（浏览器需在联网环境 `npx playwright install chromium` 后运行）
+后端：pytest -q → 697 passed，1 warning（LLM_PROVIDER=mock）
+前端：npm test → 26 files / 149 passed
+前端：npm run build → passed（tsc + Vite，141 modules）
+T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/selection/drum CRUD）
+真实音频：FluidSynth 2.4.7 + GeneralUser-GS.sf2 → renderer=fluidsynth / is_fallback=false
 ```
 
-> 说明：allow-scripts 对 esbuild postinstall 的提示为 npm 安装策略警告，非安全漏洞；
-> 构建已验证 esbuild 二进制可用（`trustedDependencies` 机制兼容）。
+> 说明：pytest warning 为 Starlette TestClient/httpx deprecation warning；不影响 T34 验收。
+> 前端 package.json 无 lint script，因此未伪造 lint 结果。
 
 ## Next Recommended Tasks（推荐下一步）
 
-1. T34.10 Final Regression：长曲目/大规模 SVG 性能预算、完整 MIDI/Version/Preview/Render 回归与文档关闭。
-2. Playwright 前端演示测试：从 prompt 到播放 / 编辑 / 版本 / 混音 / 导出的端到端覆盖。
+1. P2 性能：若 3000+ notes 成为常态，增加真实 viewport virtualization 或评估 Canvas。
+2. P2 部署：若启用多 worker/多实例共享文件存储，将 Version transaction 升级为 OS lock/数据库事务。
 3. 生产级任务队列：Redis / Celery 替换进程内队列，支持多实例与任务恢复。
 4. 音乐质量与音色：真实 SoundFont 渲染体验优化、弦乐分部细化。
-5. 如未来需要 CI/CD，可重新引入 GitHub Actions / Docker（当前已彻底移除，避免死文档）；
-   在联网环境安装 Playwright 浏览器并跑通 `npm run e2e`。
+5. P3 清理：移除已无引用的旧只读 `features/midi/PianoRoll.tsx` 与对应闲置 API/type surface。
 
 ## 最近一次状态更新时间
 
-2026-08-10
+2026-08-12
