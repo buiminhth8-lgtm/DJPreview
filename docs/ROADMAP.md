@@ -623,3 +623,24 @@
   - FluidSynth 2.4.7 + GeneralUser-GS 真实重渲染 PASS；manual edit → stale → 新 WAV hash → stale=false。
   - 500/1000 notes usable；3000 notes degraded but usable，保留 SVG/Canvas 策略为 P2 后续。
   - 详情：[docs/T34_RETROSPECTIVE.md](docs/T34_RETROSPECTIVE.md)。MIDI Track Editor MVP 已冻结。
+
+## T35 AI-assisted MIDI Editing 🚧
+
+> 本节是接续 T34 MIDI Track Editor 的 AI MIDI Editor 子序列；仓库前文历史上已有同编号的
+> “T35 生成链路日志”，以完整任务名区分。
+
+- T35 started。
+- T35.0 completed：真实扫描 existing LLM/structured output/MusicSpec edit/optimizer/regenerate 与
+  T34 Draft/History/Preview/Save/Version；完成架构与 Contract 冻结，无产品代码实现。
+- 已冻结：Backend Planner 复用 existing `LLMProvider.generate_structured`；Transformer 位于
+  `packages/music_core/midi_editing/`；UI/Draft Apply 位于现有 `features/midi/editor/`；
+  selected_notes/track/section/tick_range Scope；User Scope > Prompt；draftRevision +
+  editorSessionId + scopeRevision stale gate；11 个 operation allowlist；server seed；stateless Proposal；
+  T34 scratch Preview；Apply 一个 Undo step；existing Save/Version/WAV stale；bounded provenance，
+  不持久化 raw prompt/response。
+- 设计：[docs/AI_MIDI_EDIT_T35.md](docs/AI_MIDI_EDIT_T35.md)。
+- T35.1 next：Context & Scope。只实现 Scope/Context/revision identity 与测试，不提前实现
+  Plan runtime、Transformer、LLM Planner、Proposal UI 或 Apply。
+- 后续冻结切片：T35.2 MidiEditPlan；T35.3 Deterministic Transformer；T35.4 Proposal/Diff；
+  T35.5 LLM Planner；T35.6 AI Edit UI；T35.7 Scope/Stale Safety；T35.8 Musical Role-aware Editing；
+  T35.9 Provenance/Evaluation；T35.10 Final Integration；T35-R Final Audit。

@@ -183,6 +183,13 @@
     `renderer=fluidsynth` / `is_fallback=false` / stale=false。
   - 500/1000 notes usable；3000 notes degraded but usable（P2）。详细证据见
     [docs/T34_RETROSPECTIVE.md](docs/T34_RETROSPECTIVE.md)。
+- T35 AI-assisted MIDI Editing started；T35.0 Architecture Scan completed（仅扫描/设计/Contract 冻结，
+  未实现 T35.1+ 产品代码）。已冻结 Backend Planner + existing LLMProvider、music_core deterministic
+  Transformer、Frontend T34 Draft Apply 的 Hybrid 边界；四种 Scope、draftRevision/editorSession/scopeRevision
+  stale gate、11 个初始 operation、stateless Proposal、T34 scratch Preview、single-step Undo、existing Save/
+  Version/WAV stale 与 bounded provenance 合同。设计详见
+  [docs/AI_MIDI_EDIT_T35.md](docs/AI_MIDI_EDIT_T35.md)。Baseline 验证：前端 26 files / 149 passed，
+  build 141 modules；后端 697 passed / 1 个既有 deprecation warning。T35.1 Context & Scope next。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
@@ -455,11 +462,12 @@ T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/s
 
 ## Next Recommended Tasks（推荐下一步）
 
-1. P2 性能：若 3000+ notes 成为常态，增加真实 viewport virtualization 或评估 Canvas。
-2. P2 部署：若启用多 worker/多实例共享文件存储，将 Version transaction 升级为 OS lock/数据库事务。
-3. 生产级任务队列：Redis / Celery 替换进程内队列，支持多实例与任务恢复。
-4. 音乐质量与音色：真实 SoundFont 渲染体验优化、弦乐分部细化。
-5. P3 清理：移除已无引用的旧只读 `features/midi/PianoRoll.tsx` 与对应闲置 API/type surface。
+1. T35.1 Context & Scope：实现四种 Scope、权威 Context builder、editorSessionId/draftRevision/
+   scopeRevision 与跨 Python/TypeScript fingerprint fixtures；不提前调用 LLM 或实现 Transformer。
+2. P2 性能：若 3000+ notes 成为常态，增加真实 viewport virtualization 或评估 Canvas。
+3. P2 部署：若启用多 worker/多实例共享文件存储，将 Version transaction 升级为 OS lock/数据库事务。
+4. 生产级任务队列：Redis / Celery 替换进程内队列，支持多实例与任务恢复。
+5. 音乐质量与音色：真实 SoundFont 渲染体验优化、弦乐分部细化。
 
 ## 最近一次状态更新时间
 
