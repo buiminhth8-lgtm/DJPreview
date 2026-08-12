@@ -206,7 +206,15 @@
   等定位或执行字段，任何未知/非法输入整 Plan fail closed。JSON Schema discriminator、required 与
   additionalProperties contract 已锁定；未接 LLM、未执行 Transform、未生成 Proposal、未新增 API/UI。
   新增 94 项 security/schema/context tests；T35.1+T35.2 相关回归 112 passed；后端全量
-  809 passed / 1 个既有 deprecation warning。T35.3 Deterministic Transformer next。
+  809 passed / 1 个既有 deprecation warning。
+- T35.3 Deterministic Transformer completed：新增 `packages/music_core/midi_editing/transformer.py`，
+  实现全部 11 种 v1 operation 的独立纯 helper 与严格 ordered dispatcher；使用 exact Fraction +
+  round-half-away-from-zero、SHA-256 seeded density（不触碰 global RNG）、chord/channel-aware legato、
+  rational PPQ quantize，以及 T35.0 冻结的 pitch/velocity/time-window clamp warning。输入 Scope/Plan/Notes
+  在 trust boundary 重验，每步执行 ID/channel/integer/range invariant gate；仅处理 resolved scoped notes，
+  输入 immutable，失败 atomic，无新增 ID/Note。未接 LLM/API/Proposal/Diff/UI，未写 Project/MIDI/WAV/
+  Version。新增 63 项专项测试，T35.0–T35.3 相关回归 175 passed；500/1000/3000-note smoke 约
+  0.01/0.02/0.05s；后端全量 872 passed / 1 个既有 deprecation warning。T35.4 Proposal/Diff next。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
@@ -467,7 +475,7 @@
 ## 当前测试与构建结果（2026-08-12 实测）
 
 ```text
-后端：pytest -q → 809 passed，1 warning（LLM_PROVIDER=mock）
+后端：pytest -q → 872 passed，1 warning（LLM_PROVIDER=mock）
 前端：npm test → 27 files / 160 passed
 前端：npm run build → passed（tsc + Vite，142 modules）
 T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/selection/drum CRUD）
@@ -479,8 +487,8 @@ T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/s
 
 ## Next Recommended Tasks（推荐下一步）
 
-1. T35.3 Deterministic Transformer：严格按已验证 Plan 顺序实现 11 种 operation、seed 与 invariant；
-   不接 API/LLM/UI。
+1. T35.4 Proposal / Diff：基于 fixture Plan + Transformer result 实现精确 diff、no-op 与 Scope gate；
+   不接真实 LLM/UI Apply。
 2. P2 性能：若 3000+ notes 成为常态，增加真实 viewport virtualization 或评估 Canvas。
 3. P2 部署：若启用多 worker/多实例共享文件存储，将 Version transaction 升级为 OS lock/数据库事务。
 4. 生产级任务队列：Redis / Celery 替换进程内队列，支持多实例与任务恢复。

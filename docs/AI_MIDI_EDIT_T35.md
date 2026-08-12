@@ -549,6 +549,58 @@ sha256(seed | id | pitch | startTick | durationTick | velocity | channel)
 因此重试相同请求且得到相同 Plan 时，Transformer 输出完全一致。`proposalId` 和 LLM 本身可以不同，
 不影响给定 Plan/seed 的确定性。
 
+### 9.4 T35.3 canonical implementation
+
+唯一实现位于 `packages/music_core/midi_editing/transformer.py`，正式入口与 T35.0 冻结接口一致：
+
+```python
+transform_midi_notes(
+    notes: Sequence[MidiEditorNote],
+    plan: MidiEditPlan,
+    scope: MidiEditScope,
+    *,
+    ppq: int,
+    total_ticks: int,
+    is_drum: bool,
+    seed: int,
+) -> MidiTransformResult
+```
+
+`MidiTransformResult` 仅包含 canonical sorted `notes`、`removed_note_ids`、unsigned 32-bit `seed` 与
+结构化 clamp warnings；它不是 Proposal，不含 before/after diff、proposalId 或 UI summary。Transformer
+只接收 T35.1 已 resolved 的 scoped notes，不查询 Project/Track，不读文件/网络/环境/时钟，不写 MIDI、
+Version、WAV 或 MusicSpec。
+
+11 个 operation 分别由独立纯 helper 实现，并按 `plan.operations` 原顺序 dispatch：
+
+- transpose / octave_shift：pitch 加法，0..127 clamp + `pitch_clamped`；drum 在 PlanValidator 拒绝；
+- velocity_set / delta / scale：set 或算术后 1..127 clamp，scale 使用统一精确取整；
+- duration_scale / staccato：scale 后最少 1 tick；section/range 不能越 `end_tick`；
+- legato：按 channel 构建 distinct onset map；同 onset chord 共享下一 onset，延长到
+  `next_onset + overlap_ticks`，绝不缩短，最后 onset 不变；section/range 只 clamp 新增延长量，
+  不会缩短原本已经跨界的 sustain；
+- quantize：只移动 start；grid=`4*PPQ/denominator` 精确有理数，最近网格，正中 tie 向后；
+  strength 对 start→target 做精确插值；duration 不变；
+- shift_timing：start 加 delta，Track/selected_notes 最低 0，section/range clamp 在半开授权窗；
+- reduce_density：以当前 Note 值计算冻结的 SHA-256 score，选择 `round(keep_ratio*n)` 个（至少 1）；
+  `preserve_edges=true` 保护 canonical 时间排序首尾 Note。T35.2 没有 `preserve_downbeats` 字段，故
+  T35.3 不暗中增加 downbeat 语义；未来如需真实 meter downbeat 必须新增正式 operation contract。
+
+所有乘法、strength 插值与保留数量统一采用 exact `Fraction` + round-half-away-from-zero，不使用
+Python bankers-round 或浮点累计。density 不调用 `random`，因此不会污染 global RNG，且输入数组顺序
+不影响结果。
+
+执行前会重新 strict validate Scope、Plan 与每个 input Note，拒绝空、重复 ID、超过 3000、selected
+membership 不一致或 section/range 窗外输入。每一步后检查 ID 子集、非-density 不得删除、channel
+不变、integer tick/pitch/velocity/channel 与全部 MIDI 范围；最终输出深拷贝并 canonical sort。任意失败
+只抛稳定 domain error（invalid_context / invalid_scoped_notes / scope_violation /
+invariant_violation），输入保持不变，不返回 partial result。
+
+T35.3 测试包含 golden、顺序、相同/不同 seed、global RNG、immutability、drum、四种 Scope 边界、
+非 4/4 无隐藏 downbeat policy、信任边界 mutation、atomic failure 与全部 invariant。代表性
+quantize→velocity_scale→reduce_density smoke：500 notes 约 0.01s、1000 notes 约 0.02s、
+3000 notes 约 0.05s（本机单次 pytest duration，仅作记录，不作为脆弱绝对 gate）。
+
 ## 10. Proposal Contract
 
 未来 `services/api/schemas/ai_midi_edit.py`：
@@ -947,12 +999,18 @@ Implementation record（2026-08-12）：
   drum 与 PPQ fail-closed；T35.1+T35.2 相关回归 112 passed，Backend full 809 passed / 1 个既有
   deprecation warning。
 
-### T35.3 Deterministic Transformer
+### T35.3 Deterministic Transformer — completed
 
 - Goal：实现 11 个初始 operation、seed 与 invariant。
 - Dependency：T35.2。
 - Non-goals：API/LLM/UI。
 - Acceptance：golden/property tests；same input/plan/seed same output；Scope 外不变；无 input mutation。
+- Implementation（2026-08-12）：`transformer.py` 实现 11 个独立纯 operation helper、ordered
+  dispatcher、exact rounding、stable SHA-256 density、Scope/time clamp warnings、strict trust-boundary
+  validation 与 per-step invariant/atomicity gate；没有 Provider、Proposal、diff、API、UI 或资产写入。
+- Evidence：`tests/test_midi_edit_transformer.py` 63 项专项测试；T35.0–T35.3 相关回归 175 passed；
+  500/1000/3000 note smoke 约 0.01/0.02/0.05s；Backend full 872 passed / 1 个既有
+  deprecation warning。
 
 ### T35.4 Proposal / Diff
 

@@ -650,7 +650,13 @@
   JSON Schema 可用于后续 structured output；新增 94 项边界/roundtrip/security/context tests。
   T35.1+T35.2 相关回归 112 passed；后端全量 809 passed / 1 warning。未执行 Plan、未调用
   Provider、未创建 API/UI/Frontend allowlist。
-- T35.3 next：Deterministic Transformer；严格按 operation array 顺序执行并保持 Scope/invariant。
+- T35.3 completed：`packages/music_core/midi_editing/transformer.py` 实现全部 11 种 v1 operation 的
+  独立 pure helpers、严格 ordered dispatch、exact rational rounding/quantize、channel/onset legato、
+  stable SHA-256 density、Scope time clamp warnings 与 per-step invariant/atomicity gate。只消费 resolved
+  scoped notes，无 input mutation、新 Note/ID、Project/MIDI/Version/WAV write 或 Provider/API/UI。
+  专项 63 tests；T35.0–T35.3 相关回归 175 passed；500/1000/3000 notes smoke 约
+  0.01/0.02/0.05s；后端全量 872 passed / 1 warning。
+- T35.4 next：Proposal/Diff，使用 fixture Plan 与 Transformer result；不接真实 LLM/UI Apply。
 - 后续冻结切片：T35.2 MidiEditPlan；T35.3 Deterministic Transformer；T35.4 Proposal/Diff；
   T35.5 LLM Planner；T35.6 AI Edit UI；T35.7 Scope/Stale Safety；T35.8 Musical Role-aware Editing；
   T35.9 Provenance/Evaluation；T35.10 Final Integration；T35-R Final Audit。

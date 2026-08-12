@@ -21,6 +21,15 @@ from packages.music_core.midi_editing.scope import (
     scope_fingerprint,
     select_scoped_notes,
 )
+from packages.music_core.midi_editing.transformer import (
+    MidiTransformError,
+    MidiTransformErrorCode,
+    MidiTransformResult,
+    MidiTransformWarning,
+    MidiTransformWarningCode,
+    round_half_away_from_zero,
+    transform_midi_notes,
+)
 
 __all__ = [
     "MidiEditOperation",
@@ -28,6 +37,11 @@ __all__ = [
     "MidiEditPlanErrorCode",
     "MidiEditPlanValidationError",
     "MidiEditScope",
+    "MidiTransformError",
+    "MidiTransformErrorCode",
+    "MidiTransformResult",
+    "MidiTransformWarning",
+    "MidiTransformWarningCode",
     "OPERATION_APPLICABILITY",
     "PlanValidator",
     "SectionMidiEditScope",
@@ -37,5 +51,7 @@ __all__ = [
     "canonical_scope_json",
     "scope_fingerprint",
     "select_scoped_notes",
+    "round_half_away_from_zero",
+    "transform_midi_notes",
     "validate_midi_edit_plan",
 ]
