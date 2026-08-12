@@ -612,4 +612,8 @@
   - Project/Version/Restore/Regenerate 无旧 context 泄漏；不改 MusicSpec、Draft/History、Version、WAV 或 renderer。
   - 验证：Vitest 145 passed；build 141 modules；后端边界 56 passed；真实 Chromium T34.9 A/B smoke
     1 passed，T34.8 Bass selection/Preview/Save 回归 1 passed。
+  - 2026-08-12 增强验收：真实页面确认 C major / 4 Sections / 32 Chords 在 Zoom、playhead、scroll 与
+    section seek 下共享 canonical tick geometry，GM drum rows 正确；隔离 E2E 覆盖 A(C major) → B(D minor)、
+    Bass overlap warning → Undo、toggle 零保存，以及单次 Save 后 Version +1 / MusicSpec 不变。测试 helper
+    不再用 Regenerate 兜底 editor readiness，确保预置 MIDI 和版本边界不被 smoke 自身改写。
 - T34.10 next：Final Regression（长曲目/大规模 SVG 性能预算 + MIDI/Version/Preview/Render 全链路关闭验收）。

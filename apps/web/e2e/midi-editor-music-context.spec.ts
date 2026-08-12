@@ -12,6 +12,22 @@ type GeneratedProject = {
   };
 };
 
+type MidiEditorDocumentResponse = {
+  version_id: string;
+  tracks: Array<{
+    id: string;
+    channel: number;
+    notes: Array<{
+      id: string;
+      pitch: number;
+      start_tick: number;
+      duration_tick: number;
+      velocity: number;
+      channel: number;
+    }>;
+  }>;
+};
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -30,11 +46,9 @@ async function createMidiProject(request: APIRequestContext, prompt: string): Pr
 
 async function openEditor(page: Page, songId: string) {
   await page.goto(`/projects/${songId}`);
-  const editor = page.locator(".midi-editor");
-  await page.waitForTimeout(500);
-  if (!(await editor.isVisible())) {
-    await page.getByRole("button", { name: "生成 MIDI" }).first().click();
-  }
+  const editor = page.locator(".midi-editor:visible").first();
+  // createMidiProject already proves has_midi=true. Never regenerate here: a slow
+  // workspace load must not overwrite the canonical MIDI prepared by the test.
   await expect(editor).toBeVisible({ timeout: 30_000 });
   return editor;
 }
@@ -42,6 +56,32 @@ async function openEditor(page: Page, songId: string) {
 test("T34.9 real MusicSpec overlays, drum semantics, isolation and read-only boundary", async ({ page, request }) => {
   const projectA = await createMidiProject(request, "欢快明亮的电子配乐，带 Melody、Bass 和 Drums");
   const projectB = await createMidiProject(request, "忧郁雨夜的慢速配乐，带 Melody、Bass 和 Drums");
+  // Establish a real monophonic Bass baseline before observing the read-only overlay boundary.
+  // The page can then prove Draft overlap warning -> Undo without relying on generated Bass density.
+  const initialDocumentA = await (await request.get(`${API}/songs/${projectA.song_id}/midi/editor`)).json() as MidiEditorDocumentResponse;
+  const generatedBass = initialDocumentA.tracks.find((track) => /bass/i.test(track.id));
+  expect(generatedBass?.notes.length).toBeGreaterThan(0);
+  const bassSeed = generatedBass!.notes[0];
+  const baselineResponse = await request.post(`${API}/songs/${projectA.song_id}/midi/edit`, {
+    data: {
+      track_id: generatedBass!.id,
+      base_version_id: initialDocumentA.version_id,
+      notes: [{
+        ...bassSeed,
+        start_tick: 0,
+        duration_tick: 960,
+        velocity: 90,
+        channel: generatedBass!.channel,
+      }],
+    },
+  });
+  expect(baselineResponse.ok()).toBeTruthy();
+  await expect.poll(async () => {
+    const response = await request.get(`${API}/songs/${projectA.song_id}/midi/editor`);
+    if (!response.ok()) return -1;
+    const document = await response.json() as MidiEditorDocumentResponse;
+    return document.tracks.find((track) => track.id === generatedBass!.id)?.notes.length ?? -1;
+  }, { timeout: 30_000 }).toBe(1);
   const assetsBefore = await (await request.get(`${API}/songs/${projectA.song_id}/assets`)).json() as {
     current_version: { version_id: string; version_number: number };
   };
@@ -76,11 +116,33 @@ test("T34.9 real MusicSpec overlays, drum semantics, isolation and read-only bou
     await expect(editorA.getByText(label, { exact: true })).toBeVisible();
   }
 
+  await editorA.getByRole("option", { name: /bass/i }).first().click();
+  await expect(editorA.getByText(/Bass 轨检测到/)).toHaveCount(0);
+  const bassRoll = editorA.locator(".midi-editor__grid");
+  await bassRoll.dblclick({ position: { x: 20, y: 20 } });
+  await expect(editorA.getByText(/Bass 轨检测到 1 处同时发声/)).toBeVisible();
+  await editorA.getByRole("button", { name: "Undo" }).click();
+  await expect(editorA.getByText(/Bass 轨检测到/)).toHaveCount(0);
+  await expect(editorA.getByText(/未保存修改/)).toHaveCount(0);
+
   const assetsAfterToggle = await (await request.get(`${API}/songs/${projectA.song_id}/assets`)).json() as {
     current_version: { version_id: string; version_number: number };
   };
   expect(assetsAfterToggle.current_version).toEqual(assetsBefore.current_version);
   expect(manualSaveRequests).toBe(0);
+
+  // A manual Note edit still uses the existing Save contract and must not back-write MusicSpec.
+  await editorA.locator("[data-note-id]").first().click();
+  await editorA.getByLabel("Velocity 力度").fill("77");
+  await editorA.getByRole("button", { name: "保存 MIDI 修改" }).click();
+  await expect(editorA.getByText(`Version: v${assetsBefore.current_version.version_number + 1}`)).toBeVisible({ timeout: 60_000 });
+  expect(manualSaveRequests).toBe(1);
+  const assetsAfterSave = await (await request.get(`${API}/songs/${projectA.song_id}/assets`)).json() as {
+    current_version: { version_id: string; version_number: number };
+  };
+  expect(assetsAfterSave.current_version.version_number).toBe(assetsBefore.current_version.version_number + 1);
+  const projectAAfterSave = await (await request.get(`${API}/songs/${projectA.song_id}`)).json() as GeneratedProject;
+  expect(projectAAfterSave.music_spec).toEqual(projectA.music_spec);
 
   const editorB = await openEditor(page, projectB.song_id);
   const scaleB = editorB.locator(".midi-editor__footer span").filter({ hasText: /^Scale:/ });
@@ -92,5 +154,5 @@ test("T34.9 real MusicSpec overlays, drum semantics, isolation and read-only bou
   await expect(
     editorB.locator(".midi-editor__chord-marker").filter({ hasText: new RegExp(`^${escapeRegExp(firstChordB)}$`) }).first(),
   ).toBeVisible();
-  expect(manualSaveRequests).toBe(0);
+  expect(manualSaveRequests).toBe(1);
 });

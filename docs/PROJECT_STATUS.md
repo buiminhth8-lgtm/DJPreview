@@ -1,6 +1,6 @@
 # 项目状态（Project Status）
 
-> 最近一次实测：2026-08-11（分支 `master`）。以下状态均以代码与测试实际结果为准，
+> 最近一次实测：2026-08-12（分支 `master`）。以下状态均以代码与测试实际结果为准，
 > 不保留已完成的“待办”描述。
 
 ## Completed（已完成）
@@ -167,6 +167,10 @@
   canonical Bass role 增加 O(n log n) overlap guidance，只提示不修复。Project/Version/Restore/Regenerate
   context 隔离，不进入 Draft/History/Save/Version/WAV/renderer。验证：Vitest 145 passed；build 141 modules；
   后端边界 56 passed；真实 Chromium T34.9 A/B 语义隔离 1 passed + T34.8 全链路回归 1 passed。
+  2026-08-12 增强 smoke：真实页面验证 C major / 4 Sections / 32 Chords 的 Zoom、playhead 与 marker seek
+  canonical 对齐，以及 GM drum labels；隔离 E2E 验证 A(C major) → B(D minor)、Bass warning → Undo、
+  toggle 零保存、单次 Save 后 Version +1 且 MusicSpec 不变。E2E editor-ready helper 不再在慢加载时自动
+  Regenerate，避免覆盖已准备的 canonical MIDI 或引入额外版本副作用。
   T34.10 next：Final Regression / 长曲目与大规模 SVG 性能关闭验收。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、

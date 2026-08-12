@@ -1119,6 +1119,12 @@ pm run build：PASS（136 modules）
   56 passed；未修改后端、MusicSpec、MIDI writer 或 renderer。
 - Chromium：T34.9 真实 Project A/B semantic context + GM drums + toggle/Version isolation 1 passed；
   T34.8 Bass Box/Batch/Clipboard/Preview/one-Save/WAV-stale 回归 1 passed。
+- 2026-08-12 增强复验：真实页面确认 C major、4 Sections、32 Chords 在 H Zoom 前后与
+  Timeline/playhead 共用 canonical geometry，点击 Verse marker 定位到 tick 7680，Drums 显示
+  Kick/Snare/Closed Hat/Open Hat/Crash/Ride 且隐藏 Scale。隔离 MockProvider Playwright 用例进一步覆盖
+  Project A(C major) → B(D minor)、Bass 重叠 warning → Undo 清除、语义 toggle 零保存副作用、手动 Save
+  恰好一次 `/midi/edit`、Version +1 且 MusicSpec 深比较保持不变；慢加载时不再用 Regenerate 作为
+  editor-ready fallback，避免覆盖预置 canonical MIDI 或污染版本边界。
 
 ### 37.6 T34.10 Next
 
