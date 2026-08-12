@@ -6,6 +6,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMidiEditorDocument } from "./useMidiEditorDocument";
 import { useMidiEditorDraft } from "./useMidiEditorDraft";
+import {
+  defaultMidiEditScope,
+  useMidiEditScopeRevision,
+} from "./ai/aiMidiEditScope";
 import { useMidiViewport } from "./useMidiViewport";
 import { useMidiPlayback } from "./useMidiPlayback";
 import { saveMidiEditorTrack } from "./midiEditorApi";
@@ -206,6 +210,16 @@ export function MidiEditor({
   );
   const selectedNote = selectedNotes.length === 1 ? selectedNotes[0] : null;
   const selectedSummary = useMemo(() => summarizeSelectedNotes(selectedNotes), [selectedNotes]);
+  const aiEditScope = useMemo(
+    () => selectedTrack
+      ? defaultMidiEditScope(selectedTrack.id, selectedNoteIds)
+      : null,
+    [selectedNoteIds, selectedTrack],
+  );
+  const aiEditScopeRevision = useMidiEditScopeRevision(
+    draft.editorSessionId,
+    aiEditScope,
+  );
 
   useEffect(() => {
     const validIds = new Set(trackDraftNotes.map((note) => note.id));
@@ -511,6 +525,9 @@ export function MidiEditor({
     body = (
       <div
         className="midi-editor"
+        data-editor-session-id={draft.editorSessionId}
+        data-draft-revision={draft.draftRevision}
+        data-scope-revision={aiEditScopeRevision}
         ref={editorRootRef}
         tabIndex={0}
         onPointerDownCapture={(event) => {

@@ -190,6 +190,16 @@
   Version/WAV stale 与 bounded provenance 合同。设计详见
   [docs/AI_MIDI_EDIT_T35.md](docs/AI_MIDI_EDIT_T35.md)。Baseline 验证：前端 26 files / 149 passed，
   build 141 modules；后端 697 passed / 1 个既有 deprecation warning。T35.1 Context & Scope next。
+- T35.1 Context & Scope completed：新增 `packages/music_core/midi_editing/` strict Scope domain
+  （selected_notes/track/section/tick_range、extra forbid、半开 tick membership、canonical JSON +
+  SHA-256 fingerprint）与 `services/api/schemas/ai_midi_edit.py` /
+  `services/api/services/ai_midi_edit_context.py`（权威 Project/MusicSpec/MIDI context、scoped session
+  Draft、128-note deterministic compaction、3000-note/64 KiB gates，无 LLM 调用）。前端新增
+  `editor/ai/aiMidiEditTypes.ts` / `aiMidiEditScope.ts`，并在现有 Draft 增加
+  editorSessionId + monotonic draftRevision，在 MidiEditor 建立 selected Track/Notes scopeRevision；
+  未实现 route/Plan/Transformer/Proposal/UI/Apply。验证：T35.1 + T34 MIDI API 42 passed；前端
+  27 files / 160 passed；build 142 modules；后端全量 715 passed / 1 个既有 deprecation warning。
+  T35.2 MidiEditPlan next。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
@@ -450,9 +460,9 @@
 ## 当前测试与构建结果（2026-08-12 实测）
 
 ```text
-后端：pytest -q → 697 passed，1 warning（LLM_PROVIDER=mock）
-前端：npm test → 26 files / 149 passed
-前端：npm run build → passed（tsc + Vite，141 modules）
+后端：pytest -q → 715 passed，1 warning（LLM_PROVIDER=mock）
+前端：npm test → 27 files / 160 passed
+前端：npm run build → passed（tsc + Vite，142 modules）
 T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/selection/drum CRUD）
 真实音频：FluidSynth 2.4.7 + GeneralUser-GS.sf2 → renderer=fluidsynth / is_fallback=false
 ```
@@ -462,8 +472,8 @@ T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/s
 
 ## Next Recommended Tasks（推荐下一步）
 
-1. T35.1 Context & Scope：实现四种 Scope、权威 Context builder、editorSessionId/draftRevision/
-   scopeRevision 与跨 Python/TypeScript fingerprint fixtures；不提前调用 LLM 或实现 Transformer。
+1. T35.2 MidiEditPlan：实现 strict discriminated operation union 与 semantic PlanValidator；
+   不执行 Plan、不调用 Provider。
 2. P2 性能：若 3000+ notes 成为常态，增加真实 viewport virtualization 或评估 Canvas。
 3. P2 部署：若启用多 worker/多实例共享文件存储，将 Version transaction 升级为 OS lock/数据库事务。
 4. 生产级任务队列：Redis / Celery 替换进程内队列，支持多实例与任务恢复。

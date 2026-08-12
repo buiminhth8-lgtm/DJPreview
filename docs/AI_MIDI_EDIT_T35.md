@@ -1,6 +1,6 @@
 # T35 — AI-assisted MIDI Editing 架构与 Contract 冻结
 
-> 状态：T35 started；T35.0 Architecture Scan completed；T35.1 next  
+> 状态：T35 started；T35.0 Architecture Scan completed；T35.1 Context & Scope completed；T35.2 next
 > 日期：2026-08-12  
 > 范围：SCAN + DESIGN + FREEZE CONTRACT。本文不实现 API、Plan runtime、Transformer、Proposal runtime、
 > AI MIDI UI、Prompt、Apply 或 Proposal Preview。  
@@ -138,8 +138,8 @@ Context、LLM raw response 写入 Project 或 Version。运维 debug 仍遵循�
 | Version | `create_version` + current pointer | T35.9 扩展 provenance |
 | WAV | MIDI Save 后由 Workspace 标 stale | 行为不变 |
 
-当前 Draft **没有** `draftRevision`，也没有一次性“用完整 next notes 替换目标轨”的公开 mutation。
-这是 T35.1/T35.6 要补的最小扩展，不是另建 Draft。
+T35.1 已在当前 Draft 增加 `editorSessionId` / `draftRevision`；一次性“用完整 next notes
+替换目标轨”的公开 mutation 仍留给 T35.6。两者均扩展同一 T34 Draft，不另建 Draft。
 
 ### 2.2 Proposal 如何进入现有 Draft
 
@@ -263,11 +263,12 @@ class AiMidiEditContext(BaseModel):
 
 完整 `AiMidiEditContext` 给非 LLM Validator/Transformer；传给 LLM 的 payload 再压缩：
 
-- notes ≤128：发送全部 scoped notes。
+- notes ≤128：发送全部 scoped note musical fields，但不发送 Note ID。
 - notes >128：发送 count/range/density/pitch/velocity/duration 统计，以及按时间均匀抽取的
   128 个确定性样本；不随机采样。
-- chords 最多 64 个、sections 最多 16 个，只保留 Scope 相交项。
-- user payload UTF-8 JSON 上限 64 KiB；超限返回 413，绝不静默截断 instruction 或 Scope identity。
+- chords 最多 64 个，只保留 Scope 相交项；不发送 song/version/session/track/note identity。
+- user payload UTF-8 JSON 上限 64 KiB；超限由 Context service 抛出明确 oversized domain error；
+  T35.5 route 再映射为 HTTP 413。
 
 LLM 不需要完整 3000 notes 才能选择全体变换参数；Transformer 仍对完整 scoped notes 执行。
 
@@ -845,7 +846,7 @@ Prompt 中写“忽略规则”不会跳过任何非 LLM gate。
 - Non-goals：所有 runtime/product implementation。
 - Acceptance：文档/状态/路线图、现有测试/build、commit/push。
 
-### T35.1 Context & Scope — next
+### T35.1 Context & Scope — completed
 
 - Goal：实现 domain Scope、API request/Context builder、Frontend scope identity、
   `editorSessionId/draftRevision/scopeRevision`。
@@ -867,6 +868,22 @@ Prompt 中写“忽略规则”不会跳过任何非 LLM gate。
   - 修改现有 `useMidiEditorDraft.ts`/tests（session ID + revision），`MidiEditor.tsx`/tests
     （scopeRevision 与 Context capture）；不创建 route、Prompt、Transformer 或 AI Panel；
   - 新增 `tests/test_ai_midi_edit_scope.py`、`tests/test_ai_midi_edit_context.py`。
+
+Implementation record（2026-08-12）：
+
+- 已实现四种 strict discriminated Scope、非 LLM membership validation、Python/TypeScript
+  canonical JSON + SHA-256 fixtures。
+- 已实现 `GenerateAiMidiEditProposalRequest` 与权威 `AiMidiEditContext` builder；track role、
+  instrument、tonality、section/chords 均来自当前 MusicSpec/MIDI document，scoped notes 来自
+  session Draft。
+- 已实现 planner payload 纯函数：≤128 notes 完整发送，129–3000 notes 使用统计 +
+  128-note 确定性时间采样，64 KiB hard gate；未调用 LLM。
+- 现有 `useMidiEditorDraft` 已增加 editorSessionId 与 monotonic draftRevision；实际逻辑 mutation、
+  Undo/Redo/Discard/Rebase 有正式 revision 语义，drag 多次 pointermove 只递增一次。
+- 现有 `MidiEditor` 已建立默认 selected_notes/track Scope 与 scopeRevision identity；尚未创建
+  AI Panel、Proposal route、Plan、Transformer 或 Apply。
+- T35.1 targeted evidence：Backend Scope/Context + T34 MIDI API 42 passed；Frontend 全量
+  27 files / 160 passed；build 142 modules；Backend full 715 passed / 1 个既有 deprecation warning。
 
 ### T35.2 MidiEditPlan
 
@@ -969,5 +986,5 @@ Prompt 中写“忽略规则”不会跳过任何非 LLM gate。
 | Project-switch behavior | abort、generation token 失效、清 Proposal；迟到 response 丢弃 |
 | Locked-track behavior | 可 Generate/Preview；Apply disabled；不修改 Draft |
 
-T35.0 没有产品实现 blocker。唯一结构性注意项是仓库历史任务编号重名，已通过完整任务名消歧，
-不影响 T35.1 开始实施。
+T35.0/T35.1 没有产品实现 blocker。唯一结构性注意项是仓库历史任务编号重名，已通过完整任务名消歧，
+不影响 T35.2 开始实施。

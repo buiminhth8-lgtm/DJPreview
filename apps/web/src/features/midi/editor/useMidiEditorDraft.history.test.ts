@@ -120,13 +120,61 @@ describe("useMidiEditorDraft history", () => {
 
   it("document change resets draft and history", () => {
     const { result, rerender } = renderDraft(doc);
+    const session = result.current.editorSessionId;
     act(() => result.current.addNote("bass", { pitch: 44, startTick: 480, durationTick: 120, velocity: 90, channel: 2 }));
+    expect(result.current.draftRevision).toBe(1);
     const doc2: MidiEditorDocument = { ...doc, versionId: "v5" };
     rerender({ doc: doc2 });
     expect(result.current.draftNotesByTrack.bass).toHaveLength(1);
     expect(result.current.draftNotesByTrack.bass[0].id).toBe("b1");
     expect(result.current.dirtyTracks.size).toBe(0);
     expect(result.current.canUndoTrack("bass")).toBe(false);
+    expect(result.current.draftRevision).toBe(0);
+    expect(result.current.editorSessionId).not.toBe(session);
+  });
+
+  it("draftRevision increments once per logical drag and on undo/redo", () => {
+    const { result } = renderDraft();
+    expect(result.current.draftRevision).toBe(0);
+    act(() => result.current.moveNote("bass", "b1", 120, 41));
+    act(() => result.current.moveNote("bass", "b1", 240, 42));
+    act(() => result.current.moveNote("bass", "b1", 360, 43));
+    expect(result.current.draftRevision).toBe(1);
+    act(() => result.current.commitEdit("bass"));
+    expect(result.current.draftRevision).toBe(1);
+    act(() => result.current.undo("bass"));
+    expect(result.current.draftRevision).toBe(2);
+    act(() => result.current.redo("bass"));
+    expect(result.current.draftRevision).toBe(3);
+  });
+
+  it("draftRevision ignores no-op mutations and unavailable history", () => {
+    const { result } = renderDraft();
+    act(() => result.current.moveNote("bass", "b1", 0, 40));
+    act(() => result.current.setVelocity("bass", "b1", 110));
+    act(() => result.current.deleteNote("bass", "missing"));
+    act(() => result.current.undo("bass"));
+    act(() => result.current.redo("bass"));
+    expect(result.current.draftRevision).toBe(0);
+  });
+
+  it("draftRevision counts atomic non-drag operations separately", () => {
+    const { result } = renderDraft();
+    let id = "";
+    act(() => {
+      id = result.current.addNote(
+        "bass",
+        { pitch: 44, startTick: 480, durationTick: 120, velocity: 90, channel: 2 },
+      );
+    });
+    expect(result.current.draftRevision).toBe(1);
+    act(() => result.current.setVelocity("bass", id, 80));
+    expect(result.current.draftRevision).toBe(2);
+    act(() => result.current.deleteNote("bass", id));
+    expect(result.current.draftRevision).toBe(3);
+    act(() => result.current.undo("bass"));
+    expect(result.current.draftNotesByTrack.bass.some((note) => note.id === id)).toBe(true);
+    expect(result.current.draftRevision).toBe(4);
   });
 
   it("canUndo/canRedo reflect stack", () => {

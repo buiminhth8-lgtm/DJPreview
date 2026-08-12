@@ -639,8 +639,12 @@
   T34 scratch Preview；Apply 一个 Undo step；existing Save/Version/WAV stale；bounded provenance，
   不持久化 raw prompt/response。
 - 设计：[docs/AI_MIDI_EDIT_T35.md](docs/AI_MIDI_EDIT_T35.md)。
-- T35.1 next：Context & Scope。只实现 Scope/Context/revision identity 与测试，不提前实现
-  Plan runtime、Transformer、LLM Planner、Proposal UI 或 Apply。
+- T35.1 completed：实现四种 strict Scope、跨 Python/TypeScript canonical fingerprint、
+  authoritative Context + 128-note deterministic compaction，以及 existing Draft 的
+  editorSessionId/draftRevision 与 MidiEditor scopeRevision；无 route/LLM/Plan/Transformer/UI/Apply。
+  验证：T35.1 + T34 MIDI API 42 passed；前端 27 files / 160 passed；build 142 modules；
+  后端全量 715 passed / 1 个既有 deprecation warning。
+- T35.2 next：MidiEditPlan strict operation union + semantic PlanValidator；不执行 Plan、不调用 Provider。
 - 后续冻结切片：T35.2 MidiEditPlan；T35.3 Deterministic Transformer；T35.4 Proposal/Diff；
   T35.5 LLM Planner；T35.6 AI Edit UI；T35.7 Scope/Stale Safety；T35.8 Musical Role-aware Editing；
   T35.9 Provenance/Evaluation；T35.10 Final Integration；T35-R Final Audit。
