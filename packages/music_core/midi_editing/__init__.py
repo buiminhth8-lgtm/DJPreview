@@ -9,6 +9,13 @@ from packages.music_core.midi_editing.models import (
     TickRangeMidiEditScope,
     TrackMidiEditScope,
 )
+from packages.music_core.midi_editing.diff import (
+    MidiNoteDiff,
+    MidiNoteDiffError,
+    MidiNoteDiffErrorCode,
+    MidiNoteModificationDiff,
+    calculate_midi_note_diff,
+)
 from packages.music_core.midi_editing.plan_validator import (
     MidiEditPlanErrorCode,
     MidiEditPlanValidationError,
@@ -22,6 +29,7 @@ from packages.music_core.midi_editing.scope import (
     select_scoped_notes,
 )
 from packages.music_core.midi_editing.transformer import (
+    canonical_note_key,
     MidiTransformError,
     MidiTransformErrorCode,
     MidiTransformResult,
@@ -37,6 +45,10 @@ __all__ = [
     "MidiEditPlanErrorCode",
     "MidiEditPlanValidationError",
     "MidiEditScope",
+    "MidiNoteDiff",
+    "MidiNoteDiffError",
+    "MidiNoteDiffErrorCode",
+    "MidiNoteModificationDiff",
     "MidiTransformError",
     "MidiTransformErrorCode",
     "MidiTransformResult",
@@ -49,6 +61,8 @@ __all__ = [
     "TickRangeMidiEditScope",
     "TrackMidiEditScope",
     "canonical_scope_json",
+    "canonical_note_key",
+    "calculate_midi_note_diff",
     "scope_fingerprint",
     "select_scoped_notes",
     "round_half_away_from_zero",

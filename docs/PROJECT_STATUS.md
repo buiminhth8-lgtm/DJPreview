@@ -1,6 +1,6 @@
 # 项目状态（Project Status）
 
-> 最近一次实测：2026-08-12（分支 `master`）。以下状态均以代码与测试实际结果为准，
+> 最近一次实测：2026-08-13（分支 `master`）。以下状态均以代码与测试实际结果为准，
 > 不保留已完成的“待办”描述。
 
 ## Completed（已完成）
@@ -214,7 +214,15 @@
   在 trust boundary 重验，每步执行 ID/channel/integer/range invariant gate；仅处理 resolved scoped notes，
   输入 immutable，失败 atomic，无新增 ID/Note。未接 LLM/API/Proposal/Diff/UI，未写 Project/MIDI/WAV/
   Version。新增 63 项专项测试，T35.0–T35.3 相关回归 175 passed；500/1000/3000-note smoke 约
-  0.01/0.02/0.05s；后端全量 872 passed / 1 个既有 deprecation warning。T35.4 Proposal/Diff next。
+  0.01/0.02/0.05s；后端全量 872 passed / 1 个既有 deprecation warning。
+- T35.4 Proposal / Diff completed：在 `services/api/schemas/ai_midi_edit.py` 实现 strict canonical
+  Proposal/Modification/Warning transport schema；新增 `packages/music_core/midi_editing/diff.py` 的
+  stable ID map diff 与 `services/api/services/ai_midi_edit_service.py` 纯 builder。Proposal 保存完整
+  version/session/draft/scope snapshot，只携带 scoped before/after；added 当前恒空，deleted/modified/
+  changedFields/changeCount/isNoop 来自双层 fail-closed diff/schema gate。输入 immutable，失败 atomic，
+  无 Project/Draft/Version/MIDI/WAV/History 写入；未新增 endpoint、Provider/Prompt、Preview、Apply 或 UI。
+  新增 40 项专项测试，T35.0–T35.4 相关回归 215 passed；500/1000/3000 Proposal+Diff smoke 约
+  0.03/0.05/0.29s；后端全量 912 passed / 1 个既有 deprecation warning。T35.5 LLM Planner/API next。
 - T32：LM Studio / OpenAI-compatible 本地 LLM Provider
   （`OpenAICompatibleProvider` 基类：`POST /chat/completions`、base_url 去尾部斜杠、API Key 占位、
   `/models` 检查、HTTP 错误转清晰 provider error；`DeepSeekProvider` 重构继承基类并保持
@@ -472,10 +480,10 @@
 - T34：3000+ notes 的 SVG viewport virtualization / Canvas 评估；多 worker 共享文件存储时引入
   OS file lock 或数据库 transaction。
 
-## 当前测试与构建结果（2026-08-12 实测）
+## 当前测试与构建结果（2026-08-13 实测）
 
 ```text
-后端：pytest -q → 872 passed，1 warning（LLM_PROVIDER=mock）
+后端：pytest -q → 912 passed，1 warning（LLM_PROVIDER=mock）
 前端：npm test → 27 files / 160 passed
 前端：npm run build → passed（tsc + Vite，142 modules）
 T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/selection/drum CRUD）
@@ -487,8 +495,8 @@ T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/s
 
 ## Next Recommended Tasks（推荐下一步）
 
-1. T35.4 Proposal / Diff：基于 fixture Plan + Transformer result 实现精确 diff、no-op 与 Scope gate；
-   不接真实 LLM/UI Apply。
+1. T35.5 LLM Planner/API：注册 planner Prompt、复用 existing Provider structured output、扩展 Mock，
+   增加 stateless Proposal route 与 Version pre/post gate；不做 Frontend AI UI/Apply。
 2. P2 性能：若 3000+ notes 成为常态，增加真实 viewport virtualization 或评估 Canvas。
 3. P2 部署：若启用多 worker/多实例共享文件存储，将 Version transaction 升级为 OS lock/数据库事务。
 4. 生产级任务队列：Redis / Celery 替换进程内队列，支持多实例与任务恢复。
@@ -496,4 +504,4 @@ T34 E2E：Playwright Chromium → 6 passed（final/context/performance/preview/s
 
 ## 最近一次状态更新时间
 
-2026-08-12
+2026-08-13

@@ -656,7 +656,13 @@
   scoped notes，无 input mutation、新 Note/ID、Project/MIDI/Version/WAV write 或 Provider/API/UI。
   专项 63 tests；T35.0–T35.3 相关回归 175 passed；500/1000/3000 notes smoke 约
   0.01/0.02/0.05s；后端全量 872 passed / 1 warning。
-- T35.4 next：Proposal/Diff，使用 fixture Plan 与 Transformer result；不接真实 LLM/UI Apply。
+- T35.4 completed：实现 canonical strict Proposal/Modification/Warning transport schema、stable Note-ID
+  map Diff 与纯 Proposal builder；before/after 仅含 resolved Scope Notes，added 当前恒空，deleted/
+  modified/changedFields/changeCount/isNoop 双层一致性与 Scope gate。输入 immutable、失败 atomic、零
+  Project/Draft/Version/MIDI/WAV 写入；无 endpoint/Provider/Prompt/Preview/Apply/UI。专项 40 tests；
+  T35.0–T35.4 相关回归 215 passed；500/1000/3000 Proposal+Diff smoke 约 0.03/0.05/0.29s；
+  后端全量 912 passed / 1 warning。
+- T35.5 next：LLM Planner + stateless Proposal API，复用 existing Provider/structured output；无 UI Apply。
 - 后续冻结切片：T35.2 MidiEditPlan；T35.3 Deterministic Transformer；T35.4 Proposal/Diff；
   T35.5 LLM Planner；T35.6 AI Edit UI；T35.7 Scope/Stale Safety；T35.8 Musical Role-aware Editing；
   T35.9 Provenance/Evaluation；T35.10 Final Integration；T35-R Final Audit。

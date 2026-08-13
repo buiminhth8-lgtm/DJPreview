@@ -202,7 +202,7 @@ Frontend capture identity + scope + scoped Draft
 Frontend 不发送可冒充权威 MusicSpec 的 key/chord/role。请求只携带用户输入、editor identity、
 Scope 和该 Scope 的 Draft notes；Backend 从当前 Project/MusicSpec/MIDI document 补权威字段。
 
-未来 `services/api/schemas/ai_midi_edit.py`：
+Canonical transport schema 已实现于 `services/api/schemas/ai_midi_edit.py`：
 
 ```python
 class GenerateAiMidiEditProposalRequest(BaseModel):
@@ -603,7 +603,7 @@ quantize→velocity_scale→reduce_density smoke：500 notes 约 0.01s、1000 no
 
 ## 10. Proposal Contract
 
-未来 `services/api/schemas/ai_midi_edit.py`：
+已在 `services/api/schemas/ai_midi_edit.py` 实现：
 
 ```python
 class AiMidiEditProposal(BaseModel):
@@ -627,7 +627,9 @@ class AiMidiEditProposal(BaseModel):
     added: list[MidiEditorNote]
     deleted: list[MidiEditorNote]
     modified: list[MidiNoteModification]
-    warnings: list[str]
+    change_count: int
+    is_noop: bool
+    warnings: list[AiMidiEditWarning]
     created_at: datetime
 ```
 
@@ -643,6 +645,51 @@ Proposal：
 - 不在 Backend 数据库/磁盘持久化；
 - 只存于当前 Frontend editor session 内存，刷新即丢失；
 - 生成时 dirty、Version、MIDI/WAV hash 与 metadata 均不变。
+
+### 10.1 T35.4 Proposal / Diff implementation
+
+纯 orchestration 入口位于 `services/api/services/ai_midi_edit_service.py`：
+
+```python
+build_midi_edit_proposal(
+    context: AiMidiEditContext,
+    plan: MidiEditPlan,
+    seed: int,
+    *,
+    planner_provider: str,
+    planner_model: str | None,
+    prompt_version: str,
+    proposal_id: UUID | None = None,
+    created_at: datetime | None = None,
+) -> AiMidiEditProposal
+```
+
+Builder 固定按 strict Context/Plan validation → capture scoped before snapshot → 调用 T35.3 唯一
+Transformer → `packages/music_core/midi_editing/diff.py` → Proposal schema validation 执行。T35.4 的
+planner metadata 是显式 fixture/caller 参数，不注册 Prompt、不选择或调用 Provider；T35.5 才提供真实值。
+`proposal_id` 默认 UUID4、`created_at` 默认 UTC aware time，仅属于唯一 envelope，不参与 Diff/Scope/
+stale 安全判断；可注入固定值以测试 semantic Proposal determinism。
+
+Diff 使用 Note ID dict/map，before/after 先按 `(start_tick,pitch,channel,id)` canonical sort：before-only
+为 deleted；相同 ID 的 pitch/start_tick/duration_tick/velocity 真实变化形成 modified；完全相同排除；
+channel 变化不是 diff 而是 invariant violation。`changed_fields` 固定按 pitch → start_tick →
+duration_tick → velocity 排序。T35.3 禁止 Add，因此任何 unknown after ID 整体拒绝，`added=[]`。
+
+`change_count = len(added)+len(deleted)+len(modified)`；零变化成功返回 `is_noop=true` 与三个空 diff
+列表，不制造变化。Transformer warning 逐项映射为结构化 deterministic warning，不生成自然语言 AI
+评价；数字全部来自 Diff，不把 `plan.summary` 当证据。
+
+安全 gate 在 Diff 和 Proposal schema 两层执行：拒绝 duplicate/Scope 外/unknown after ID、channel change、
+scope fingerprint/selected membership/time window 不一致，以及 deleted/modified value、changedFields、
+warning operation reference、changeCount/no-op 的任何内部矛盾。before/after/diff 只携带 resolved Scope
+Notes；输入 Context、Plan 与 Notes 先 strict snapshot，失败无 partial Proposal，且零 Project/Draft/Version/
+MIDI/WAV/History/Dirty 副作用。
+
+T35.4 不新增 endpoint。T35.0 已冻结 route + Provider orchestration 属于 T35.5；当前 schema/afterNotes
+已经满足后续 Preview transport，但未调用 scratch render、未修改 T34 Preview 或实现 Apply。
+
+代表性 quantize→velocity_scale→reduce_density Proposal+Diff smoke：500 notes 约 0.03s、1000 notes
+约 0.05s、3000 notes 约 0.29s（本机单次 pytest duration，仅记录，无绝对时间 gate）。
 
 ## 11. Preview / Apply / Reject
 
@@ -1012,12 +1059,18 @@ Implementation record（2026-08-12）：
   500/1000/3000 note smoke 约 0.01/0.02/0.05s；Backend full 872 passed / 1 个既有
   deprecation warning。
 
-### T35.4 Proposal / Diff
+### T35.4 Proposal / Diff — completed
 
 - Goal：实现 diff、Proposal builder、no-op/scope gate；使用 fixture Plan。
 - Dependency：T35.3。
 - Non-goals：真实 LLM、UI Apply。
 - Acceptance：before/after/added/deleted/modified 精确；Proposal 构建零 Project 副作用。
+- Implementation（2026-08-13）：实现 canonical strict `AiMidiEditProposal` / `MidiNoteModification` /
+  warning schema、O(n log n) stable ID diff 与纯 `build_midi_edit_proposal`。双层 Scope/consistency gate，
+  no-op 明确成功；只调用既有 Transformer，无 endpoint、Provider、Prompt、Preview、Apply 或持久化。
+- Evidence：`tests/test_ai_midi_edit_proposal.py` 40 项专项；T35.0–T35.4 相关回归 215 passed；
+  500/1000/3000 note Proposal+Diff smoke 约 0.03/0.05/0.29s；Backend full 912 passed /
+  1 个既有 deprecation warning。
 
 ### T35.5 LLM Planner
 

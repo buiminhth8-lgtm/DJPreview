@@ -104,7 +104,7 @@ class _OperationResult:
     warnings: tuple[tuple[MidiTransformWarningCode, str], ...] = ()
 
 
-def _canonical_note_key(note: MidiEditorNote) -> tuple[int, int, int, str]:
+def canonical_note_key(note: MidiEditorNote) -> tuple[int, int, int, str]:
     return (note.start_tick, note.pitch, note.channel, note.id)
 
 
@@ -349,7 +349,7 @@ def apply_reduce_density(
     operation: ReduceDensityMidiEditOperation,
     context: _TransformContext,
 ) -> _OperationResult:
-    ordered = sorted(notes, key=_canonical_note_key)
+    ordered = sorted(notes, key=canonical_note_key)
     keep_count = _clamp(
         round_half_away_from_zero(Fraction(len(ordered)) * _factor(operation.keep_ratio)),
         1,
@@ -362,7 +362,7 @@ def apply_reduce_density(
         keep_count = max(keep_count, len(forced_ids))
     candidates = sorted(
         (note for note in ordered if note.id not in forced_ids),
-        key=lambda note: (_density_score(context.seed, note), _canonical_note_key(note)),
+        key=lambda note: (_density_score(context.seed, note), canonical_note_key(note)),
     )
     kept_ids = forced_ids | {note.id for note in candidates[: keep_count - len(forced_ids)]}
     return _OperationResult(tuple(note for note in ordered if note.id in kept_ids))
@@ -464,7 +464,7 @@ def _validated_input_notes(
                 MidiTransformErrorCode.SCOPE_VIOLATION,
                 "resolved scoped notes 包含授权时间窗外 Note",
             )
-    return tuple(sorted(copied, key=_canonical_note_key))
+    return tuple(sorted(copied, key=canonical_note_key))
 
 
 def _validate_step_invariants(
@@ -580,7 +580,7 @@ def transform_midi_notes(
             )
             for code, note_id in operation_result.warnings
         )
-        current = tuple(sorted(operation_result.notes, key=_canonical_note_key))
+        current = tuple(sorted(operation_result.notes, key=canonical_note_key))
 
     output_ids = {note.id for note in current}
     final_notes = tuple(_copy_note(note) for note in current)
